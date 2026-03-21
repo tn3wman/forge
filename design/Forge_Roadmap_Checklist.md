@@ -103,14 +103,14 @@ If cutting scope hard, build only: Bay (single project UI), Monaco editor, Termi
 
 ### Editor
 
-- [ ] `1.14` **[CRITICAL]** Integrate Monaco editor — _depends on: 1.08_ — Est: 4h
-- [ ] `1.15` **[CRITICAL]** Add syntax highlighting — _depends on: 1.14_ — Est: 1h
-- [ ] `1.16` **[CRITICAL]** Add multi-tab support — _depends on: 1.14_ — Est: 2h
-- [ ] `1.17` **[HIGH]** Add split editor panes — _depends on: 1.14_ — Est: 2h
-- [ ] `1.18` **[CRITICAL]** Add file save (Cmd+S) — _depends on: 1.14_ — Est: 0.5h
-- [ ] `1.19` **[HIGH]** Add basic LSP support — _depends on: 1.14_ — Est: 4h
-- [ ] `1.20` **[MEDIUM]** Add symbol search — _depends on: 1.19_ — Est: 2h
-- [ ] `1.21` **[MEDIUM]** Add go-to-definition — _depends on: 1.19_ — Est: 2h
+- [x] `1.14` **[CRITICAL]** Integrate Monaco editor — _depends on: 1.08_ — Est: 4h
+- [x] `1.15` **[CRITICAL]** Add syntax highlighting — _depends on: 1.14_ — Est: 1h
+- [x] `1.16` **[CRITICAL]** Add multi-tab support — _depends on: 1.14_ — Est: 2h
+- [x] `1.17` **[HIGH]** Add split editor panes — _depends on: 1.14_ — Est: 2h
+- [x] `1.18` **[CRITICAL]** Add file save (Cmd+S) — _depends on: 1.14_ — Est: 0.5h
+- [x] `1.19` **[HIGH]** Add basic LSP support — _depends on: 1.14_ — Est: 4h
+- [x] `1.20` **[MEDIUM]** Add symbol search — _depends on: 1.19_ — Est: 2h
+- [x] `1.21` **[MEDIUM]** Add go-to-definition — _depends on: 1.19_ — Est: 2h
 
 ---
 
@@ -120,22 +120,22 @@ If cutting scope hard, build only: Bay (single project UI), Monaco editor, Termi
 
 ### Terminal Grid
 
-- [ ] `2.01` **[CRITICAL]** Integrate xterm.js terminal emulator — _depends on: 1.08_ — Est: 3h
-- [ ] `2.02` **[CRITICAL]** Create terminal instance with PTY backend — _depends on: 2.01_ — Est: 3h
-- [ ] `2.03` **[CRITICAL]** Add multiple terminals per Bay — _depends on: 2.02_ — Est: 2h
-- [ ] `2.04` **[HIGH]** Add terminal tabs with rename support — _depends on: 2.03_ — Est: 1h
-- [ ] `2.05` **[HIGH]** Add tileable terminal grid layout — _depends on: 2.03_ — Est: 3h
+- [x] `2.01` **[CRITICAL]** Integrate xterm.js terminal emulator — _depends on: 1.08_ — Est: 3h
+- [x] `2.02` **[CRITICAL]** Create terminal instance with PTY backend — _depends on: 2.01_ — Est: 3h
+- [x] `2.03` **[CRITICAL]** Add multiple terminals per Bay — _depends on: 2.02_ — Est: 2h
+- [x] `2.04` **[HIGH]** Add terminal tabs with rename support — _depends on: 2.03_ — Est: 1h
+- [x] `2.05` **[HIGH]** Add tileable terminal grid layout — _depends on: 2.03_ — Est: 3h
 - [ ] `2.06` **[MEDIUM]** Persist terminal sessions across restarts — _depends on: 2.03_ — Est: 2h
 
 ### Command Execution + Ledger
 
-- [ ] `2.07` **[CRITICAL]** Build command execution layer (run, capture stdout/stderr/exit) — _depends on: 2.02_ — Est: 3h
-- [ ] `2.08` **[CRITICAL]** Build Command Ledger data model — _depends on: 0.14_ — Est: 2h
-- [ ] `2.09` **[CRITICAL]** Log every command with metadata (cwd, env, duration, exit code) — _depends on: 2.07, 2.08_ — Est: 2h
-- [ ] `2.10` **[HIGH]** Tag commands with lane and agent associations — _depends on: 2.09_ — Est: 1h
-- [ ] `2.11` **[HIGH]** Build command history UI panel — _depends on: 2.09_ — Est: 3h
-- [ ] `2.12` **[MEDIUM]** Add filters (by lane, agent, status, time range) — _depends on: 2.11_ — Est: 2h
-- [ ] `2.13` **[MEDIUM]** Add replay command functionality — _depends on: 2.11_ — Est: 1h
+- [x] `2.07` **[CRITICAL]** Build command execution layer (run, capture stdout/stderr/exit) — _depends on: 2.02_ — Est: 3h
+- [x] `2.08` **[CRITICAL]** Build Command Ledger data model — _depends on: 0.14_ — Est: 2h
+- [x] `2.09` **[CRITICAL]** Log every command with metadata (cwd, env, duration, exit code) — _depends on: 2.07, 2.08_ — Est: 2h
+- [x] `2.10` **[HIGH]** Tag commands with lane and agent associations — _depends on: 2.09_ — Est: 1h
+- [x] `2.11` **[HIGH]** Build command history UI panel — _depends on: 2.09_ — Est: 3h
+- [x] `2.12` **[MEDIUM]** Add filters (by lane, agent, status, time range) — _depends on: 2.11_ — Est: 2h
+- [x] `2.13` **[MEDIUM]** Add replay command functionality — _depends on: 2.11_ — Est: 1h
 
 ---
 
