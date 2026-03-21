@@ -1,31 +1,35 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Bay, Lane } from '@forge/core';
 import { bayIpc, laneIpc } from './ipc';
 import { useNavigation } from './context/NavigationContext';
 import { Harbor } from './screens/Harbor';
+import { BayWorkspace } from './screens/Bay';
 
 export function App() {
   const { screen, openBay, openHarbor } = useNavigation();
   const [bays, setBays] = useState<Bay[]>([]);
   const [lanes, setLanes] = useState<Lane[]>([]);
 
-  useEffect(() => {
+  const refreshData = useCallback(() => {
     bayIpc.list().then(setBays);
     laneIpc.listAll().then(setLanes);
   }, []);
 
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  const handleOpenFolder = useCallback(async () => {
+    const bay = await bayIpc.openFolder();
+    if (bay) {
+      refreshData();
+      openBay(bay.id);
+    }
+  }, [refreshData, openBay]);
+
   if (screen.type === 'harbor') {
-    return <Harbor bays={bays} lanes={lanes} onOpenBay={openBay} />;
+    return <Harbor bays={bays} lanes={lanes} onOpenBay={openBay} onOpenFolder={handleOpenFolder} />;
   }
 
-  // Placeholder Bay view — will be replaced in later tasks
-  return (
-    <div style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-      <button onClick={openHarbor} style={{ marginBottom: '1rem', cursor: 'pointer' }}>
-        ← Harbor
-      </button>
-      <h2>Bay: {bays.find((b) => b.id === screen.bayId)?.name ?? screen.bayId}</h2>
-      <p style={{ color: '#71717a' }}>Bay workspace coming in Phase 1.06+</p>
-    </div>
-  );
+  return <BayWorkspace bayId={screen.bayId} onBack={openHarbor} />;
 }

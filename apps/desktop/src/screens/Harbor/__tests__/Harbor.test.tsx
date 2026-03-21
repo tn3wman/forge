@@ -48,23 +48,29 @@ const mockLanes: Lane[] = [
 
 describe('Harbor', () => {
   it('renders harbor title', () => {
-    render(<Harbor bays={mockBays} lanes={mockLanes} onOpenBay={() => {}} />);
+    render(
+      <Harbor bays={mockBays} lanes={mockLanes} onOpenBay={() => {}} onOpenFolder={() => {}} />,
+    );
     expect(screen.getByText('Harbor')).toBeDefined();
   });
 
   it('renders project count', () => {
-    render(<Harbor bays={mockBays} lanes={mockLanes} onOpenBay={() => {}} />);
+    render(
+      <Harbor bays={mockBays} lanes={mockLanes} onOpenBay={() => {}} onOpenFolder={() => {}} />,
+    );
     expect(screen.getByText('2 projects')).toBeDefined();
   });
 
   it('renders each project name', () => {
-    render(<Harbor bays={mockBays} lanes={mockLanes} onOpenBay={() => {}} />);
+    render(
+      <Harbor bays={mockBays} lanes={mockLanes} onOpenBay={() => {}} onOpenFolder={() => {}} />,
+    );
     expect(screen.getByText('forge')).toBeDefined();
     expect(screen.getByText('api')).toBeDefined();
   });
 
   it('shows empty state when no bays', () => {
-    render(<Harbor bays={[]} lanes={[]} onOpenBay={() => {}} />);
+    render(<Harbor bays={[]} lanes={[]} onOpenBay={() => {}} onOpenFolder={() => {}} />);
     expect(screen.getByText('No projects open')).toBeDefined();
   });
 });

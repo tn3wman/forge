@@ -9,9 +9,10 @@ interface HarborProps {
   bays: Bay[];
   lanes: Lane[];
   onOpenBay: (bayId: string) => void;
+  onOpenFolder: () => void;
 }
 
-export function Harbor({ bays, lanes, onOpenBay }: HarborProps) {
+export function Harbor({ bays, lanes, onOpenBay, onOpenFolder }: HarborProps) {
   const lanesByBay = useMemo(() => {
     const map = new Map<string, Lane[]>();
     for (const lane of lanes) {
@@ -47,6 +48,9 @@ export function Harbor({ bays, lanes, onOpenBay }: HarborProps) {
         <span className={styles.harborCount}>
           {bays.length} {bays.length === 1 ? 'project' : 'projects'}
         </span>
+        <button className={styles.openFolderButton} onClick={onOpenFolder}>
+          + Open Folder
+        </button>
       </div>
 
       {bays.length === 0 ? (
