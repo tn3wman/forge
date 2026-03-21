@@ -1,0 +1,34 @@
+.layout {
+  display: grid;
+  height: 100%;
+  overflow: hidden;
+}
+.leftRail {
+  overflow-y: auto;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+.center {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.rightRail {
+  overflow-y: auto;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+.resizeHandle {
+  width: 4px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+.resizeHandle:hover {
+  background: rgba(99, 102, 241, 0.3);
+}
+:global(.resizing) .resizeHandle {
+  background: rgba(99, 102, 241, 0.5);
+}
+:global(.resizing) {
+  cursor: col-resize !important;
+  user-select: none;
+}

@@ -21,8 +21,10 @@ impl Database {
 
     pub fn run_migrations(&self) -> Result<(), rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
-        let migration_sql = include_str!("../migrations/001_initial.sql");
-        conn.execute_batch(migration_sql)?;
+        let migration_001 = include_str!("../migrations/001_initial.sql");
+        let migration_002 = include_str!("../migrations/002_command_ledger.sql");
+        conn.execute_batch(migration_001)?;
+        conn.execute_batch(migration_002)?;
         Ok(())
     }
 }
@@ -111,6 +113,59 @@ mod tests {
 
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM lanes", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn test_command_ledger_table_exists() {
+        let db = test_db();
+        let conn = db.conn.lock().unwrap();
+
+        conn.execute(
+            "INSERT INTO bays (id, name, project_path, status) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params!["bay-1", "Test", "/tmp/test", "active"],
+        )
+        .unwrap();
+
+        conn.execute(
+            "INSERT INTO command_ledger (id, bay_id, command, cwd) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params!["cmd-1", "bay-1", "echo hello", "/tmp"],
+        )
+        .unwrap();
+
+        let status: String = conn
+            .query_row(
+                "SELECT status FROM command_ledger WHERE id = ?1",
+                ["cmd-1"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(status, "running");
+    }
+
+    #[test]
+    fn test_command_ledger_cascade_delete() {
+        let db = test_db();
+        let conn = db.conn.lock().unwrap();
+
+        conn.execute(
+            "INSERT INTO bays (id, name, project_path, status) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params!["bay-1", "Test", "/tmp/test", "active"],
+        )
+        .unwrap();
+
+        conn.execute(
+            "INSERT INTO command_ledger (id, bay_id, command, cwd) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params!["cmd-1", "bay-1", "echo hello", "/tmp"],
+        )
+        .unwrap();
+
+        conn.execute("DELETE FROM bays WHERE id = 'bay-1'", [])
+            .unwrap();
+
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM command_ledger", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 0);
     }

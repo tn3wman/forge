@@ -1,0 +1,64 @@
+.tabBar {
+  display: flex;
+  align-items: stretch;
+  gap: 1px;
+  background: #18181b;
+  border-bottom: 1px solid #27272a;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: #71717a;
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+
+.tab[data-active='true'] {
+  color: #d4d4d8;
+  background: #27272a;
+  border-bottom-color: #6366f1;
+}
+
+.tab:hover {
+  color: #a1a1aa;
+}
+
+.tabName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.closeBtn {
+  font-size: 0.9rem;
+  line-height: 1;
+  opacity: 0.5;
+  border-radius: 2px;
+  padding: 0 2px;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.closeBtn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dirtyDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e4e4e7;
+  flex-shrink: 0;
+}

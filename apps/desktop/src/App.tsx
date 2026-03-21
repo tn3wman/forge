@@ -1,31 +1,35 @@
-import { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/core';
-import { bayIpc } from './ipc';
-import type { Bay } from '@forge/core';
+import { useState, useEffect, useCallback } from 'react';
+import type { Bay, Lane } from '@forge/core';
+import { bayIpc, laneIpc } from './ipc';
+import { useNavigation } from './context/NavigationContext';
+import { Harbor } from './screens/Harbor';
+import { BayWorkspace } from './screens/Bay';
 
 export function App() {
-  const [greeting, setGreeting] = useState('');
+  const { screen, openBay, openHarbor } = useNavigation();
   const [bays, setBays] = useState<Bay[]>([]);
+  const [lanes, setLanes] = useState<Lane[]>([]);
 
-  useEffect(() => {
-    invoke<string>('greet', { name: 'Forge' }).then(setGreeting);
+  const refreshData = useCallback(() => {
     bayIpc.list().then(setBays);
+    laneIpc.listAll().then(setLanes);
   }, []);
 
-  return (
-    <main style={{ padding: '2rem', fontFamily: 'system-ui' }}>
-      <h1>Forge</h1>
-      <p>{greeting || 'Loading...'}</p>
-      <h2>Bays ({bays.length})</h2>
-      {bays.length === 0 ? (
-        <p style={{ color: '#71717a' }}>No projects open</p>
-      ) : (
-        <ul>
-          {bays.map((bay) => (
-            <li key={bay.id}>{bay.name} — {bay.projectPath}</li>
-          ))}
-        </ul>
-      )}
-    </main>
-  );
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  const handleOpenFolder = useCallback(async () => {
+    const bay = await bayIpc.openFolder();
+    if (bay) {
+      refreshData();
+      openBay(bay.id);
+    }
+  }, [refreshData, openBay]);
+
+  if (screen.type === 'harbor') {
+    return <Harbor bays={bays} lanes={lanes} onOpenBay={openBay} onOpenFolder={handleOpenFolder} />;
+  }
+
+  return <BayWorkspace bayId={screen.bayId} onBack={openHarbor} />;
 }

@@ -4,7 +4,7 @@ export interface Bay {
   projectPath: string;
   gitBranch: string | null;
   status: BayStatus;
-  windowState: WindowState;
+  windowState: string | null;
   createdAt: string;
   updatedAt: string;
   lastAccessedAt: string;
@@ -28,4 +28,5 @@ export interface WindowState {
   bottomTrayHeight: number;
   openTabs: string[];
   activeTab: string | null;
+  paneLayout?: import('./pane').PaneNode;
 }
