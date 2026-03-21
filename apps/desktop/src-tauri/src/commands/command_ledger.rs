@@ -1,5 +1,6 @@
 use crate::db::Database;
 use crate::models::CommandEntry;
+use tauri::Emitter;
 use tauri::State;
 use uuid::Uuid;
 
@@ -157,4 +158,105 @@ pub fn command_ledger_query(
         .map_err(|e| format!("Failed to collect commands: {e}"))?;
 
     Ok(entries)
+}
+
+#[tauri::command]
+pub async fn command_execute(
+    bay_id: String,
+    command: String,
+    cwd: String,
+    lane_id: Option<String>,
+    agent_id: Option<String>,
+    app: tauri::AppHandle,
+    db: State<'_, Database>,
+) -> Result<CommandEntry, String> {
+    // Step 1: Insert running entry (acquire + release DB lock)
+    let id = Uuid::now_v7().to_string();
+    let started_at = chrono::Utc::now().to_rfc3339();
+    {
+        let conn = db.conn.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "INSERT INTO command_ledger (id, bay_id, lane_id, agent_id, command, cwd, status, started_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'running', ?7)",
+            rusqlite::params![id, bay_id, lane_id, agent_id, command, cwd, started_at],
+        )
+        .map_err(|e| format!("Failed to insert command: {e}"))?;
+    } // DB lock released here
+
+    // Step 2: Execute command (no DB lock held)
+    let start = std::time::Instant::now();
+    let output = tokio::process::Command::new("sh")
+        .arg("-c")
+        .arg(&command)
+        .current_dir(&cwd)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to execute command: {e}"))?;
+
+    let duration_ms = start.elapsed().as_millis() as i64;
+    let exit_code = output.status.code();
+    let status = match exit_code {
+        Some(0) => "completed",
+        Some(_) => "failed",
+        None => "killed",
+    };
+
+    // Truncate previews at ~4KB, respecting UTF-8 boundaries
+    let stdout_preview = truncate_utf8(&String::from_utf8_lossy(&output.stdout), 4096);
+    let stderr_preview = truncate_utf8(&String::from_utf8_lossy(&output.stderr), 4096);
+    let completed_at = chrono::Utc::now().to_rfc3339();
+
+    // Step 3: Update ledger + insert event (acquire + release DB lock)
+    {
+        let conn = db.conn.lock().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE command_ledger SET status = ?1, exit_code = ?2, completed_at = ?3, duration_ms = ?4, stdout_preview = ?5, stderr_preview = ?6 WHERE id = ?7",
+            rusqlite::params![status, exit_code, completed_at, duration_ms, stdout_preview, stderr_preview, id],
+        )
+        .map_err(|e| format!("Failed to update command: {e}"))?;
+
+        // Insert audit event
+        let event_id = Uuid::now_v7().to_string();
+        let event_now = chrono::Utc::now().to_rfc3339();
+        let payload = serde_json::json!({ "commandId": id }).to_string();
+        conn.execute(
+            "INSERT INTO events (id, bay_id, lane_id, agent_id, type, payload, timestamp)
+             VALUES (?1, ?2, ?3, ?4, 'command.executed', ?5, ?6)",
+            rusqlite::params![event_id, bay_id, lane_id, agent_id, payload, event_now],
+        )
+        .map_err(|e| format!("Failed to insert event: {e}"))?;
+    } // DB lock released here
+
+    // Step 4: Emit UI refresh event
+    let _ = app.emit("command-ledger:updated", &bay_id);
+
+    Ok(CommandEntry {
+        id,
+        bay_id,
+        lane_id,
+        agent_id,
+        terminal_id: None,
+        command,
+        cwd,
+        env: None,
+        status: status.to_string(),
+        exit_code,
+        started_at,
+        completed_at: Some(completed_at),
+        duration_ms: Some(duration_ms),
+        stdout_preview: if stdout_preview.is_empty() { None } else { Some(stdout_preview) },
+        stderr_preview: if stderr_preview.is_empty() { None } else { Some(stderr_preview) },
+        metadata: None,
+    })
+}
+
+fn truncate_utf8(s: &str, max_bytes: usize) -> String {
+    if s.len() <= max_bytes {
+        return s.to_string();
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    s[..end].to_string()
 }

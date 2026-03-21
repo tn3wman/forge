@@ -65,6 +65,7 @@ pub fn run() {
             commands::command_ledger_complete,
             commands::command_ledger_get,
             commands::command_ledger_query,
+            commands::command_execute,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
