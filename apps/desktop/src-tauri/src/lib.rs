@@ -24,6 +24,7 @@ pub fn run() {
             app.manage(database);
             Ok(())
         })
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             greet,
             commands::create_bay,
