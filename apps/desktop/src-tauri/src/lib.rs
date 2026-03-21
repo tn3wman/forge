@@ -45,6 +45,8 @@ pub fn run() {
             commands::append_event,
             commands::query_events,
             commands::read_directory,
+            commands::read_file,
+            commands::write_file,
             commands::start_file_watcher,
             commands::stop_file_watcher,
         ])

@@ -77,6 +77,18 @@ pub fn stop_file_watcher(
     Ok(())
 }
 
+#[tauri::command]
+pub fn read_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read file '{}': {}", path, e))
+}
+
+#[tauri::command]
+pub fn write_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, &content)
+        .map_err(|e| format!("Failed to write file '{}': {}", path, e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -112,5 +124,38 @@ mod tests {
     fn test_read_directory_invalid_path_returns_error() {
         let result = read_directory("/nonexistent/path/xyz".to_string(), false);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_read_file_returns_contents() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test.txt");
+        fs::write(&file_path, "hello world").unwrap();
+        let result = read_file(file_path.to_string_lossy().to_string()).unwrap();
+        assert_eq!(result, "hello world");
+    }
+
+    #[test]
+    fn test_read_file_nonexistent_returns_error() {
+        let result = read_file("/nonexistent/file.txt".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_write_file_creates_and_writes() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("output.txt");
+        write_file(file_path.to_string_lossy().to_string(), "saved content".to_string()).unwrap();
+        let contents = fs::read_to_string(&file_path).unwrap();
+        assert_eq!(contents, "saved content");
+    }
+
+    #[test]
+    fn test_write_file_overwrites_existing() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("existing.txt");
+        fs::write(&file_path, "old").unwrap();
+        write_file(file_path.to_string_lossy().to_string(), "new".to_string()).unwrap();
+        assert_eq!(fs::read_to_string(&file_path).unwrap(), "new");
     }
 }
