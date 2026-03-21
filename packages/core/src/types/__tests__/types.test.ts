@@ -62,6 +62,42 @@ describe('type guards', () => {
     });
   });
 
+  describe('isTaskStatus', () => {
+    it('returns true for valid statuses', () => {
+      expect(isTaskStatus('pending')).toBe(true);
+      expect(isTaskStatus('running')).toBe(true);
+      expect(isTaskStatus('completed')).toBe(true);
+    });
+
+    it('returns false for invalid statuses', () => {
+      expect(isTaskStatus('invalid')).toBe(false);
+    });
+  });
+
+  describe('isApprovalMode', () => {
+    it('returns true for valid modes', () => {
+      expect(isApprovalMode('manual')).toBe(true);
+      expect(isApprovalMode('balanced')).toBe(true);
+      expect(isApprovalMode('trusted')).toBe(true);
+    });
+
+    it('returns false for invalid modes', () => {
+      expect(isApprovalMode('yolo')).toBe(false);
+    });
+  });
+
+  describe('isEventType', () => {
+    it('returns true for valid event types', () => {
+      expect(isEventType('bay.created')).toBe(true);
+      expect(isEventType('lane.status_changed')).toBe(true);
+      expect(isEventType('command.executed')).toBe(true);
+    });
+
+    it('returns false for invalid event types', () => {
+      expect(isEventType('not.an.event')).toBe(false);
+    });
+  });
+
   describe('createId', () => {
     it('returns a string', () => {
       expect(typeof createId()).toBe('string');

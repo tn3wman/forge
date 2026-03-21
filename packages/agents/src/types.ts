@@ -1,5 +1,3 @@
-import type { AgentRole } from '@forge/core';
-
 export interface ModelAdapter {
   readonly provider: string;
   readonly modelName: string;

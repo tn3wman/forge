@@ -19,5 +19,5 @@ export const eventIpc = {
   }): Promise<ForgeEvent> => invoke('append_event', params),
 
   query: (params: QueryEventsParams): Promise<ForgeEvent[]> =>
-    invoke('query_events', params),
+    invoke('query_events', { ...params }),
 };
