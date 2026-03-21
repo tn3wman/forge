@@ -17,13 +17,18 @@ export function TabBar({ tabs, activeTab, onSelect, onClose }: TabBarProps) {
   return (
     <div className={styles.tabBar}>
       {tabs.map((path) => (
-        <button
+        <div
           key={path}
           className={styles.tab}
           data-active={path === activeTab ? 'true' : 'false'}
           onClick={() => onSelect(path)}
           title={path}
-          type="button"
+          role="tab"
+          aria-selected={path === activeTab}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') onSelect(path);
+          }}
         >
           <span className={styles.tabName}>{fileName(path)}</span>
           <button
@@ -37,7 +42,7 @@ export function TabBar({ tabs, activeTab, onSelect, onClose }: TabBarProps) {
           >
             ×
           </button>
-        </button>
+        </div>
       ))}
     </div>
   );

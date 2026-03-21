@@ -25,7 +25,7 @@ describe('TabBar', () => {
         onClose={() => {}}
       />,
     );
-    const activeTab = screen.getByText('index.ts').closest('button');
+    const activeTab = screen.getByText('index.ts').closest('[role="tab"]');
     expect(activeTab?.getAttribute('data-active')).toBe('true');
   });
 
