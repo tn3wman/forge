@@ -1,5 +1,6 @@
 mod commands;
 mod db;
+mod lsp;
 mod models;
 mod watcher;
 
@@ -26,6 +27,7 @@ pub fn run() {
             app.manage(commands::fs::WatcherState {
                 watchers: std::sync::Mutex::new(std::collections::HashMap::new()),
             });
+            app.manage(lsp::manager::LspManager::new());
             Ok(())
         })
         .plugin(tauri_plugin_window_state::Builder::new().build())
@@ -49,6 +51,16 @@ pub fn run() {
             commands::write_file,
             commands::start_file_watcher,
             commands::stop_file_watcher,
+            commands::lsp_start,
+            commands::lsp_stop,
+            commands::lsp_stop_all,
+            commands::lsp_did_open,
+            commands::lsp_did_change,
+            commands::lsp_completion,
+            commands::lsp_hover,
+            commands::lsp_definition,
+            commands::lsp_document_symbols,
+            commands::lsp_workspace_symbols,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
