@@ -64,4 +64,37 @@ describe('TabBar', () => {
     );
     expect(container.querySelector('[class*="tabBar"]')).toBeNull();
   });
+
+  it('shows dirty indicator for modified files', () => {
+    render(
+      <TabBar
+        tabs={['/file.ts']}
+        activeTab="/file.ts"
+        dirtyTabs={new Set(['/file.ts'])}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('dirty-indicator')).toBeDefined();
+  });
+
+  it('hides dirty indicator for clean files', () => {
+    render(
+      <TabBar
+        tabs={['/file.ts']}
+        activeTab="/file.ts"
+        dirtyTabs={new Set()}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId('dirty-indicator')).toBeNull();
+  });
+
+  it('does not show dirty indicator when dirtyTabs not provided', () => {
+    render(
+      <TabBar tabs={['/file.ts']} activeTab="/file.ts" onSelect={vi.fn()} onClose={vi.fn()} />,
+    );
+    expect(screen.queryByTestId('dirty-indicator')).toBeNull();
+  });
 });

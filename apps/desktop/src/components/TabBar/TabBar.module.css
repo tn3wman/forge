@@ -54,3 +54,11 @@
   opacity: 1;
   background: rgba(255, 255, 255, 0.1);
 }
+
+.dirtyDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #e4e4e7;
+  flex-shrink: 0;
+}

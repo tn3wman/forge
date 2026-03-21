@@ -5,13 +5,14 @@ interface TabBarProps {
   activeTab: string | null;
   onSelect: (path: string) => void;
   onClose: (path: string) => void;
+  dirtyTabs?: Set<string>;
 }
 
 function fileName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
-export function TabBar({ tabs, activeTab, onSelect, onClose }: TabBarProps) {
+export function TabBar({ tabs, activeTab, onSelect, onClose, dirtyTabs }: TabBarProps) {
   if (tabs.length === 0) return null;
 
   return (
@@ -31,6 +32,9 @@ export function TabBar({ tabs, activeTab, onSelect, onClose }: TabBarProps) {
           }}
         >
           <span className={styles.tabName}>{fileName(path)}</span>
+          {dirtyTabs?.has(path) && (
+            <span className={styles.dirtyDot} data-testid="dirty-indicator" />
+          )}
           <button
             className={styles.closeBtn}
             aria-label={`Close ${fileName(path)}`}

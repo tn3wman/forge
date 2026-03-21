@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { editor } from 'monaco-editor';
 import { TabBar } from '../../components/TabBar';
 import { Editor } from '../../components/Editor';
@@ -19,6 +19,7 @@ export function CenterPanel({ openTabs, activeTab, onSelectTab, onCloseTab }: Ce
   const editorModels = useEditorModels();
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const prevTabRef = useRef<string | null>(null);
+  const [dirtyTabs, setDirtyTabs] = useState<Set<string>>(new Set());
 
   // Save view state when switching away from a tab
   useEffect(() => {
@@ -42,11 +43,21 @@ export function CenterPanel({ openTabs, activeTab, onSelectTab, onCloseTab }: Ce
     if (!activeTab || content === null) return;
     await fsIpc.writeFile(activeTab, content);
     editorModels.markClean(activeTab);
+    setDirtyTabs((prev) => {
+      const next = new Set(prev);
+      next.delete(activeTab);
+      return next;
+    });
   }, [activeTab, content, editorModels]);
 
   const handleCloseTab = useCallback(
     (path: string) => {
       editorModels.disposeModel(path);
+      setDirtyTabs((prev) => {
+        const next = new Set(prev);
+        next.delete(path);
+        return next;
+      });
       onCloseTab(path);
     },
     [editorModels, onCloseTab],
@@ -59,6 +70,7 @@ export function CenterPanel({ openTabs, activeTab, onSelectTab, onCloseTab }: Ce
         activeTab={activeTab}
         onSelect={onSelectTab}
         onClose={handleCloseTab}
+        dirtyTabs={dirtyTabs}
       />
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {activeTab && content !== null ? (
@@ -67,7 +79,10 @@ export function CenterPanel({ openTabs, activeTab, onSelectTab, onCloseTab }: Ce
             filePath={activeTab}
             content={content}
             language={detectLanguage(activeTab)}
-            onContentChange={(value) => updateContent(activeTab, value)}
+            onContentChange={(value) => {
+              updateContent(activeTab, value);
+              setDirtyTabs((prev) => new Set(prev).add(activeTab));
+            }}
             onSave={handleSave}
             onEditorMount={handleEditorMount}
           />
