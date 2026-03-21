@@ -96,10 +96,10 @@ If cutting scope hard, build only: Bay (single project UI), Monaco editor, Termi
 
 ### File System
 
-- [ ] `1.10` **[CRITICAL]** Build file tree component — _depends on: 1.06_ — Est: 3h
-- [ ] `1.11` **[CRITICAL]** Implement expand/collapse folders — _depends on: 1.10_ — Est: 1h
-- [ ] `1.12` **[CRITICAL]** Open file on click (tab system) — _depends on: 1.10_ — Est: 2h
-- [ ] `1.13` **[HIGH]** Setup file watcher for external changes — _depends on: 1.10_ — Est: 2h
+- [x] `1.10` **[CRITICAL]** Build file tree component — _depends on: 1.06_ — Est: 3h
+- [x] `1.11` **[CRITICAL]** Implement expand/collapse folders — _depends on: 1.10_ — Est: 1h
+- [x] `1.12` **[CRITICAL]** Open file on click (tab system) — _depends on: 1.10_ — Est: 2h
+- [x] `1.13` **[HIGH]** Setup file watcher for external changes — _depends on: 1.10_ — Est: 2h
 
 ### Editor
 
