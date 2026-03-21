@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { editor } from 'monaco-editor';
+import type { editor, Monaco } from 'monaco-editor';
 import type { PaneNode } from '@forge/core';
 import { TabBar } from '../TabBar';
 import { Editor } from '../Editor';
@@ -7,12 +7,15 @@ import { useFileContent } from '../../hooks/useFileContent';
 import { useEditorModels } from '../../hooks/useEditorModels';
 import { detectLanguage } from '../../lib/languageDetect';
 import { fsIpc } from '../../ipc';
+import { registerLspProviders } from '../Editor/lspProviders';
 
 export interface EditorPaneProps {
   pane: PaneNode & { type: 'leaf' };
   onSelectTab: (paneId: string, path: string) => void;
   onCloseTab: (paneId: string, path: string) => void;
   onSplitPane: (paneId: string, direction: 'horizontal' | 'vertical') => void;
+  bayId?: string;
+  projectPath?: string;
 }
 
 export function EditorPane({
@@ -20,6 +23,8 @@ export function EditorPane({
   onSelectTab,
   onCloseTab,
   onSplitPane: _onSplitPane,
+  bayId,
+  projectPath: _projectPath,
 }: EditorPaneProps) {
   const { id, tabs, activeTab } = pane;
   const { content, loading, error, updateContent } = useFileContent(activeTab);
@@ -27,6 +32,7 @@ export function EditorPane({
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const prevTabRef = useRef<string | null>(null);
   const [dirtyTabs, setDirtyTabs] = useState<Set<string>>(new Set());
+  const lspDisposablesRef = useRef<Array<{ dispose(): void }>>([]);
 
   // Save view state when switching away from a tab
   useEffect(() => {
@@ -37,13 +43,20 @@ export function EditorPane({
   }, [activeTab, editorModels]);
 
   const handleEditorMount = useCallback(
-    (ed: editor.IStandaloneCodeEditor) => {
+    (ed: editor.IStandaloneCodeEditor, monaco: Monaco) => {
       editorRef.current = ed;
       if (activeTab) {
         editorModels.restoreViewState(activeTab, ed);
       }
+      // Register LSP providers for this editor's language
+      if (bayId && activeTab) {
+        // Dispose previous providers before registering new ones
+        lspDisposablesRef.current.forEach((d) => d.dispose());
+        const language = detectLanguage(activeTab);
+        lspDisposablesRef.current = registerLspProviders(monaco, bayId, language);
+      }
     },
-    [activeTab, editorModels],
+    [activeTab, editorModels, bayId],
   );
 
   const handleSave = useCallback(async () => {

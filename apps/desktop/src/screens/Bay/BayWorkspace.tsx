@@ -151,6 +151,8 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
             onSelectTab={pane.selectTab}
             onCloseTab={pane.closeTab}
             onSplitPane={handleSplitPane}
+            bayId={bay.id}
+            projectPath={bay.projectPath}
           />
         }
         rightRail={<RightRail />}

@@ -9,6 +9,8 @@ export interface SplitPaneProps {
   onCloseTab: (paneId: string, path: string) => void;
   onSplitPane: (paneId: string, direction: 'horizontal' | 'vertical') => void;
   onRatioChange?: (ratio: number) => void;
+  bayId?: string;
+  projectPath?: string;
 }
 
 export function SplitPane({
@@ -17,6 +19,8 @@ export function SplitPane({
   onCloseTab,
   onSplitPane,
   onRatioChange,
+  bayId,
+  projectPath,
 }: SplitPaneProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -56,6 +60,8 @@ export function SplitPane({
         onSelectTab={onSelectTab}
         onCloseTab={onCloseTab}
         onSplitPane={onSplitPane}
+        bayId={bayId}
+        projectPath={projectPath}
       />
     );
   }
@@ -75,6 +81,8 @@ export function SplitPane({
           onSelectTab={onSelectTab}
           onCloseTab={onCloseTab}
           onSplitPane={onSplitPane}
+          bayId={bayId}
+          projectPath={projectPath}
         />
       </div>
       <div
@@ -90,6 +98,8 @@ export function SplitPane({
           onSelectTab={onSelectTab}
           onCloseTab={onCloseTab}
           onSplitPane={onSplitPane}
+          bayId={bayId}
+          projectPath={projectPath}
         />
       </div>
     </div>

@@ -10,7 +10,7 @@ export interface EditorProps {
   language: string;
   onContentChange?: (value: string) => void;
   onSave?: () => void;
-  onEditorMount?: (editor: editor.IStandaloneCodeEditor) => void;
+  onEditorMount?: (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => void;
 }
 
 export function Editor({
@@ -38,7 +38,7 @@ export function Editor({
           run: () => onSave(),
         });
       }
-      onEditorMount?.(ed);
+      onEditorMount?.(ed, monaco);
     },
     [onSave, onEditorMount],
   );
