@@ -40,6 +40,7 @@ pub fn run() {
             commands::update_lane_status,
             commands::append_event,
             commands::query_events,
+            commands::read_directory,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
