@@ -31,6 +31,8 @@ pub fn run() {
             commands::list_bays,
             commands::get_bay,
             commands::delete_bay,
+            commands::open_bay,
+            commands::update_bay_window_state,
             commands::create_lane,
             commands::list_lanes,
             commands::list_all_lanes,
