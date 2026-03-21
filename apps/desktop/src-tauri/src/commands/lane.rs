@@ -80,3 +80,35 @@ pub fn update_lane_status(
     .map_err(|e| format!("Failed to update lane status: {e}"))?;
     Ok(())
 }
+
+#[tauri::command]
+pub fn list_all_lanes(db: State<'_, Database>) -> Result<Vec<Lane>, String> {
+    let conn = db.conn.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, bay_id, goal, status, agent_id, model_id, file_scope,
+                    created_at, updated_at
+             FROM lanes ORDER BY created_at DESC",
+        )
+        .map_err(|e| format!("Failed to prepare query: {e}"))?;
+
+    let lanes = stmt
+        .query_map([], |row| {
+            Ok(Lane {
+                id: row.get(0)?,
+                bay_id: row.get(1)?,
+                goal: row.get(2)?,
+                status: row.get(3)?,
+                agent_id: row.get(4)?,
+                model_id: row.get(5)?,
+                file_scope: row.get(6)?,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
+            })
+        })
+        .map_err(|e| format!("Failed to query lanes: {e}"))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("Failed to collect lanes: {e}"))?;
+
+    Ok(lanes)
+}

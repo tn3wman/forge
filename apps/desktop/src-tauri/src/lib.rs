@@ -33,6 +33,7 @@ pub fn run() {
             commands::delete_bay,
             commands::create_lane,
             commands::list_lanes,
+            commands::list_all_lanes,
             commands::update_lane_status,
             commands::append_event,
             commands::query_events,
