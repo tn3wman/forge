@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { Bay } from '@forge/core';
+import type { Bay, LspSymbol } from '@forge/core';
 import type { WindowState } from '@forge/core';
 import { bayIpc } from '../../ipc';
+import { lspIpc } from '../../ipc/lsp';
 import {
   parseWindowState,
   serializeWindowState,
@@ -13,7 +14,28 @@ import { LeftRail } from './LeftRail';
 import { CenterPanel } from './CenterPanel';
 import { RightRail } from './RightRail';
 import { useFileWatcher } from '../../hooks/useFileWatcher';
+import { SymbolSearch } from '../../components/SymbolSearch';
 import styles from './BayWorkspace.module.css';
+
+/** Derive LSP language ID from a file path's extension. */
+function languageIdFromPath(path: string): string {
+  const ext = path.split('.').pop()?.toLowerCase() ?? '';
+  const map: Record<string, string> = {
+    ts: 'typescript',
+    tsx: 'typescriptreact',
+    js: 'javascript',
+    jsx: 'javascriptreact',
+    rs: 'rust',
+    py: 'python',
+    go: 'go',
+    json: 'json',
+    md: 'markdown',
+    css: 'css',
+    html: 'html',
+    sh: 'shellscript',
+  };
+  return map[ext] ?? 'plaintext';
+}
 
 interface BayWorkspaceProps {
   bayId: string;
@@ -37,6 +59,8 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
   const [leftRailWidth, setLeftRailWidth] = useState(240);
   const [rightRailWidth, setRightRailWidth] = useState(300);
   const [initialized, setInitialized] = useState(false);
+  const [symbolSearchMode, setSymbolSearchMode] = useState<'file' | 'workspace' | null>(null);
+  const [symbolResults, setSymbolResults] = useState<LspSymbol[]>([]);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const windowStateRef = useRef<WindowState>(DEFAULT_WINDOW_STATE);
   const refreshKey = useFileWatcher(bay?.id ?? null, bay?.projectPath ?? null);
@@ -121,6 +145,71 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [pane]);
 
+  // Keyboard shortcuts for symbol search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'o') {
+        e.preventDefault();
+        setSymbolSearchMode('file');
+        setSymbolResults([]);
+      }
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === 't') {
+        e.preventDefault();
+        setSymbolSearchMode('workspace');
+        setSymbolResults([]);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  const handleSymbolQueryChange = useCallback(
+    (query: string) => {
+      if (!bay || !symbolSearchMode) return;
+      if (symbolSearchMode === 'file') {
+        const leaf = firstLeaf(pane.layout);
+        const activeFile = leaf.activeTab;
+        if (!activeFile) return;
+        const uri = `file://${activeFile}`;
+        const languageId = languageIdFromPath(activeFile);
+        lspIpc
+          .documentSymbols(bay.id, languageId, uri)
+          .then((results) => {
+            const filtered = query
+              ? results.filter((s) => s.name.toLowerCase().includes(query.toLowerCase()))
+              : results;
+            setSymbolResults(filtered);
+          })
+          .catch(() => setSymbolResults([]));
+      } else {
+        const leaf = firstLeaf(pane.layout);
+        const activeFile = leaf.activeTab;
+        const languageId = activeFile ? languageIdFromPath(activeFile) : 'typescript';
+        lspIpc
+          .workspaceSymbols(bay.id, languageId, query)
+          .then(setSymbolResults)
+          .catch(() => setSymbolResults([]));
+      }
+    },
+    [bay, symbolSearchMode, pane.layout],
+  );
+
+  const handleSymbolSelect = useCallback(
+    (symbol: LspSymbol) => {
+      const filePath = symbol.location.uri.replace(/^file:\/\//, '');
+      const leaf = firstLeaf(pane.layout);
+      pane.openFile(leaf.id, filePath);
+      setSymbolSearchMode(null);
+      setSymbolResults([]);
+    },
+    [pane],
+  );
+
+  const handleSymbolClose = useCallback(() => {
+    setSymbolSearchMode(null);
+    setSymbolResults([]);
+  }, []);
+
   if (!bay) {
     return (
       <div className={styles.loading}>
@@ -157,6 +246,15 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
         }
         rightRail={<RightRail />}
       />
+      {symbolSearchMode !== null && (
+        <SymbolSearch
+          mode={symbolSearchMode}
+          results={symbolResults}
+          onQueryChange={handleSymbolQueryChange}
+          onSelect={handleSymbolSelect}
+          onClose={handleSymbolClose}
+        />
+      )}
     </div>
   );
 }
