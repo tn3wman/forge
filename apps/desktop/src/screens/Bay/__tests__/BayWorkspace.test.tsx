@@ -23,6 +23,8 @@ vi.mock('../../../ipc', () => ({
   },
   fsIpc: {
     readDirectory: vi.fn().mockResolvedValue([]),
+    readFile: vi.fn().mockResolvedValue(''),
+    writeFile: vi.fn().mockResolvedValue(undefined),
     startWatcher: vi.fn().mockResolvedValue(undefined),
     stopWatcher: vi.fn().mockResolvedValue(undefined),
   },

@@ -28,4 +28,5 @@ export interface WindowState {
   bottomTrayHeight: number;
   openTabs: string[];
   activeTab: string | null;
+  paneLayout?: import('./pane').PaneNode;
 }
