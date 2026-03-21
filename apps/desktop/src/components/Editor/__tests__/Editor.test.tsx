@@ -26,4 +26,17 @@ describe('Editor', () => {
     const editor = screen.getByTestId('monaco-editor');
     expect(editor.getAttribute('data-language')).toBe('rust');
   });
+
+  it('accepts onNavigateToFile prop without errors', () => {
+    const onNavigateToFile = vi.fn();
+    render(
+      <Editor
+        filePath="/test.ts"
+        content=""
+        language="typescript"
+        onNavigateToFile={onNavigateToFile}
+      />,
+    );
+    expect(screen.getByTestId('monaco-editor')).toBeDefined();
+  });
 });

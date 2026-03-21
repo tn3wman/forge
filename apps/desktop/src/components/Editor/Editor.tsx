@@ -11,6 +11,7 @@ export interface EditorProps {
   onContentChange?: (value: string) => void;
   onSave?: () => void;
   onEditorMount?: (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => void;
+  onNavigateToFile?: (filePath: string, line: number, column: number) => void;
 }
 
 export function Editor({
@@ -20,6 +21,7 @@ export function Editor({
   onContentChange,
   onSave,
   onEditorMount,
+  onNavigateToFile,
 }: EditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
 
@@ -38,9 +40,37 @@ export function Editor({
           run: () => onSave(),
         });
       }
+      if (onNavigateToFile) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const disposable = (monaco as any).editor.registerEditorOpener?.({
+            openCodeEditor(
+              _source: unknown,
+              resource: { path: string },
+              selectionOrPosition: {
+                startLineNumber?: number;
+                lineNumber?: number;
+                startColumn?: number;
+                column?: number;
+              } | null,
+            ) {
+              const filePath = resource.path;
+              const line =
+                selectionOrPosition?.startLineNumber ?? selectionOrPosition?.lineNumber ?? 1;
+              const column = selectionOrPosition?.startColumn ?? selectionOrPosition?.column ?? 1;
+              onNavigateToFile(filePath, line, column);
+              return true;
+            },
+          });
+          // disposable is returned but we don't need to store it — Monaco will clean it up
+          void disposable;
+        } catch {
+          // registerEditorOpener not available in this Monaco version — peek still works
+        }
+      }
       onEditorMount?.(ed, monaco);
     },
-    [onSave, onEditorMount],
+    [onSave, onEditorMount, onNavigateToFile],
   );
 
   return (

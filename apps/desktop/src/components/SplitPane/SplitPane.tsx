@@ -8,6 +8,7 @@ export interface SplitPaneProps {
   onSelectTab: (paneId: string, path: string) => void;
   onCloseTab: (paneId: string, path: string) => void;
   onSplitPane: (paneId: string, direction: 'horizontal' | 'vertical') => void;
+  onOpenFile?: (paneId: string, path: string, line?: number, column?: number) => void;
   onRatioChange?: (ratio: number) => void;
   bayId?: string;
   projectPath?: string;
@@ -18,6 +19,7 @@ export function SplitPane({
   onSelectTab,
   onCloseTab,
   onSplitPane,
+  onOpenFile,
   onRatioChange,
   bayId,
   projectPath,
@@ -60,6 +62,7 @@ export function SplitPane({
         onSelectTab={onSelectTab}
         onCloseTab={onCloseTab}
         onSplitPane={onSplitPane}
+        onOpenFile={onOpenFile}
         bayId={bayId}
         projectPath={projectPath}
       />
@@ -81,6 +84,7 @@ export function SplitPane({
           onSelectTab={onSelectTab}
           onCloseTab={onCloseTab}
           onSplitPane={onSplitPane}
+          onOpenFile={onOpenFile}
           bayId={bayId}
           projectPath={projectPath}
         />
@@ -98,6 +102,7 @@ export function SplitPane({
           onSelectTab={onSelectTab}
           onCloseTab={onCloseTab}
           onSplitPane={onSplitPane}
+          onOpenFile={onOpenFile}
           bayId={bayId}
           projectPath={projectPath}
         />

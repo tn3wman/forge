@@ -6,6 +6,7 @@ interface CenterPanelProps {
   onSelectTab: (paneId: string, path: string) => void;
   onCloseTab: (paneId: string, path: string) => void;
   onSplitPane: (paneId: string, direction: 'horizontal' | 'vertical') => void;
+  onOpenFile?: (paneId: string, path: string, line?: number, column?: number) => void;
   bayId?: string;
   projectPath?: string;
 }
@@ -15,6 +16,7 @@ export function CenterPanel({
   onSelectTab,
   onCloseTab,
   onSplitPane,
+  onOpenFile,
   bayId,
   projectPath,
 }: CenterPanelProps) {
@@ -26,6 +28,7 @@ export function CenterPanel({
           onSelectTab={onSelectTab}
           onCloseTab={onCloseTab}
           onSplitPane={onSplitPane}
+          onOpenFile={onOpenFile}
           bayId={bayId}
           projectPath={projectPath}
         />

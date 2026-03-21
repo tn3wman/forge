@@ -125,6 +125,13 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
     [pane],
   );
 
+  const handleOpenFile = useCallback(
+    (paneId: string, path: string) => {
+      pane.openFile(paneId, path);
+    },
+    [pane],
+  );
+
   // Keyboard shortcuts for splitting
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -240,6 +247,7 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
             onSelectTab={pane.selectTab}
             onCloseTab={pane.closeTab}
             onSplitPane={handleSplitPane}
+            onOpenFile={handleOpenFile}
             bayId={bay.id}
             projectPath={bay.projectPath}
           />

@@ -14,6 +14,7 @@ export interface EditorPaneProps {
   onSelectTab: (paneId: string, path: string) => void;
   onCloseTab: (paneId: string, path: string) => void;
   onSplitPane: (paneId: string, direction: 'horizontal' | 'vertical') => void;
+  onOpenFile?: (paneId: string, path: string, line?: number, column?: number) => void;
   bayId?: string;
   projectPath?: string;
 }
@@ -23,6 +24,7 @@ export function EditorPane({
   onSelectTab,
   onCloseTab,
   onSplitPane: _onSplitPane,
+  onOpenFile,
   bayId,
   projectPath: _projectPath,
 }: EditorPaneProps) {
@@ -33,6 +35,7 @@ export function EditorPane({
   const prevTabRef = useRef<string | null>(null);
   const [dirtyTabs, setDirtyTabs] = useState<Set<string>>(new Set());
   const lspDisposablesRef = useRef<Array<{ dispose(): void }>>([]);
+  const pendingCursorRef = useRef<{ path: string; line: number; column: number } | null>(null);
 
   // Save view state when switching away from a tab
   useEffect(() => {
@@ -55,8 +58,36 @@ export function EditorPane({
         const language = detectLanguage(activeTab);
         lspDisposablesRef.current = registerLspProviders(monaco, bayId, language);
       }
+      // Apply pending cursor from cross-file navigation
+      const pending = pendingCursorRef.current;
+      if (pending && activeTab && pending.path === activeTab) {
+        pendingCursorRef.current = null;
+        ed.setPosition({ lineNumber: pending.line, column: pending.column });
+        ed.revealLineInCenter(pending.line);
+        ed.focus();
+      }
     },
     [activeTab, editorModels, bayId],
+  );
+
+  const handleNavigateToFile = useCallback(
+    (filePath: string, line: number, column: number) => {
+      // Normalize file:// URI to plain path
+      const normalizedPath = filePath.startsWith('file://')
+        ? filePath.replace(/^file:\/\//, '')
+        : filePath;
+      // If it's the same file already active, just move the cursor
+      if (normalizedPath === activeTab && editorRef.current) {
+        editorRef.current.setPosition({ lineNumber: line, column });
+        editorRef.current.revealLineInCenter(line);
+        editorRef.current.focus();
+        return;
+      }
+      // Cross-file: store pending cursor and open the file
+      pendingCursorRef.current = { path: normalizedPath, line, column };
+      onOpenFile?.(id, normalizedPath, line, column);
+    },
+    [activeTab, id, onOpenFile],
   );
 
   const handleSave = useCallback(async () => {
@@ -110,6 +141,7 @@ export function EditorPane({
             }}
             onSave={handleSave}
             onEditorMount={handleEditorMount}
+            onNavigateToFile={handleNavigateToFile}
           />
         ) : activeTab && loading ? (
           <div
