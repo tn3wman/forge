@@ -1,0 +1,154 @@
+.harbor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.5rem 2rem;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.harborHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.harborTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--fg);
+  margin: 0;
+}
+
+.harborCount {
+  font-size: 0.8rem;
+  color: #71717a;
+}
+
+.projectList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.projectCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.projectCard:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.projectCard[data-selected="true"] {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--accent);
+}
+
+.projectCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.projectIndex {
+  font-size: 0.7rem;
+  color: #52525b;
+  font-variant-numeric: tabular-nums;
+  min-width: 1rem;
+}
+
+.projectName {
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.branchBadge {
+  font-size: 0.75rem;
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-family: ui-monospace, monospace;
+}
+
+.projectMeta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+.projectPath {
+  font-family: ui-monospace, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lastActivity {
+  white-space: nowrap;
+}
+
+.projectStats {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.statActive {
+  color: #34d399;
+}
+
+.statPending {
+  color: #fbbf24;
+}
+
+.statIdle {
+  color: #71717a;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: #71717a;
+  gap: 0.5rem;
+}
+
+.emptyTitle {
+  font-size: 1rem;
+  color: #a1a1aa;
+}
+
+.emptyHint {
+  font-size: 0.8rem;
+}
+
+.harborFooter {
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.75rem;
+  color: #52525b;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.shortcutKey {
+  color: #71717a;
+  font-family: ui-monospace, monospace;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+}
