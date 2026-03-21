@@ -25,6 +25,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_window_state::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             commands::create_bay,
