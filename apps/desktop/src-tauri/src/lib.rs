@@ -61,6 +61,10 @@ pub fn run() {
             commands::lsp_definition,
             commands::lsp_document_symbols,
             commands::lsp_workspace_symbols,
+            commands::command_ledger_insert,
+            commands::command_ledger_complete,
+            commands::command_ledger_get,
+            commands::command_ledger_query,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
