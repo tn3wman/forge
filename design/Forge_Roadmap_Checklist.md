@@ -81,18 +81,18 @@ If cutting scope hard, build only: Bay (single project UI), Monaco editor, Termi
 
 ### Harbor (Multi-Project Dashboard)
 
-- [ ] `1.01` **[CRITICAL]** Create Harbor screen (multi-project dashboard) — _depends on: 0.15_ — Est: 3h
-- [ ] `1.02` **[CRITICAL]** Build project list UI with status indicators — _depends on: 1.01_ — Est: 2h
-- [ ] `1.03` **[HIGH]** Show per-project: branch, last activity, active lanes, pending approvals — _depends on: 1.02_ — Est: 3h
-- [ ] `1.04` **[HIGH]** Add keyboard navigation between projects (↑ ↓ Enter) — _depends on: 1.02_ — Est: 1h
-- [ ] `1.05` **[HIGH]** Add hotkeys for quick switch (Cmd+1 through Cmd+9) — _depends on: 1.04_ — Est: 1h
+- [x] `1.01` **[CRITICAL]** Create Harbor screen (multi-project dashboard) — _depends on: 0.15_ — Est: 3h
+- [x] `1.02` **[CRITICAL]** Build project list UI with status indicators — _depends on: 1.01_ — Est: 2h
+- [x] `1.03` **[HIGH]** Show per-project: branch, last activity, active lanes, pending approvals — _depends on: 1.02_ — Est: 3h
+- [x] `1.04` **[HIGH]** Add keyboard navigation between projects (↑ ↓ Enter) — _depends on: 1.02_ — Est: 1h
+- [x] `1.05` **[HIGH]** Add hotkeys for quick switch (Cmd+1 through Cmd+9) — _depends on: 1.04_ — Est: 1h
 
 ### Bay (Project Workspace)
 
-- [ ] `1.06` **[CRITICAL]** Load project folder as Bay — _depends on: 0.15_ — Est: 2h
-- [ ] `1.07` **[HIGH]** Persist Bay state across sessions — _depends on: 1.06_ — Est: 2h
-- [ ] `1.08` **[CRITICAL]** Build 3-column layout (left rail, center, right rail) — _depends on: 1.06_ — Est: 4h
-- [ ] `1.09` **[HIGH]** Build resizable split panes — _depends on: 1.08_ — Est: 3h
+- [x] `1.06` **[CRITICAL]** Load project folder as Bay — _depends on: 0.15_ — Est: 2h
+- [x] `1.07` **[HIGH]** Persist Bay state across sessions — _depends on: 1.06_ — Est: 2h
+- [x] `1.08` **[CRITICAL]** Build 3-column layout (left rail, center, right rail) — _depends on: 1.06_ — Est: 4h
+- [x] `1.09` **[HIGH]** Build resizable split panes — _depends on: 1.08_ — Est: 3h
 
 ### File System
 
