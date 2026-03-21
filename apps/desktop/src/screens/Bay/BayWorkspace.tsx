@@ -252,7 +252,7 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
             projectPath={bay.projectPath}
           />
         }
-        rightRail={<RightRail />}
+        rightRail={<RightRail bayId={bay.id} />}
       />
       {symbolSearchMode !== null && (
         <SymbolSearch
