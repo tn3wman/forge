@@ -2,6 +2,7 @@ mod commands;
 mod db;
 mod lsp;
 mod models;
+mod pty;
 mod watcher;
 
 use db::Database;
@@ -28,6 +29,7 @@ pub fn run() {
                 watchers: std::sync::Mutex::new(std::collections::HashMap::new()),
             });
             app.manage(lsp::manager::LspManager::new());
+            app.manage(pty::PtyManager::new());
             Ok(())
         })
         .plugin(tauri_plugin_window_state::Builder::new().build())
@@ -66,6 +68,13 @@ pub fn run() {
             commands::command_ledger_get,
             commands::command_ledger_query,
             commands::command_execute,
+            commands::pty_spawn,
+            commands::pty_write,
+            commands::pty_resize,
+            commands::pty_kill,
+            commands::pty_kill_all,
+            commands::pty_rename,
+            commands::pty_list,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
