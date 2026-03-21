@@ -22,6 +22,8 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
   const [bay, setBay] = useState<Bay | null>(null);
   const [leftRailWidth, setLeftRailWidth] = useState(240);
   const [rightRailWidth, setRightRailWidth] = useState(300);
+  const [openTabs, setOpenTabs] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const windowStateRef = useRef<WindowState>(DEFAULT_WINDOW_STATE);
 
@@ -32,6 +34,8 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
       windowStateRef.current = ws;
       setLeftRailWidth(ws.leftRailWidth);
       setRightRailWidth(ws.rightRailWidth);
+      setOpenTabs(ws.openTabs);
+      setActiveTab(ws.activeTab);
     });
   }, [bayId]);
 
@@ -39,15 +43,53 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
     if (!bay) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      windowStateRef.current = { ...windowStateRef.current, leftRailWidth, rightRailWidth };
+      windowStateRef.current = {
+        ...windowStateRef.current,
+        leftRailWidth,
+        rightRailWidth,
+        openTabs,
+        activeTab,
+      };
       bayIpc.updateWindowState(bay.id, serializeWindowState(windowStateRef.current));
     }, 300);
-  }, [bay, leftRailWidth, rightRailWidth]);
+  }, [bay, leftRailWidth, rightRailWidth, openTabs, activeTab]);
 
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    persistState();
+  }, [openTabs, activeTab, persistState]);
+
+  const handleFileSelect = useCallback((path: string) => {
+    setOpenTabs((prev) => {
+      if (prev.includes(path)) {
+        setActiveTab(path);
+        return prev;
+      }
+      const next = [...prev, path];
+      setActiveTab(path);
+      return next;
+    });
+  }, []);
+
+  const handleSelectTab = useCallback((path: string) => {
+    setActiveTab(path);
+  }, []);
+
+  const handleCloseTab = useCallback((path: string) => {
+    setOpenTabs((prev) => {
+      const next = prev.filter((p) => p !== path);
+      setActiveTab((current) => {
+        if (current !== path) return current;
+        const idx = prev.indexOf(path);
+        return next[Math.min(idx, next.length - 1)] ?? null;
+      });
+      return next;
+    });
   }, []);
 
   if (!bay) {
@@ -73,8 +115,15 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
         onLeftRailResize={setLeftRailWidth}
         onRightRailResize={setRightRailWidth}
         onResizeEnd={persistState}
-        leftRail={<LeftRail bay={bay} />}
-        center={<CenterPanel />}
+        leftRail={<LeftRail bay={bay} onFileSelect={handleFileSelect} />}
+        center={
+          <CenterPanel
+            openTabs={openTabs}
+            activeTab={activeTab}
+            onSelectTab={handleSelectTab}
+            onCloseTab={handleCloseTab}
+          />
+        }
         rightRail={<RightRail />}
       />
     </div>

@@ -17,6 +17,9 @@ vi.mock('../../../ipc', () => ({
     }),
     updateWindowState: vi.fn().mockResolvedValue(undefined),
   },
+  fsIpc: {
+    readDirectory: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 describe('BayWorkspace', () => {
