@@ -1,4 +1,12 @@
 use crate::models::DirEntry;
+use crate::watcher::FileWatcher;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter, State};
+
+pub struct WatcherState {
+    pub watchers: Mutex<HashMap<String, FileWatcher>>,
+}
 
 #[tauri::command]
 pub fn read_directory(path: String, show_hidden: bool) -> Result<Vec<DirEntry>, String> {
@@ -41,6 +49,32 @@ pub fn read_directory(path: String, show_hidden: bool) -> Result<Vec<DirEntry>, 
     });
 
     Ok(entries)
+}
+
+#[tauri::command]
+pub fn start_file_watcher(
+    bay_id: String,
+    path: String,
+    app: AppHandle,
+    watcher_state: State<'_, WatcherState>,
+) -> Result<(), String> {
+    let mut watchers = watcher_state.watchers.lock().map_err(|e| e.to_string())?;
+    watchers.remove(&bay_id);
+    let watcher = FileWatcher::new(&path, move |event| {
+        let _ = app.emit("fs-change", event);
+    })?;
+    watchers.insert(bay_id, watcher);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn stop_file_watcher(
+    bay_id: String,
+    watcher_state: State<'_, WatcherState>,
+) -> Result<(), String> {
+    let mut watchers = watcher_state.watchers.lock().map_err(|e| e.to_string())?;
+    watchers.remove(&bay_id);
+    Ok(())
 }
 
 #[cfg(test)]

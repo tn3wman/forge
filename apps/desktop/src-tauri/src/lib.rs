@@ -1,6 +1,7 @@
 mod commands;
 mod db;
 mod models;
+mod watcher;
 
 use db::Database;
 use tauri::Manager;
@@ -22,6 +23,9 @@ pub fn run() {
                 .run_migrations()
                 .map_err(|e| format!("Failed to run migrations: {e}"))?;
             app.manage(database);
+            app.manage(commands::fs::WatcherState {
+                watchers: std::sync::Mutex::new(std::collections::HashMap::new()),
+            });
             Ok(())
         })
         .plugin(tauri_plugin_window_state::Builder::new().build())
@@ -41,6 +45,8 @@ pub fn run() {
             commands::append_event,
             commands::query_events,
             commands::read_directory,
+            commands::start_file_watcher,
+            commands::stop_file_watcher,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
