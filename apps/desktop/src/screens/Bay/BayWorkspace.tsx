@@ -11,6 +11,7 @@ import { BayLayout } from './BayLayout';
 import { LeftRail } from './LeftRail';
 import { CenterPanel } from './CenterPanel';
 import { RightRail } from './RightRail';
+import { useFileWatcher } from '../../hooks/useFileWatcher';
 import styles from './BayWorkspace.module.css';
 
 interface BayWorkspaceProps {
@@ -26,6 +27,7 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const windowStateRef = useRef<WindowState>(DEFAULT_WINDOW_STATE);
+  const refreshKey = useFileWatcher(bay?.id ?? null, bay?.projectPath ?? null);
 
   useEffect(() => {
     bayIpc.open(bayId).then((b) => {
@@ -115,7 +117,7 @@ export function BayWorkspace({ bayId, onBack }: BayWorkspaceProps) {
         onLeftRailResize={setLeftRailWidth}
         onRightRailResize={setRightRailWidth}
         onResizeEnd={persistState}
-        leftRail={<LeftRail bay={bay} onFileSelect={handleFileSelect} />}
+        leftRail={<LeftRail bay={bay} onFileSelect={handleFileSelect} refreshKey={refreshKey} />}
         center={
           <CenterPanel
             openTabs={openTabs}

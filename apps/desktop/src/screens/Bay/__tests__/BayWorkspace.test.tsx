@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { BayWorkspace } from '../BayWorkspace';
 
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: vi.fn().mockResolvedValue(vi.fn()),
+}));
+
 vi.mock('../../../ipc', () => ({
   bayIpc: {
     open: vi.fn().mockResolvedValue({
@@ -19,6 +23,8 @@ vi.mock('../../../ipc', () => ({
   },
   fsIpc: {
     readDirectory: vi.fn().mockResolvedValue([]),
+    startWatcher: vi.fn().mockResolvedValue(undefined),
+    stopWatcher: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
