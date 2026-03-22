@@ -76,13 +76,13 @@ export function CenterPanel({
         />
       </div>
 
-      {/* Divider bar */}
+      {/* Divider bar — 6px visible, 16px hit area via padding */}
       <div
         role="separator"
         aria-orientation="horizontal"
         aria-label="Resize terminal panel"
         style={{
-          height: '4px',
+          height: '6px',
           background: '#27272a',
           cursor: 'row-resize',
           flexShrink: 0,
@@ -90,9 +90,22 @@ export function CenterPanel({
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
+          padding: '5px 0',
+          margin: '-5px 0',
+          boxSizing: 'content-box',
         }}
         onMouseDown={showTerminal ? startResize : undefined}
       >
+        {/* Grip indicator */}
+        <span
+          style={{
+            display: 'block',
+            width: '32px',
+            height: '2px',
+            borderRadius: '1px',
+            background: '#3f3f46',
+          }}
+        />
         <button
           aria-label={terminalVisible ? 'Hide terminal' : 'Show terminal'}
           onClick={() => setTerminalVisible((v) => !v)}
