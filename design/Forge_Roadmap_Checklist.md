@@ -143,32 +143,32 @@ If cutting scope hard, build only: Bay (single project UI), Monaco editor, Termi
 
 **Duration:** 3–4 days | **Goal:** Multi-provider agent backend with BYOM config and permission system
 
-### Model Abstraction Layer
+### Agent CLI Orchestration (revised: wraps CLIs instead of building LLM adapters)
 
-- [ ] `3.01` **[CRITICAL]** Define agent adapter interface (inputs, outputs, lifecycle) — _depends on: 0.13_ — Est: 3h
-- [ ] `3.02` **[CRITICAL]** Normalize agent outputs: file edits, commands, plans — _depends on: 3.01_ — Est: 2h
-- [ ] `3.03` **[CRITICAL]** Implement OpenAI-compatible API client — _depends on: 3.01_ — Est: 3h
-- [ ] `3.04` **[CRITICAL]** Add Anthropic native adapter — _depends on: 3.01_ — Est: 3h
-- [ ] `3.05` **[HIGH]** Add Google Gemini adapter — _depends on: 3.01_ — Est: 2h
-- [ ] `3.06` **[MEDIUM]** Add OpenRouter adapter — _depends on: 3.03_ — Est: 1h
+- [x] `3.01` **[CRITICAL]** Define agent adapter interface → CliAdapter trait + AgentInstance struct — _depends on: 0.13_ — Est: 3h
+- [x] `3.02` **[CRITICAL]** Normalize agent outputs → Parse CLI JSON streams into AgentStreamEvent types — _depends on: 3.01_ — Est: 2h
+- [x] `3.03` **[CRITICAL]** Implement OpenAI-compatible API client → Codex CLI adapter (provisional) — _depends on: 3.01_ — Est: 2h
+- [x] `3.04` **[CRITICAL]** Add Anthropic native adapter → Claude Code CLI adapter (primary) — _depends on: 3.01_ — Est: 2h
+- [ ] `3.05` **[HIGH]** Add Google Gemini adapter — _deferred (CLI wrapping model)_ — Est: 2h
+- [ ] `3.06` **[MEDIUM]** Add OpenRouter adapter — _deferred (CLI wrapping model)_ — Est: 1h
 
 ### Local Models
 
-- [ ] `3.07` **[HIGH]** Add Ollama local model integration — _depends on: 3.03_ — Est: 2h
-- [ ] `3.08` **[MEDIUM]** Add LM Studio integration — _depends on: 3.03_ — Est: 1h
+- [ ] `3.07` **[HIGH]** Add Ollama local model integration — _deferred (CLI wrapping model)_ — Est: 2h
+- [ ] `3.08` **[MEDIUM]** Add LM Studio integration — _deferred (CLI wrapping model)_ — Est: 1h
 
-### BYOM Config
+### Agent CLI Config
 
-- [ ] `3.09` **[CRITICAL]** Build BYOM config UI (API keys, model selection) — _depends on: 3.03_ — Est: 4h
-- [ ] `3.10` **[HIGH]** Implement per-role model routing rules — _depends on: 3.09_ — Est: 3h
+- [x] `3.09` **[CRITICAL]** Build BYOM config UI → Agent CLI registry with auto-detection — _depends on: 3.03_ — Est: 4h
+- [x] `3.10` **[HIGH]** Implement per-role model routing rules → Per-role CLI mapping with overrides — _depends on: 3.09_ — Est: 2h
 
 ### Agent Execution
 
-- [ ] `3.11` **[CRITICAL]** Build agent runner (goal + context → actions) — _depends on: 3.02_ — Est: 6h
-- [ ] `3.12` **[CRITICAL]** Define permission scopes (files, commands, network, browser) — _depends on: 3.11_ — Est: 3h
-- [ ] `3.13` **[CRITICAL]** Enforce write restrictions per agent role — _depends on: 3.12_ — Est: 2h
-- [ ] `3.14` **[HIGH]** Add approval hooks for restricted actions — _depends on: 3.12_ — Est: 2h
-- [ ] `3.15` **[HIGH]** Build agent role templates (Builder, Tester, Reviewer, etc.) — _depends on: 3.12_ — Est: 3h
+- [x] `3.11` **[CRITICAL]** Build agent runner → AgentManager subprocess orchestrator — _depends on: 3.02_ — Est: 4h
+- [x] `3.12` **[CRITICAL]** Define permission scopes → CLI flag scoping (--allowedTools, cwd isolation) — _depends on: 3.11_ — Est: 2h
+- [x] `3.13` **[CRITICAL]** Enforce write restrictions per agent role → System prompt + tool restrictions — _depends on: 3.12_ — Est: 1h
+- [x] `3.14` **[HIGH]** Add approval hooks → Trust CLI's own approval, Forge logs only — _depends on: 3.12_ — Est: 1h
+- [x] `3.15` **[HIGH]** Build agent role templates (Builder, Tester, Reviewer, etc.) — _depends on: 3.12_ — Est: 2h
 
 ---
 
