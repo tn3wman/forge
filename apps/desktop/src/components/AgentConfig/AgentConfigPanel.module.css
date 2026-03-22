@@ -1,0 +1,20 @@
+.panel { display: flex; flex-direction: column; height: 100%; background: var(--bg-primary, #1a1a2e); overflow-y: auto; }
+.header { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid var(--border, #313244); flex-shrink: 0; }
+.title { font-size: 13px; font-weight: 600; color: var(--text-primary, #cdd6f4); }
+.closeBtn { background: none; border: none; color: var(--text-secondary, #a6adc8); cursor: pointer; font-size: 14px; padding: 2px 4px; }
+.closeBtn:hover { color: var(--text-primary, #cdd6f4); }
+.body { padding: 8px; display: flex; flex-direction: column; gap: 16px; }
+.loading { padding: 16px; text-align: center; color: var(--text-secondary, #a6adc8); font-size: 13px; }
+.section { display: flex; flex-direction: column; gap: 6px; }
+.sectionTitle { font-size: 11px; color: var(--text-secondary, #a6adc8); text-transform: uppercase; letter-spacing: 0.5px; padding-bottom: 4px; border-bottom: 1px solid var(--border, #313244); }
+.configItem { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; border-radius: 4px; background: var(--bg-secondary, #1e1e2e); font-size: 12px; }
+.configInfo { display: flex; flex-direction: column; gap: 1px; }
+.configName { color: var(--text-primary, #cdd6f4); font-weight: 500; }
+.configMeta { font-size: 10px; color: var(--text-secondary, #a6adc8); font-family: JetBrains Mono, monospace; }
+.configActions { display: flex; gap: 4px; }
+.configActions button { background: var(--bg-primary, #1a1a2e); border: 1px solid var(--border, #313244); color: var(--text-primary, #cdd6f4); border-radius: 3px; padding: 2px 6px; font-size: 10px; cursor: pointer; }
+.configActions button:hover { background: var(--bg-hover, #313244); }
+.deleteBtn { color: #f38ba8 !important; }
+.deleteBtn:hover { background: #f38ba81a !important; }
+.defaultBadge { font-size: 9px; color: #a6e3a1; background: #a6e3a11a; padding: 1px 4px; border-radius: 2px; margin-left: 4px; }
+.emptySection { padding: 8px; text-align: center; color: var(--text-secondary, #a6adc8); font-size: 12px; }

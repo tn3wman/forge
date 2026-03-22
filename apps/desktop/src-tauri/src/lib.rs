@@ -1,3 +1,4 @@
+mod agent;
 mod commands;
 mod db;
 mod lsp;
@@ -30,6 +31,7 @@ pub fn run() {
             });
             app.manage(lsp::manager::LspManager::new());
             app.manage(pty::PtyManager::new());
+            app.manage(agent::AgentManager::new(db_path.clone()));
             Ok(())
         })
         .plugin(tauri_plugin_window_state::Builder::new().build())
@@ -75,6 +77,20 @@ pub fn run() {
             commands::pty_kill_all,
             commands::pty_rename,
             commands::pty_list,
+            commands::agent_spawn,
+            commands::agent_send,
+            commands::agent_kill,
+            commands::agent_kill_all,
+            commands::agent_list,
+            commands::agent_status,
+            commands::agent_detect_clis,
+            commands::agent_cli_config_create,
+            commands::agent_cli_config_list,
+            commands::agent_cli_config_update,
+            commands::agent_cli_config_delete,
+            commands::role_cli_mapping_set,
+            commands::role_cli_mapping_list,
+            commands::role_cli_mapping_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -23,8 +23,10 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         let migration_001 = include_str!("../migrations/001_initial.sql");
         let migration_002 = include_str!("../migrations/002_command_ledger.sql");
+        let migration_003 = include_str!("../migrations/003_agent_cli.sql");
         conn.execute_batch(migration_001)?;
         conn.execute_batch(migration_002)?;
+        conn.execute_batch(migration_003)?;
         Ok(())
     }
 }
@@ -138,6 +140,66 @@ mod tests {
             .query_row(
                 "SELECT status FROM command_ledger WHERE id = ?1",
                 ["cmd-1"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(status, "running");
+    }
+
+    #[test]
+    fn test_agent_cli_tables_exist() {
+        let db = test_db();
+        let conn = db.conn.lock().unwrap();
+
+        // Insert a config
+        conn.execute(
+            "INSERT INTO agent_cli_configs (id, cli_type, display_name, executable_path) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params!["cfg-1", "claude_code", "Claude Code", "/usr/local/bin/claude"],
+        )
+        .unwrap();
+
+        let display_name: String = conn
+            .query_row(
+                "SELECT display_name FROM agent_cli_configs WHERE id = ?1",
+                ["cfg-1"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(display_name, "Claude Code");
+
+        // Insert a role mapping
+        conn.execute(
+            "INSERT INTO role_cli_mappings (id, role, cli_config_id) VALUES (?1, ?2, ?3)",
+            rusqlite::params!["map-1", "coder", "cfg-1"],
+        )
+        .unwrap();
+
+        let role: String = conn
+            .query_row(
+                "SELECT role FROM role_cli_mappings WHERE id = ?1",
+                ["map-1"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(role, "coder");
+
+        // Insert an agent session (need a bay first)
+        conn.execute(
+            "INSERT INTO bays (id, name, project_path, status) VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params!["bay-1", "Test", "/tmp/test", "active"],
+        )
+        .unwrap();
+
+        conn.execute(
+            "INSERT INTO agent_sessions (id, bay_id, lane_id, cli_type, prompt) VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params!["sess-1", "bay-1", "lane-1", "claude_code", "Fix the bug"],
+        )
+        .unwrap();
+
+        let status: String = conn
+            .query_row(
+                "SELECT status FROM agent_sessions WHERE id = ?1",
+                ["sess-1"],
                 |row| row.get(0),
             )
             .unwrap();

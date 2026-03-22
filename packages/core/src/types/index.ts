@@ -8,6 +8,7 @@ export * from './pane';
 export * from './lsp';
 export * from './terminal';
 export * from './command';
+export * from './agentCli';
 
 export function createId(): string {
   return crypto.randomUUID();

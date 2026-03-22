@@ -5,6 +5,8 @@ pub mod fs;
 pub mod lsp;
 pub mod command_ledger;
 pub mod pty;
+pub mod agent;
+pub mod agent_config;
 
 pub use bay::*;
 pub use lane::*;
@@ -13,3 +15,5 @@ pub use fs::*;
 pub use lsp::*;
 pub use command_ledger::*;
 pub use pty::*;
+pub use agent::*;
+pub use agent_config::*;

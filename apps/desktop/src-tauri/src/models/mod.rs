@@ -5,6 +5,7 @@ pub mod agent;
 pub mod event;
 pub mod fs;
 pub mod command;
+pub mod agent_cli;
 
 pub use bay::*;
 pub use lane::*;
@@ -13,3 +14,4 @@ pub use agent::*;
 pub use event::*;
 pub use fs::*;
 pub use command::*;
+pub use agent_cli::*;
