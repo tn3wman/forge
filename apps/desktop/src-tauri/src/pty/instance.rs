@@ -66,7 +66,7 @@ impl PtyInstance {
         let app = app_handle.clone();
         let child_for_exit = Arc::clone(&child);
 
-        tokio::task::spawn_blocking(move || {
+        std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
             let engine = base64::engine::general_purpose::STANDARD;
             loop {
