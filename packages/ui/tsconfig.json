@@ -1,8 +1,0 @@
-{
-  "extends": "@forge/typescript-config/react.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
-  },
-  "include": ["src"]
-}
