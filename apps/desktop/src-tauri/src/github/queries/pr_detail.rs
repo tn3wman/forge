@@ -22,6 +22,13 @@ query($owner: String!, $repo: String!, $number: Int!) {
       deletions
       changedFiles
       labels(first: 10) { nodes { name } }
+      closingIssuesReferences(first: 10) {
+        nodes {
+          number
+          title
+          state
+        }
+      }
       createdAt
       updatedAt
       mergedAt
@@ -96,6 +103,7 @@ pub struct PrDetailResult {
     pub deletions: i32,
     pub changed_files: i32,
     pub labels: Vec<String>,
+    pub linked_issues: Vec<crate::github::queries::pull_requests::LinkedIssueRef>,
     pub created_at: String,
     pub updated_at: String,
     pub merged_at: Option<String>,
@@ -200,6 +208,21 @@ pub async fn get_pr_detail(
         })
         .unwrap_or_default();
 
+    let linked_issues = pr["closingIssuesReferences"]["nodes"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|issue| {
+                    Some(crate::github::queries::pull_requests::LinkedIssueRef {
+                        number: issue["number"].as_i64()? as i32,
+                        title: issue["title"].as_str()?.to_string(),
+                        state: issue["state"].as_str().unwrap_or("OPEN").to_lowercase(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
     let reviews = parse_reviews(&pr["reviews"]["nodes"]);
     let status_checks = parse_status_checks(&pr["commits"]);
     let timeline = parse_timeline(&pr["timelineItems"]["nodes"]);
@@ -235,6 +258,7 @@ pub async fn get_pr_detail(
         deletions: pr["deletions"].as_i64().unwrap_or(0) as i32,
         changed_files: pr["changedFiles"].as_i64().unwrap_or(0) as i32,
         labels,
+        linked_issues,
         created_at: pr["createdAt"]
             .as_str()
             .unwrap_or_default()

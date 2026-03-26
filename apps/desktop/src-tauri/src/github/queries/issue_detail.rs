@@ -27,12 +27,36 @@ query($owner: String!, $repo: String!, $number: Int!) {
           ... on UnlabeledEvent { label { name } actor { login avatarUrl } createdAt }
           ... on ClosedEvent { actor { login avatarUrl } createdAt }
           ... on ReopenedEvent { actor { login avatarUrl } createdAt }
+          ... on CrossReferencedEvent {
+            actor { login avatarUrl }
+            createdAt
+            willCloseTarget
+            source {
+              __typename
+              ... on PullRequest {
+                number
+                title
+                state
+                repository { nameWithOwner }
+              }
+            }
+          }
         }
       }
     }
   }
 }
 "#;
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkedPrRef {
+    pub number: i32,
+    pub title: String,
+    pub state: String,
+    pub repo_full_name: String,
+    pub will_close_target: bool,
+}
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -50,6 +74,7 @@ pub struct IssueDetailResult {
     pub updated_at: String,
     pub closed_at: Option<String>,
     pub timeline: Vec<IssueTimelineEvent>,
+    pub linked_pull_requests: Vec<LinkedPrRef>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -62,6 +87,13 @@ pub struct IssueTimelineEvent {
     pub id: Option<String>,
     pub body: Option<String>,
     pub label: Option<String>,
+    // CrossReferencedEvent fields
+    pub source_number: Option<i32>,
+    pub source_title: Option<String>,
+    pub source_type: Option<String>,
+    pub source_state: Option<String>,
+    pub source_repo: Option<String>,
+    pub will_close_target: Option<bool>,
 }
 
 pub async fn get_issue_detail(
@@ -110,6 +142,7 @@ pub async fn get_issue_detail(
         .unwrap_or_default();
 
     let timeline = parse_issue_timeline(&issue["timelineItems"]["nodes"]);
+    let linked_pull_requests = extract_linked_prs(&issue["timelineItems"]["nodes"]);
 
     Ok(IssueDetailResult {
         id: issue["id"].as_str().unwrap_or_default().to_string(),
@@ -137,6 +170,7 @@ pub async fn get_issue_detail(
             .to_string(),
         closed_at: issue["closedAt"].as_str().map(|s| s.to_string()),
         timeline,
+        linked_pull_requests,
     })
 }
 
@@ -171,6 +205,22 @@ fn parse_issue_timeline(nodes: &Value) -> Vec<IssueTimelineEvent> {
                 )
             };
 
+            let (source_number, source_title, source_type, source_state, source_repo, will_close_target) =
+                if typename == "CrossReferencedEvent" {
+                    let source = &node["source"];
+                    let source_typename = source["__typename"].as_str();
+                    (
+                        source["number"].as_i64().map(|n| n as i32),
+                        source["title"].as_str().map(|s| s.to_string()),
+                        source_typename.map(|s| s.to_string()),
+                        source["state"].as_str().map(|s| s.to_string()),
+                        source["repository"]["nameWithOwner"].as_str().map(|s| s.to_string()),
+                        node["willCloseTarget"].as_bool(),
+                    )
+                } else {
+                    (None, None, None, None, None, None)
+                };
+
             IssueTimelineEvent {
                 event_type: event_type.to_string(),
                 actor_login,
@@ -179,7 +229,61 @@ fn parse_issue_timeline(nodes: &Value) -> Vec<IssueTimelineEvent> {
                 id: node["id"].as_str().map(|s| s.to_string()),
                 body: node["body"].as_str().map(|s| s.to_string()),
                 label: node["label"]["name"].as_str().map(|s| s.to_string()),
+                source_number,
+                source_title,
+                source_type,
+                source_state,
+                source_repo,
+                will_close_target,
             }
         })
         .collect()
+}
+
+fn extract_linked_prs(nodes: &Value) -> Vec<LinkedPrRef> {
+    let arr = match nodes.as_array() {
+        Some(a) => a,
+        None => return Vec::new(),
+    };
+
+    let mut result = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for node in arr {
+        if node["__typename"].as_str() != Some("CrossReferencedEvent") {
+            continue;
+        }
+        let source = &node["source"];
+        if source["__typename"].as_str() != Some("PullRequest") {
+            continue;
+        }
+        let number = match source["number"].as_i64() {
+            Some(n) => n as i32,
+            None => continue,
+        };
+        if !seen.insert(number) {
+            continue;
+        }
+
+        let state_raw = source["state"].as_str().unwrap_or("OPEN");
+        let state = match state_raw {
+            "OPEN" => "open",
+            "CLOSED" => "closed",
+            "MERGED" => "merged",
+            other => other,
+        };
+
+        result.push(LinkedPrRef {
+            number,
+            title: source["title"].as_str().unwrap_or_default().to_string(),
+            state: state.to_string(),
+            repo_full_name: source["repository"]["nameWithOwner"]
+                .as_str()
+                .unwrap_or_default()
+                .to_string(),
+            will_close_target: node["willCloseTarget"].as_bool().unwrap_or(false),
+        });
+    }
+
+    result
 }

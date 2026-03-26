@@ -253,31 +253,44 @@ The previous Forge codebase was deleted (commit `723b15f`). The user wants a gre
 **Goal:** Commit graph, branch management, full git operations, file system watching.
 
 ### Rust Backend
-- [ ] `src-tauri/src/git/status.rs` — working tree status (gix)
-- [ ] `src-tauri/src/git/log.rs` — commit history with graph topology (gix)
-- [ ] `src-tauri/src/git/diff.rs` — working tree + staged diffs (gix)
-- [ ] `src-tauri/src/git/branch.rs` — create, checkout, delete, rename (git2)
-- [ ] `src-tauri/src/git/commit.rs` — stage, commit, amend (git2)
-- [ ] `src-tauri/src/git/remote.rs` — fetch, pull, push (git2)
-- [ ] `src-tauri/src/git/stash.rs` — stash push/pop/apply/drop
-- [ ] `src-tauri/src/background/repo_watcher.rs` — notify crate + debounce
-- [ ] `src-tauri/src/commands/git.rs` — ~25 Tauri commands
+- [x] `src-tauri/src/git/status.rs` — working tree status (git2)
+- [x] `src-tauri/src/git/log.rs` — commit history with graph topology (git2)
+- [x] `src-tauri/src/git/diff.rs` — working tree + staged diffs (git2)
+- [x] `src-tauri/src/git/branch.rs` — create, checkout, delete, rename (git2)
+- [x] `src-tauri/src/git/commit.rs` — stage, commit, amend (git2)
+- [x] `src-tauri/src/git/remote.rs` — fetch, pull, push (git2)
+- [x] `src-tauri/src/git/stash.rs` — stash push/pop/apply/drop
+- [x] `src-tauri/src/background/repo_watcher.rs` — notify crate + debounce
+- [x] `src-tauri/src/commands/git.rs` — 25 Tauri commands
 
 ### Frontend
-- [ ] `src/components/git/CommitGraphCanvas.tsx` — Canvas + D3 layout
-- [ ] `src/components/git/StagingArea.tsx` — stage/unstage files
-- [ ] `src/components/git/CommitForm.tsx` — message + commit button
-- [ ] `src/components/git/BranchList.tsx` — branch management
-- [ ] `src/components/git/StashList.tsx` — stash management
-- [ ] `src/pages/CommitGraph.tsx` — commit graph view
-- [ ] `src/pages/Changes.tsx` — working tree changes
-- [ ] `src/pages/Branches.tsx` — branch list view
+- [x] `src/components/git/CommitGraphCanvas.tsx` — Canvas-based lane renderer
+- [x] `src/components/git/StagingArea.tsx` — stage/unstage files
+- [x] `src/components/git/CommitForm.tsx` — message + commit button
+- [x] `src/components/git/BranchList.tsx` — branch management
+- [x] `src/components/git/StashList.tsx` — stash management
+- [x] `src/components/git/GitDiffViewer.tsx` — structured diff viewer for local diffs
+- [x] `src/components/git/RemoteActions.tsx` — fetch/pull/push toolbar
+- [x] `src/pages/CommitGraph.tsx` — commit graph view
+- [x] `src/pages/Changes.tsx` — working tree changes
+- [x] `src/pages/Branches.tsx` — branch list view
+- [x] `src/hooks/useRepoWatcher.ts` — Tauri event listener for file changes
+- [x] `src/hooks/useLocalRepo.ts` — convenience hook for selected repo local path
 
 ### New Dependencies
-- [ ] Rust: `gix`, `notify`
-- [ ] TypeScript: `d3`
+- [x] Rust: `git2`, `notify`, `notify-debouncer-mini`
+- [x] TypeScript: `@tauri-apps/plugin-dialog`
+
+### Integration
+- [x] AppShell updated with git nav items (Changes G+H, Commit Graph G+C, Branches G+B)
+- [x] Escape key navigates back from git pages
+- [x] RepoList has "Set Local Path" action with folder picker
+- [x] PAGE_TITLES includes all git pages
 
 ### Verification
+- [x] `cargo check` compiles clean
+- [x] `npx tsc --noEmit` compiles clean
+- [x] `npx vite build` builds successfully (809KB JS, 37KB CSS)
 - [ ] See working tree status, stage files, commit
 - [ ] Push/pull with GitHub token auth
 - [ ] Commit graph renders with branch lines
@@ -320,5 +333,5 @@ The previous Forge codebase was deleted (commit `723b15f`). The user wants a gre
 | 2 | Workspaces + Repos | **Done** (routing deferred to P3) |
 | 3 | GitHub Integration | **Done** |
 | 4 | Detail Views | **Done** (manual testing pending) |
-| 5 | Git Operations | Pending |
+| 5 | Git Operations | **Done** (runtime testing pending) |
 | 6 | Polish | Pending |

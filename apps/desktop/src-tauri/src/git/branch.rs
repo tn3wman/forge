@@ -1,0 +1,149 @@
+use git2::{BranchType, Repository};
+
+use crate::models::git::BranchInfo;
+
+pub fn list_branches(path: &str) -> Result<Vec<BranchInfo>, String> {
+    let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
+
+    let branches = repo
+        .branches(None)
+        .map_err(|e| format!("Failed to list branches: {e}"))?;
+
+    let head_ref = repo.head().ok().and_then(|r| r.target());
+
+    let mut result = Vec::new();
+
+    for branch_result in branches {
+        let (branch, branch_type) = branch_result
+            .map_err(|e| format!("Failed to read branch: {e}"))?;
+
+        let name = branch
+            .name()
+            .map_err(|e| format!("Failed to get branch name: {e}"))?
+            .unwrap_or("")
+            .to_string();
+
+        let is_remote = branch_type == BranchType::Remote;
+
+        let commit_oid = branch
+            .get()
+            .target()
+            .map(|oid| oid.to_string())
+            .unwrap_or_default();
+
+        let is_head = !is_remote
+            && head_ref.map(|h| h.to_string()) == Some(commit_oid.clone());
+
+        let upstream = branch
+            .upstream()
+            .ok()
+            .and_then(|u| u.name().ok().flatten().map(|s| s.to_string()));
+
+        result.push(BranchInfo {
+            name,
+            is_head,
+            is_remote,
+            upstream,
+            commit_oid,
+        });
+    }
+
+    Ok(result)
+}
+
+pub fn create_branch(
+    path: &str,
+    name: &str,
+    from_ref: Option<&str>,
+) -> Result<BranchInfo, String> {
+    let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
+
+    let target_commit = if let Some(ref_name) = from_ref {
+        let reference = repo
+            .resolve_reference_from_short_name(ref_name)
+            .map_err(|e| format!("Failed to resolve ref '{ref_name}': {e}"))?;
+        reference
+            .peel_to_commit()
+            .map_err(|e| format!("Failed to peel to commit: {e}"))?
+    } else {
+        repo.head()
+            .map_err(|e| format!("Failed to get HEAD: {e}"))?
+            .peel_to_commit()
+            .map_err(|e| format!("Failed to peel HEAD to commit: {e}"))?
+    };
+
+    let branch = repo
+        .branch(name, &target_commit, false)
+        .map_err(|e| format!("Failed to create branch '{name}': {e}"))?;
+
+    let commit_oid = branch
+        .get()
+        .target()
+        .map(|oid| oid.to_string())
+        .unwrap_or_default();
+
+    Ok(BranchInfo {
+        name: name.to_string(),
+        is_head: false,
+        is_remote: false,
+        upstream: None,
+        commit_oid,
+    })
+}
+
+pub fn checkout_branch(path: &str, name: &str) -> Result<(), String> {
+    let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
+
+    let refname = format!("refs/heads/{name}");
+
+    repo.set_head(&refname)
+        .map_err(|e| format!("Failed to set HEAD to '{name}': {e}"))?;
+
+    repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))
+        .map_err(|e| format!("Failed to checkout '{name}': {e}"))?;
+
+    Ok(())
+}
+
+pub fn delete_branch(path: &str, name: &str) -> Result<(), String> {
+    let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
+
+    let mut branch = repo
+        .find_branch(name, BranchType::Local)
+        .map_err(|e| format!("Failed to find branch '{name}': {e}"))?;
+
+    branch
+        .delete()
+        .map_err(|e| format!("Failed to delete branch '{name}': {e}"))?;
+
+    Ok(())
+}
+
+pub fn rename_branch(path: &str, old_name: &str, new_name: &str) -> Result<(), String> {
+    let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
+
+    let mut branch = repo
+        .find_branch(old_name, BranchType::Local)
+        .map_err(|e| format!("Failed to find branch '{old_name}': {e}"))?;
+
+    branch
+        .rename(new_name, false)
+        .map_err(|e| format!("Failed to rename branch '{old_name}' to '{new_name}': {e}"))?;
+
+    Ok(())
+}
+
+pub fn get_current_branch(path: &str) -> Result<Option<String>, String> {
+    let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
+
+    let head = match repo.head() {
+        Ok(head) => head,
+        Err(_) => return Ok(None),
+    };
+
+    if head.is_branch() {
+        Ok(head.shorthand().map(|s| s.to_string()))
+    } else {
+        Ok(None)
+    }
+}

@@ -43,3 +43,21 @@ export interface DiffEntry {
   additions: number;
   deletions: number;
 }
+
+export interface GraphRow {
+  commit: CommitInfo;
+  column: number;
+  lines: GraphLine[];
+}
+
+export interface GraphLine {
+  fromColumn: number;
+  toColumn: number;
+  colorIndex: number;
+}
+
+export interface StashEntry {
+  index: number;
+  message: string;
+  timestamp: number;
+}

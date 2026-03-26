@@ -1,10 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   Anvil,
   GitPullRequest,
   CircleDot,
   Bell,
   LayoutDashboard,
+  FileEdit,
+  GitCommitHorizontal,
+  GitBranch,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -17,11 +20,15 @@ import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
 import { RepoList } from "@/components/repository/RepoList";
 import { useWorkspaceStore, type AppPage } from "@/stores/workspaceStore";
 import { useWorkspaces, useWorkspace } from "@/queries/useWorkspaces";
+import { useRepositories } from "@/queries/useRepositories";
 import { Dashboard } from "@/pages/Dashboard";
 import { PullRequests } from "@/pages/PullRequests";
 import { Issues } from "@/pages/Issues";
 import { PrDetail } from "@/pages/PrDetail";
 import { IssueDetail } from "@/pages/IssueDetail";
+import { CommitGraph } from "@/pages/CommitGraph";
+import { Changes } from "@/pages/Changes";
+import { Branches } from "@/pages/Branches";
 import { cn } from "@/lib/utils";
 
 const navItems: { icon: typeof LayoutDashboard; label: string; shortcut: string; page: AppPage }[] = [
@@ -31,6 +38,12 @@ const navItems: { icon: typeof LayoutDashboard; label: string; shortcut: string;
   { icon: Bell, label: "Notifications", shortcut: "G N", page: "notifications" },
 ];
 
+const gitNavItems: { icon: typeof LayoutDashboard; label: string; shortcut: string; page: AppPage }[] = [
+  { icon: FileEdit, label: "Changes", shortcut: "G H", page: "changes" },
+  { icon: GitCommitHorizontal, label: "Commit Graph", shortcut: "G C", page: "commit-graph" },
+  { icon: GitBranch, label: "Branches", shortcut: "G B", page: "branches" },
+];
+
 const PAGE_TITLES: Record<AppPage, string> = {
   dashboard: "Dashboard",
   "pull-requests": "Pull Requests",
@@ -38,6 +51,9 @@ const PAGE_TITLES: Record<AppPage, string> = {
   notifications: "Notifications",
   "pr-detail": "Pull Request",
   "issue-detail": "Issue",
+  "commit-graph": "Commit Graph",
+  changes: "Changes",
+  branches: "Branches",
 };
 
 function PageContent({ page }: { page: AppPage }) {
@@ -61,14 +77,37 @@ function PageContent({ page }: { page: AppPage }) {
       return <PrDetail />;
     case "issue-detail":
       return <IssueDetail />;
+    case "commit-graph":
+      return <CommitGraph />;
+    case "changes":
+      return <Changes />;
+    case "branches":
+      return <Branches />;
   }
 }
 
+const GIT_PAGES: AppPage[] = ["changes", "commit-graph", "branches"];
+
 export function AppShell() {
-  const { activeWorkspaceId, activePage, setActiveWorkspaceId, setActivePage } =
+  const { activeWorkspaceId, activePage, setActiveWorkspaceId, setActivePage, navigateToChanges, navigateToCommitGraph, navigateToBranches } =
     useWorkspaceStore();
   const { data: workspaces } = useWorkspaces();
   const { data: activeWorkspace } = useWorkspace(activeWorkspaceId);
+  const { data: repos } = useRepositories(activeWorkspaceId);
+
+  // Find first repo with a local path for git navigation
+  const firstLocalPath = repos?.find((r) => r.localPath)?.localPath ?? null;
+  const firstLocalPathRef = useRef(firstLocalPath);
+  firstLocalPathRef.current = firstLocalPath;
+
+  function handleGitNav(page: AppPage) {
+    if (!firstLocalPath) return;
+    switch (page) {
+      case "changes": navigateToChanges(firstLocalPath); break;
+      case "commit-graph": navigateToCommitGraph(firstLocalPath); break;
+      case "branches": navigateToBranches(firstLocalPath); break;
+    }
+  }
 
   // Auto-select first workspace if none selected
   useEffect(() => {
@@ -103,7 +142,7 @@ export function AppShell() {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === "Escape") {
         const { activePage, goBack } = useWorkspaceStore.getState();
-        if (activePage === "pr-detail" || activePage === "issue-detail") {
+        if (activePage === "pr-detail" || activePage === "issue-detail" || activePage === "changes" || activePage === "commit-graph" || activePage === "branches") {
           goBack();
         }
         return;
@@ -121,6 +160,15 @@ export function AppShell() {
           case "p": setActivePage("pull-requests"); break;
           case "i": setActivePage("issues"); break;
           case "n": setActivePage("notifications"); break;
+          case "h": case "c": case "b": {
+            const lp = firstLocalPathRef.current;
+            if (!lp) break;
+            const { navigateToChanges, navigateToCommitGraph, navigateToBranches } = useWorkspaceStore.getState();
+            if (e.key === "h") navigateToChanges(lp);
+            else if (e.key === "c") navigateToCommitGraph(lp);
+            else navigateToBranches(lp);
+            break;
+          }
         }
       }
     }
@@ -173,6 +221,43 @@ export function AppShell() {
                 <span className="ml-2 text-xs text-muted-foreground">
                   {item.shortcut}
                 </span>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+
+        <Separator className="my-3 w-6" />
+
+        {/* Git nav items */}
+        <div className="flex flex-col items-center gap-1">
+          {gitNavItems.map((item) => (
+            <Tooltip key={item.label}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => handleGitNav(item.page)}
+                  disabled={!firstLocalPath}
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                    !firstLocalPath && "opacity-30 cursor-not-allowed",
+                    activePage === item.page
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {item.label}
+                {firstLocalPath ? (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {item.shortcut}
+                  </span>
+                ) : (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    Set a local path first
+                  </span>
+                )}
               </TooltipContent>
             </Tooltip>
           ))}

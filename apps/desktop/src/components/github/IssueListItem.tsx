@@ -1,7 +1,10 @@
-import { CircleDot, CheckCircle2 } from "lucide-react";
+import { CircleDot, CheckCircle2, GitPullRequest } from "lucide-react";
 import type { Issue } from "@forge/shared";
+import type { LinkedPrSummary } from "@/hooks/useLinkedItems";
+import { cn } from "@/lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TimeAgo } from "@/components/common/TimeAgo";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 function IssueStatusIcon({ state }: { state: Issue["state"] }) {
   if (state === "closed") {
@@ -20,10 +23,13 @@ function LabelPill({ label }: { label: string }) {
 
 interface IssueListItemProps {
   issue: Issue;
+  linkedPrs?: LinkedPrSummary[];
   onClick?: () => void;
 }
 
-export function IssueListItem({ issue, onClick }: IssueListItemProps) {
+export function IssueListItem({ issue, linkedPrs, onClick }: IssueListItemProps) {
+  const { navigateToPr } = useWorkspaceStore();
+
   return (
     <div
       className="flex items-center gap-3 px-3 py-2 hover:bg-accent/50 transition-colors border-b border-border/50 cursor-pointer"
@@ -47,6 +53,29 @@ export function IssueListItem({ issue, onClick }: IssueListItemProps) {
               <span className="text-[10px] text-muted-foreground">
                 +{issue.labels.length - 3}
               </span>
+            )}
+          </div>
+        )}
+        {linkedPrs && linkedPrs.length > 0 && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <GitPullRequest className="h-3 w-3 text-muted-foreground" />
+            {linkedPrs.slice(0, 3).map((pr) => (
+              <button
+                key={pr.prNumber}
+                className={cn(
+                  "text-[10px] font-mono hover:underline",
+                  pr.prState === "merged" ? "text-purple-400" : pr.prState === "closed" ? "text-red-400" : "text-green-400"
+                )}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigateToPr(pr.repoFullName, pr.prNumber);
+                }}
+              >
+                #{pr.prNumber}
+              </button>
+            ))}
+            {linkedPrs.length > 3 && (
+              <span className="text-[10px] text-muted-foreground">+{linkedPrs.length - 3}</span>
             )}
           </div>
         )}

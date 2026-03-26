@@ -1,4 +1,4 @@
-import { ArrowLeft, Loader2, CircleDot, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Loader2, CircleDot, CheckCircle2, GitPullRequest } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useIssueDetail } from "@/queries/useIssueDetail";
@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { TimeAgo } from "@/components/common/TimeAgo";
 
 export function IssueDetail() {
-  const { selectedRepoFullName, selectedIssueNumber, goBack } = useWorkspaceStore();
+  const { selectedRepoFullName, selectedIssueNumber, goBack, navigateToPr } = useWorkspaceStore();
 
   const [owner, repo] = selectedRepoFullName?.split("/") ?? [null, null];
 
@@ -101,6 +101,29 @@ export function IssueDetail() {
                   >
                     {label}
                   </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Linked Pull Requests */}
+          {issue.linkedPullRequests && issue.linkedPullRequests.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-xs font-medium text-muted-foreground mb-2">Linked Pull Requests</h3>
+              <div className="space-y-1">
+                {issue.linkedPullRequests.map((pr) => (
+                  <button
+                    key={`${pr.repoFullName}-${pr.number}`}
+                    className="flex items-center gap-2 w-full text-left hover:bg-accent/50 rounded px-1.5 py-1 -mx-1.5 transition-colors"
+                    onClick={() => navigateToPr(pr.repoFullName, pr.number)}
+                  >
+                    <GitPullRequest className={cn(
+                      "h-3.5 w-3.5 shrink-0",
+                      pr.state === "merged" ? "text-purple-400" : pr.state === "closed" ? "text-red-400" : "text-green-400"
+                    )} />
+                    <span className="text-xs truncate">{pr.title}</span>
+                    <span className="text-[10px] text-muted-foreground ml-auto shrink-0">#{pr.number}</span>
+                  </button>
                 ))}
               </div>
             </div>

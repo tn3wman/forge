@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Loader2, GitPullRequest, GitMerge, GitPullRequestClosed, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Loader2, GitPullRequest, GitMerge, GitPullRequestClosed, Plus, Minus, CheckCircle2, CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePrDetail, usePrCommits, usePrFiles } from "@/queries/usePrDetail";
@@ -20,7 +20,7 @@ import { TimeAgo } from "@/components/common/TimeAgo";
 type Tab = "conversation" | "commits" | "files";
 
 export function PrDetail() {
-  const { selectedRepoFullName, selectedPrNumber, goBack } = useWorkspaceStore();
+  const { selectedRepoFullName, selectedPrNumber, goBack, navigateToIssue } = useWorkspaceStore();
   const [activeTab, setActiveTab] = useState<Tab>("conversation");
   const [selectedFile, setSelectedFile] = useState<string | undefined>();
 
@@ -270,6 +270,30 @@ export function PrDetail() {
                   >
                     {label}
                   </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Linked Issues */}
+          {pr.linkedIssues && pr.linkedIssues.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-xs font-medium text-muted-foreground mb-2">Linked Issues</h3>
+              <div className="space-y-1">
+                {pr.linkedIssues.map((issue) => (
+                  <button
+                    key={issue.number}
+                    className="flex items-center gap-2 w-full text-left hover:bg-accent/50 rounded px-1.5 py-1 -mx-1.5 transition-colors"
+                    onClick={() => navigateToIssue(selectedRepoFullName!, issue.number)}
+                  >
+                    {issue.state === "closed" ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                    ) : (
+                      <CircleDot className="h-3.5 w-3.5 text-green-400 shrink-0" />
+                    )}
+                    <span className="text-xs truncate">{issue.title}</span>
+                    <span className="text-[10px] text-muted-foreground ml-auto shrink-0">#{issue.number}</span>
+                  </button>
                 ))}
               </div>
             </div>

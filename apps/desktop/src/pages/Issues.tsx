@@ -4,6 +4,7 @@ import { useIssues } from "@/queries/useIssues";
 import { FilterBar, type FilterOption } from "@/components/common/FilterBar";
 import { IssueListItem } from "@/components/github/IssueListItem";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useIssueLinkedPrs } from "@/hooks/useLinkedItems";
 import type { Issue } from "@forge/shared";
 
 const ISSUE_FILTERS: FilterOption[] = [
@@ -42,6 +43,7 @@ export function Issues() {
   const [searchQuery, setSearchQuery] = useState("");
   const { navigateToIssue } = useWorkspaceStore();
   const { data: issues = [], isLoading, error } = useIssues();
+  const linkedPrMap = useIssueLinkedPrs();
 
   const filters = useMemo<FilterOption[]>(() => {
     return ISSUE_FILTERS.map((f) => ({
@@ -91,6 +93,7 @@ export function Issues() {
           <IssueListItem
             key={issue.id}
             issue={issue}
+            linkedPrs={linkedPrMap.get(`${issue.repoFullName}#${issue.number}`)}
             onClick={() => issue.repoFullName && navigateToIssue(issue.repoFullName, issue.number)}
           />
         ))}

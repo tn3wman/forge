@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { GitBranch, Lock, Plus, Trash2 } from "lucide-react";
+import { GitBranch, Lock, Plus, Trash2, FolderOpen } from "lucide-react";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -8,18 +9,40 @@ import {
 import { Button } from "@/components/ui/button";
 import { useRepositories, useRemoveRepo } from "@/queries/useRepositories";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useSetLocalPath } from "@/queries/useGitMutations";
 import { AddRepoDialog } from "./AddRepoDialog";
 import type { Repository } from "@forge/shared";
 
 function RepoItem({ repo }: { repo: Repository }) {
   const removeRepo = useRemoveRepo();
+  const setLocalPath = useSetLocalPath();
+
+  async function handleSetLocalPath() {
+    const selected = await open({ directory: true, title: `Select local clone of ${repo.fullName}` });
+    if (selected) {
+      setLocalPath.mutate({ repoId: repo.id, localPath: selected });
+    }
+  }
 
   return (
     <div className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent">
       <GitBranch className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       <span className="flex-1 truncate">{repo.fullName}</span>
+      {repo.localPath && (
+        <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" title="Local path set" />
+      )}
       {repo.isPrivate && (
         <Lock className="h-3 w-3 shrink-0 text-muted-foreground" />
+      )}
+      {!repo.localPath && (
+        <button
+          onClick={handleSetLocalPath}
+          className="hidden h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground group-hover:flex"
+          aria-label={`Set local path for ${repo.fullName}`}
+          title="Set local clone path"
+        >
+          <FolderOpen className="h-3 w-3" />
+        </button>
       )}
       <button
         onClick={() => removeRepo.mutate(repo.id)}

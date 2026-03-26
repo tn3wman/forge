@@ -1,3 +1,17 @@
+export interface LinkedIssueRef {
+  number: number;
+  title: string;
+  state: string;
+}
+
+export interface LinkedPrRef {
+  number: number;
+  title: string;
+  state: string;
+  repoFullName: string;
+  willCloseTarget: boolean;
+}
+
 export interface PullRequest {
   id: string;
   number: number;
@@ -14,6 +28,7 @@ export interface PullRequest {
   deletions: number;
   changedFiles: number;
   labels: string[];
+  linkedIssues: LinkedIssueRef[];
   createdAt: string;
   updatedAt: string;
   mergedAt: string | null;
@@ -95,6 +110,11 @@ export interface TimelineEvent {
   id?: string | null;
   body?: string | null;
   label?: string | null;
+  sourceNumber?: number | null;
+  sourceTitle?: string | null;
+  sourceType?: string | null;
+  sourceRepo?: string | null;
+  willCloseTarget?: boolean | null;
 }
 
 export interface StatusCheck {
@@ -113,5 +133,6 @@ export interface PrDetail extends PullRequest {
 }
 
 export interface IssueDetail extends Issue {
+  linkedPullRequests: LinkedPrRef[];
   timeline: TimelineEvent[];
 }

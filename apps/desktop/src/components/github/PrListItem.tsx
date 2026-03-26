@@ -8,9 +8,11 @@ import {
   AlertCircle,
   Plus,
   Minus,
+  Link2,
 } from "lucide-react";
 import type { PullRequest } from "@forge/shared";
 import { cn } from "@/lib/utils";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { TimeAgo } from "@/components/common/TimeAgo";
 
@@ -75,6 +77,8 @@ interface PrListItemProps {
 }
 
 export function PrListItem({ pr, onClick }: PrListItemProps) {
+  const { navigateToIssue } = useWorkspaceStore();
+
   return (
     <div
       className="flex items-center gap-3 px-3 py-2 hover:bg-accent/50 transition-colors border-b border-border/50 cursor-pointer"
@@ -100,6 +104,29 @@ export function PrListItem({ pr, onClick }: PrListItemProps) {
                 <span className="text-[10px] text-muted-foreground">
                   +{pr.labels.length - 3}
                 </span>
+              )}
+            </div>
+          )}
+          {pr.linkedIssues && pr.linkedIssues.length > 0 && (
+            <div className="flex items-center gap-1">
+              <Link2 className="h-3 w-3 text-muted-foreground" />
+              {pr.linkedIssues.slice(0, 3).map((issue) => (
+                <button
+                  key={issue.number}
+                  className={cn(
+                    "text-[10px] font-mono hover:underline",
+                    issue.state === "closed" ? "text-purple-400" : "text-green-400"
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (pr.repoFullName) navigateToIssue(pr.repoFullName, issue.number);
+                  }}
+                >
+                  #{issue.number}
+                </button>
+              ))}
+              {pr.linkedIssues.length > 3 && (
+                <span className="text-[10px] text-muted-foreground">+{pr.linkedIssues.length - 3}</span>
               )}
             </div>
           )}

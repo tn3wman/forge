@@ -23,6 +23,13 @@ query($owner: String!, $repo: String!, $states: [PullRequestState!]) {
         deletions
         changedFiles
         labels(first: 10) { nodes { name } }
+        closingIssuesReferences(first: 10) {
+          nodes {
+            number
+            title
+            state
+          }
+        }
         createdAt
         updatedAt
         mergedAt
@@ -31,6 +38,14 @@ query($owner: String!, $repo: String!, $states: [PullRequestState!]) {
   }
 }
 "#;
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkedIssueRef {
+    pub number: i32,
+    pub title: String,
+    pub state: String,
+}
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -50,6 +65,7 @@ pub struct PullRequestItem {
     pub deletions: i32,
     pub changed_files: i32,
     pub labels: Vec<String>,
+    pub linked_issues: Vec<LinkedIssueRef>,
     pub created_at: String,
     pub updated_at: String,
     pub merged_at: Option<String>,
@@ -118,6 +134,21 @@ pub async fn list_pull_requests(
             })
             .unwrap_or_default();
 
+        let linked_issues = node["closingIssuesReferences"]["nodes"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|issue| {
+                        Some(LinkedIssueRef {
+                            number: issue["number"].as_i64()? as i32,
+                            title: issue["title"].as_str()?.to_string(),
+                            state: issue["state"].as_str().unwrap_or("OPEN").to_lowercase(),
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
         items.push(PullRequestItem {
             id: node["id"].as_str().unwrap_or_default().to_string(),
             number: node["number"].as_i64().unwrap_or(0) as i32,
@@ -146,6 +177,7 @@ pub async fn list_pull_requests(
             deletions: node["deletions"].as_i64().unwrap_or(0) as i32,
             changed_files: node["changedFiles"].as_i64().unwrap_or(0) as i32,
             labels,
+            linked_issues,
             created_at: node["createdAt"]
                 .as_str()
                 .unwrap_or_default()

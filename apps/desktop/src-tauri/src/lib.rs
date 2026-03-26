@@ -1,5 +1,7 @@
+mod background;
 mod commands;
 mod db;
+mod git;
 mod github;
 mod keychain;
 mod models;
@@ -29,6 +31,8 @@ pub fn run() {
                 .build()
                 .map_err(|e| format!("Failed to create HTTP client: {e}"))?;
             app.manage(http_client);
+
+            app.manage(background::repo_watcher::RepoWatcher::new());
 
             Ok(())
         })
@@ -68,6 +72,31 @@ pub fn run() {
             commands::github::github_merge_pr,
             commands::github::github_close_pr,
             commands::github::github_reopen_pr,
+            commands::git::git_get_status,
+            commands::git::git_get_log,
+            commands::git::git_get_diff,
+            commands::git::git_list_branches,
+            commands::git::git_create_branch,
+            commands::git::git_checkout_branch,
+            commands::git::git_delete_branch,
+            commands::git::git_rename_branch,
+            commands::git::git_get_current_branch,
+            commands::git::git_stage_files,
+            commands::git::git_unstage_files,
+            commands::git::git_stage_all,
+            commands::git::git_commit,
+            commands::git::git_amend,
+            commands::git::git_fetch,
+            commands::git::git_pull,
+            commands::git::git_push,
+            commands::git::git_stash_push,
+            commands::git::git_stash_list,
+            commands::git::git_stash_pop,
+            commands::git::git_stash_apply,
+            commands::git::git_stash_drop,
+            commands::git::git_start_watching,
+            commands::git::git_stop_watching,
+            commands::git::git_set_local_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
