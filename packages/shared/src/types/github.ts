@@ -136,3 +136,25 @@ export interface IssueDetail extends Issue {
   linkedPullRequests: LinkedPrRef[];
   timeline: TimelineEvent[];
 }
+
+// --- Notifications ---
+
+export interface NotificationSubject {
+  title: string;
+  url: string | null;
+  type: "Issue" | "PullRequest" | "Release" | "Discussion" | "CheckSuite" | "Commit" | string;
+}
+
+export interface NotificationItem {
+  id: string;
+  unread: boolean;
+  reason: string;
+  subject: NotificationSubject;
+  repository: {
+    fullName: string;
+    owner: string;
+    name: string;
+  };
+  updatedAt: string;
+  url: string;
+}

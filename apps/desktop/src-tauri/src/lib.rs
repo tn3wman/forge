@@ -97,6 +97,9 @@ pub fn run() {
             commands::git::git_start_watching,
             commands::git::git_stop_watching,
             commands::git::git_set_local_path,
+            commands::notifications::github_list_notifications,
+            commands::notifications::github_mark_notification_read,
+            commands::notifications::github_mark_all_notifications_read,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
