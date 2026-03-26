@@ -1,0 +1,10 @@
+{
+  "name": "@forge/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.mjs",
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "typescript-eslint": "^8.0.0"
+  }
+}
