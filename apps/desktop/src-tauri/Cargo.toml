@@ -31,3 +31,5 @@ tracing-subscriber = "0.3"
 git2 = { version = "0.19", features = ["https", "ssh"] }
 notify = "7"
 notify-debouncer-mini = "0.5"
+portable-pty = "0.8"
+which = "7"
