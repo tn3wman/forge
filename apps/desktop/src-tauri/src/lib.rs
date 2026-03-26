@@ -5,6 +5,7 @@ mod git;
 mod github;
 mod keychain;
 mod models;
+mod terminal;
 
 use db::Database;
 use tauri::Manager;
@@ -33,6 +34,7 @@ pub fn run() {
             app.manage(http_client);
 
             app.manage(background::repo_watcher::RepoWatcher::new());
+            app.manage(terminal::manager::SessionManager::new());
 
             Ok(())
         })
@@ -102,6 +104,12 @@ pub fn run() {
             commands::notifications::github_mark_notification_read,
             commands::notifications::github_mark_all_notifications_read,
             commands::search::github_search,
+            commands::terminal::terminal_discover_clis,
+            commands::terminal::terminal_create_session,
+            commands::terminal::terminal_list_sessions,
+            commands::terminal::terminal_write,
+            commands::terminal::terminal_resize,
+            commands::terminal::terminal_kill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
