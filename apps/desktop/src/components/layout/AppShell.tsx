@@ -37,6 +37,10 @@ import { CommandPalette } from "@/components/layout/CommandPalette";
 import { useUnreadCount } from "@/queries/useNotifications";
 import { Notifications } from "@/pages/Notifications";
 import { Search } from "@/pages/Search";
+import { Terminal as TerminalIcon } from "lucide-react";
+import { TerminalPanel } from "@/components/terminal/TerminalPanel";
+import { NewTerminalDialog } from "@/components/terminal/NewTerminalDialog";
+import { useTerminalStore } from "@/stores/terminalStore";
 
 const navItems: { icon: typeof LayoutDashboard; label: string; shortcut: string; page: AppPage }[] = [
   { icon: LayoutDashboard, label: "Dashboard", shortcut: "G D", page: "dashboard" },
@@ -103,6 +107,8 @@ export function AppShell() {
   const { data: repos } = useRepositories(activeWorkspaceId);
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [newTerminalOpen, setNewTerminalOpen] = useState(false);
+  const { isOpen: terminalOpen, togglePanel: toggleTerminal, tabs: terminalTabs } = useTerminalStore();
 
   // Find first repo with a local path for git navigation
   const firstLocalPath = repos?.find((r) => r.localPath)?.localPath ?? null;
@@ -154,6 +160,8 @@ export function AppShell() {
     { label: "Branches", keys: "G B", mode: "sequence", sequenceKey: "b", category: "Git", enabled: !!firstLocalPath, action: () => firstLocalPathRef.current && navigateToBranches(firstLocalPathRef.current) },
     { label: "Search", keys: "G S", mode: "sequence", sequenceKey: "s", category: "Navigation", action: () => setActivePage("search") },
     { label: "Settings", keys: "G ,", mode: "sequence", sequenceKey: ",", category: "Navigation", action: () => setActivePage("settings") },
+    { label: "Toggle Terminal", keys: "⌘ `", mode: "combo" as const, key: "`", meta: true, category: "Terminal", action: () => useTerminalStore.getState().togglePanel() },
+    { label: "New Terminal", keys: "⌘ ⇧ `", mode: "combo" as const, key: "`", meta: true, shift: true, category: "Terminal", action: () => setNewTerminalOpen(true) },
     {
       label: "Go Back", keys: "Esc", mode: "combo", key: "Escape", category: "Navigation",
       action: () => {
@@ -256,6 +264,33 @@ export function AppShell() {
           ))}
         </div>
 
+        <Separator className="my-3 w-6" />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={toggleTerminal}
+              className={cn(
+                "relative flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                terminalOpen
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+              )}
+            >
+              <TerminalIcon className="h-4 w-4" />
+              {terminalTabs.length > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-medium text-primary-foreground">
+                  {terminalTabs.length}
+                </span>
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            Terminal
+            <span className="ml-2 text-xs text-muted-foreground">⌘`</span>
+          </TooltipContent>
+        </Tooltip>
+
         <div className="flex-1" />
 
         <Tooltip>
@@ -315,21 +350,22 @@ export function AppShell() {
           </span>
         </div>
 
-        <div className="flex-1 overflow-hidden">
-          {activeWorkspaceId ? (
-            <PageContent page={activePage} />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <Anvil className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-                <h2 className="text-lg font-medium text-muted-foreground">
-                  Welcome to Forge
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground/70">
-                  Create a workspace to get started
-                </p>
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="flex-1 overflow-hidden">
+            {activeWorkspaceId ? (
+              <PageContent page={activePage} />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <Anvil className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+                  <h2 className="text-lg font-medium text-muted-foreground">Welcome to Forge</h2>
+                  <p className="mt-1 text-sm text-muted-foreground/70">Create a workspace to get started</p>
+                </div>
               </div>
-            </div>
+            )}
+          </div>
+          {terminalOpen && (
+            <TerminalPanel onNewTerminal={() => setNewTerminalOpen(true)} />
           )}
         </div>
       </div>
@@ -338,6 +374,7 @@ export function AppShell() {
         onOpenChange={setCommandPaletteOpen}
         shortcuts={shortcuts}
       />
+      <NewTerminalDialog open={newTerminalOpen} onOpenChange={setNewTerminalOpen} />
     </div>
   );
 }
