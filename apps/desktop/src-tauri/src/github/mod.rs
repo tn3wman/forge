@@ -4,3 +4,4 @@ pub mod graphql;
 pub mod mutations;
 pub mod notifications;
 pub mod queries;
+pub mod search;

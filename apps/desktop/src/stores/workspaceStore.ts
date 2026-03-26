@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type AppPage = "dashboard" | "pull-requests" | "issues" | "notifications" | "pr-detail" | "issue-detail" | "commit-graph" | "changes" | "branches";
+export type AppPage = "dashboard" | "pull-requests" | "issues" | "notifications" | "pr-detail" | "issue-detail" | "commit-graph" | "changes" | "branches" | "search" | "settings";
 
 interface NavState {
   activePage: AppPage;

@@ -58,6 +58,8 @@ const PAGE_TITLES: Record<AppPage, string> = {
   "commit-graph": "Commit Graph",
   changes: "Changes",
   branches: "Branches",
+  search: "Search",
+  settings: "Settings",
 };
 
 function PageContent({ page }: { page: AppPage }) {
@@ -80,6 +82,10 @@ function PageContent({ page }: { page: AppPage }) {
       return <Changes />;
     case "branches":
       return <Branches />;
+    case "search":
+      return <div className="flex items-center justify-center h-full text-muted-foreground"><p className="text-sm">Search</p></div>;
+    case "settings":
+      return <div className="flex items-center justify-center h-full text-muted-foreground"><p className="text-sm">Settings</p></div>;
   }
 }
 
