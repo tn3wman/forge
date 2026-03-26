@@ -1,7 +1,36 @@
 use keyring::Entry;
+use std::sync::Mutex;
 
 const SERVICE_NAME: &str = "dev.forge.app";
 const ACCOUNT_NAME: &str = "github_token";
+
+/// In-memory token cache to avoid repeated macOS Keychain access prompts.
+/// During development, each recompile produces a new unsigned binary that
+/// macOS treats as untrusted, causing a Keychain permission dialog every time.
+/// Caching the token in memory means the keychain is only read once per session.
+pub struct TokenCache {
+    inner: Mutex<Option<String>>,
+}
+
+impl TokenCache {
+    pub fn new() -> Self {
+        Self {
+            inner: Mutex::new(None),
+        }
+    }
+
+    pub fn get(&self) -> Option<String> {
+        self.inner.lock().unwrap().clone()
+    }
+
+    pub fn set(&self, token: String) {
+        *self.inner.lock().unwrap() = Some(token);
+    }
+
+    pub fn clear(&self) {
+        *self.inner.lock().unwrap() = None;
+    }
+}
 
 pub fn store_token(token: &str) -> Result<(), String> {
     let entry = Entry::new(SERVICE_NAME, ACCOUNT_NAME).map_err(|e| e.to_string())?;

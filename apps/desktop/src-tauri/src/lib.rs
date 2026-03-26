@@ -35,6 +35,7 @@ pub fn run() {
 
             app.manage(background::repo_watcher::RepoWatcher::new());
             app.manage(terminal::manager::SessionManager::new());
+            app.manage(keychain::TokenCache::new());
 
             Ok(())
         })
