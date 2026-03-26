@@ -11,6 +11,7 @@ import { Terminal, Loader2 } from "lucide-react";
 import { terminalIpc } from "@/ipc/terminal";
 import { useTerminalStore } from "@/stores/terminalStore";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
+import { useRepositories } from "@/queries/useRepositories";
 import { cn } from "@/lib/utils";
 import type { AgentMode, CliInfo } from "@forge/shared";
 
@@ -33,6 +34,8 @@ export function NewTerminalDialog({ open, onOpenChange }: NewTerminalDialogProps
   const [selectedMode, setSelectedMode] = useState<AgentMode>("Normal");
   const { addTab } = useTerminalStore();
   const { activeWorkspaceId } = useWorkspaceStore();
+  const { data: repos } = useRepositories(activeWorkspaceId);
+  const workingDirectory = repos?.find((r) => r.localPath)?.localPath ?? undefined;
 
   useEffect(() => {
     if (!open) return;
@@ -59,6 +62,7 @@ export function NewTerminalDialog({ open, onOpenChange }: NewTerminalDialogProps
         cliName: selectedCli,
         mode: selectedMode,
         workspaceId: activeWorkspaceId,
+        workingDirectory,
       });
       addTab({
         sessionId: session.id,

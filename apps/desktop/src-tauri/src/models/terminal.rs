@@ -10,7 +10,6 @@ pub struct CliInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub enum AgentMode {
     Normal,
     Plan,
