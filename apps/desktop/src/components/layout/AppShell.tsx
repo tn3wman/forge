@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useKeyboardShortcuts, type Shortcut } from "@/hooks/useKeyboardShortcuts";
 import {
   Anvil,
@@ -31,6 +31,7 @@ import { CommitGraph } from "@/pages/CommitGraph";
 import { Changes } from "@/pages/Changes";
 import { Branches } from "@/pages/Branches";
 import { cn } from "@/lib/utils";
+import { CommandPalette } from "@/components/layout/CommandPalette";
 
 const navItems: { icon: typeof LayoutDashboard; label: string; shortcut: string; page: AppPage }[] = [
   { icon: LayoutDashboard, label: "Dashboard", shortcut: "G D", page: "dashboard" },
@@ -96,6 +97,8 @@ export function AppShell() {
   const { data: activeWorkspace } = useWorkspace(activeWorkspaceId);
   const { data: repos } = useRepositories(activeWorkspaceId);
 
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+
   // Find first repo with a local path for git navigation
   const firstLocalPath = repos?.find((r) => r.localPath)?.localPath ?? null;
   const firstLocalPathRef = useRef(firstLocalPath);
@@ -134,8 +137,9 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [workspaces, setActiveWorkspaceId]);
 
-  // G+key navigation shortcuts & Escape
+  // G+key navigation shortcuts, Cmd+K, & Escape
   const shortcuts: Shortcut[] = [
+    { label: "Command Palette", keys: "\u2318 K", mode: "combo", key: "k", meta: true, category: "General", action: () => setCommandPaletteOpen(true) },
     { label: "Dashboard", keys: "G D", mode: "sequence", sequenceKey: "d", category: "Navigation", action: () => setActivePage("dashboard") },
     { label: "Pull Requests", keys: "G P", mode: "sequence", sequenceKey: "p", category: "Navigation", action: () => setActivePage("pull-requests") },
     { label: "Issues", keys: "G I", mode: "sequence", sequenceKey: "i", category: "Navigation", action: () => setActivePage("issues") },
@@ -297,6 +301,11 @@ export function AppShell() {
           )}
         </div>
       </div>
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        shortcuts={shortcuts}
+      />
     </div>
   );
 }
