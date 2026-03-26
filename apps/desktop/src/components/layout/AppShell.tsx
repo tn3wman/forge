@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useKeyboardShortcuts, type Shortcut } from "@/hooks/useKeyboardShortcuts";
 import {
   Anvil,
   GitPullRequest,
@@ -133,51 +134,27 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [workspaces, setActiveWorkspaceId]);
 
-  // G+key navigation shortcuts
-  useEffect(() => {
-    let gPressed = false;
-    let timeout: ReturnType<typeof setTimeout>;
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === "Escape") {
+  // G+key navigation shortcuts & Escape
+  const shortcuts: Shortcut[] = [
+    { label: "Dashboard", keys: "G D", mode: "sequence", sequenceKey: "d", category: "Navigation", action: () => setActivePage("dashboard") },
+    { label: "Pull Requests", keys: "G P", mode: "sequence", sequenceKey: "p", category: "Navigation", action: () => setActivePage("pull-requests") },
+    { label: "Issues", keys: "G I", mode: "sequence", sequenceKey: "i", category: "Navigation", action: () => setActivePage("issues") },
+    { label: "Notifications", keys: "G N", mode: "sequence", sequenceKey: "n", category: "Navigation", action: () => setActivePage("notifications") },
+    { label: "Changes", keys: "G H", mode: "sequence", sequenceKey: "h", category: "Git", enabled: !!firstLocalPath, action: () => firstLocalPathRef.current && navigateToChanges(firstLocalPathRef.current) },
+    { label: "Commit Graph", keys: "G C", mode: "sequence", sequenceKey: "c", category: "Git", enabled: !!firstLocalPath, action: () => firstLocalPathRef.current && navigateToCommitGraph(firstLocalPathRef.current) },
+    { label: "Branches", keys: "G B", mode: "sequence", sequenceKey: "b", category: "Git", enabled: !!firstLocalPath, action: () => firstLocalPathRef.current && navigateToBranches(firstLocalPathRef.current) },
+    {
+      label: "Go Back", keys: "Esc", mode: "combo", key: "Escape", category: "Navigation",
+      action: () => {
         const { activePage, goBack } = useWorkspaceStore.getState();
-        if (activePage === "pr-detail" || activePage === "issue-detail" || activePage === "changes" || activePage === "commit-graph" || activePage === "branches") {
+        if (["pr-detail", "issue-detail", "changes", "commit-graph", "branches"].includes(activePage)) {
           goBack();
         }
-        return;
-      }
-      if (e.key === "g" && !e.metaKey && !e.ctrlKey) {
-        gPressed = true;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => { gPressed = false; }, 500);
-        return;
-      }
-      if (gPressed) {
-        gPressed = false;
-        switch (e.key) {
-          case "d": setActivePage("dashboard"); break;
-          case "p": setActivePage("pull-requests"); break;
-          case "i": setActivePage("issues"); break;
-          case "n": setActivePage("notifications"); break;
-          case "h": case "c": case "b": {
-            const lp = firstLocalPathRef.current;
-            if (!lp) break;
-            const { navigateToChanges, navigateToCommitGraph, navigateToBranches } = useWorkspaceStore.getState();
-            if (e.key === "h") navigateToChanges(lp);
-            else if (e.key === "c") navigateToCommitGraph(lp);
-            else navigateToBranches(lp);
-            break;
-          }
-        }
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      clearTimeout(timeout);
-    };
-  }, [setActivePage]);
+      },
+    },
+  ];
+
+  useKeyboardShortcuts(shortcuts);
 
   return (
     <div className="flex h-screen">
