@@ -1,3 +1,4 @@
+mod agent;
 mod background;
 mod commands;
 mod db;
