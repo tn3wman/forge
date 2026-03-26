@@ -17,6 +17,7 @@ impl Database {
 
     pub fn run_migrations(&self) -> Result<(), rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
-        conn.execute_batch(include_str!("../migrations/001_initial.sql"))
+        conn.execute_batch(include_str!("../migrations/001_initial.sql"))?;
+        conn.execute_batch(include_str!("../migrations/002_terminal_configs.sql"))
     }
 }
