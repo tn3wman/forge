@@ -30,6 +30,8 @@ import { IssueDetail } from "@/pages/IssueDetail";
 import { CommitGraph } from "@/pages/CommitGraph";
 import { Changes } from "@/pages/Changes";
 import { Branches } from "@/pages/Branches";
+import { Settings } from "@/pages/Settings";
+import { Settings as SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { useUnreadCount } from "@/queries/useNotifications";
@@ -86,7 +88,7 @@ function PageContent({ page }: { page: AppPage }) {
     case "search":
       return <Search />;
     case "settings":
-      return <div className="flex items-center justify-center h-full text-muted-foreground"><p className="text-sm">Settings</p></div>;
+      return <Settings />;
   }
 }
 
@@ -255,6 +257,26 @@ export function AppShell() {
         </div>
 
         <div className="flex-1" />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setActivePage("settings")}
+              className={cn(
+                "mb-2 flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                activePage === "settings"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+              )}
+            >
+              <SettingsIcon className="h-4 w-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            Settings
+            <span className="ml-2 text-xs text-muted-foreground">G ,</span>
+          </TooltipContent>
+        </Tooltip>
 
         {/* User menu at bottom */}
         <UserMenu />
