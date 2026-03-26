@@ -9,6 +9,7 @@
     "dialog:default",
     "store:default",
     "opener:default",
-    "process:default"
+    "process:default",
+    "updater:default"
   ]
 }

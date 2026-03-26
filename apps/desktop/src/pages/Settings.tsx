@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { User, Bell, GitBranch, Settings as SettingsIcon } from "lucide-react";
+import { check } from "@tauri-apps/plugin-updater";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useAuthStore } from "@/stores/authStore";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -36,6 +37,24 @@ export function Settings() {
 
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "none" | "error">("idle");
+  const [updateVersion, setUpdateVersion] = useState<string | null>(null);
+
+  async function checkForUpdates() {
+    setUpdateStatus("checking");
+    try {
+      const update = await check();
+      if (update) {
+        setUpdateStatus("available");
+        setUpdateVersion(update.version);
+      } else {
+        setUpdateStatus("none");
+      }
+    } catch {
+      setUpdateStatus("error");
+    }
+  }
 
   useEffect(() => {
     if (!loaded) {
@@ -144,6 +163,31 @@ export function Settings() {
                   </option>
                 ))}
               </select>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Updates */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <SettingsIcon className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>Updates</CardTitle>
+            </div>
+            <CardDescription>Check for new versions of Forge</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                {updateStatus === "idle" && <span className="text-muted-foreground">Click to check for updates</span>}
+                {updateStatus === "checking" && <span className="text-muted-foreground">Checking...</span>}
+                {updateStatus === "available" && <span className="text-green-500">Version {updateVersion} available!</span>}
+                {updateStatus === "none" && <span className="text-muted-foreground">You&apos;re up to date</span>}
+                {updateStatus === "error" && <span className="text-destructive">Failed to check for updates</span>}
+              </div>
+              <Button variant="outline" size="sm" onClick={checkForUpdates} disabled={updateStatus === "checking"}>
+                Check for Updates
+              </Button>
             </div>
           </CardContent>
         </Card>
