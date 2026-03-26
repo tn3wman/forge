@@ -32,6 +32,8 @@ import { Changes } from "@/pages/Changes";
 import { Branches } from "@/pages/Branches";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/layout/CommandPalette";
+import { useUnreadCount } from "@/queries/useNotifications";
+import { Notifications } from "@/pages/Notifications";
 
 const navItems: { icon: typeof LayoutDashboard; label: string; shortcut: string; page: AppPage }[] = [
   { icon: LayoutDashboard, label: "Dashboard", shortcut: "G D", page: "dashboard" },
@@ -67,14 +69,7 @@ function PageContent({ page }: { page: AppPage }) {
     case "issues":
       return <Issues />;
     case "notifications":
-      return (
-        <div className="flex items-center justify-center h-full text-muted-foreground">
-          <div className="text-center">
-            <Bell className="mx-auto mb-3 h-10 w-10 opacity-30" />
-            <p className="text-sm">Notifications coming in Phase 6</p>
-          </div>
-        </div>
-      );
+      return <Notifications />;
     case "pr-detail":
       return <PrDetail />;
     case "issue-detail":
@@ -93,6 +88,7 @@ const GIT_PAGES: AppPage[] = ["changes", "commit-graph", "branches"];
 export function AppShell() {
   const { activeWorkspaceId, activePage, setActiveWorkspaceId, setActivePage, navigateToChanges, navigateToCommitGraph, navigateToBranches } =
     useWorkspaceStore();
+  const unreadCount = useUnreadCount();
   const { data: workspaces } = useWorkspaces();
   const { data: activeWorkspace } = useWorkspace(activeWorkspaceId);
   const { data: repos } = useRepositories(activeWorkspaceId);
@@ -188,13 +184,18 @@ export function AppShell() {
                 <button
                   onClick={() => setActivePage(item.page)}
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                    "relative flex h-8 w-8 items-center justify-center rounded-md transition-colors",
                     activePage === item.page
                       ? "bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
                   <item.icon className="h-4 w-4" />
+                  {item.page === "notifications" && unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">
