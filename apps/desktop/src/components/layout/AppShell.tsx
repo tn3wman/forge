@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { useUnreadCount } from "@/queries/useNotifications";
 import { Notifications } from "@/pages/Notifications";
+import { Search } from "@/pages/Search";
 
 const navItems: { icon: typeof LayoutDashboard; label: string; shortcut: string; page: AppPage }[] = [
   { icon: LayoutDashboard, label: "Dashboard", shortcut: "G D", page: "dashboard" },
@@ -83,7 +84,7 @@ function PageContent({ page }: { page: AppPage }) {
     case "branches":
       return <Branches />;
     case "search":
-      return <div className="flex items-center justify-center h-full text-muted-foreground"><p className="text-sm">Search</p></div>;
+      return <Search />;
     case "settings":
       return <div className="flex items-center justify-center h-full text-muted-foreground"><p className="text-sm">Settings</p></div>;
   }
@@ -149,6 +150,8 @@ export function AppShell() {
     { label: "Changes", keys: "G H", mode: "sequence", sequenceKey: "h", category: "Git", enabled: !!firstLocalPath, action: () => firstLocalPathRef.current && navigateToChanges(firstLocalPathRef.current) },
     { label: "Commit Graph", keys: "G C", mode: "sequence", sequenceKey: "c", category: "Git", enabled: !!firstLocalPath, action: () => firstLocalPathRef.current && navigateToCommitGraph(firstLocalPathRef.current) },
     { label: "Branches", keys: "G B", mode: "sequence", sequenceKey: "b", category: "Git", enabled: !!firstLocalPath, action: () => firstLocalPathRef.current && navigateToBranches(firstLocalPathRef.current) },
+    { label: "Search", keys: "G S", mode: "sequence", sequenceKey: "s", category: "Navigation", action: () => setActivePage("search") },
+    { label: "Settings", keys: "G ,", mode: "sequence", sequenceKey: ",", category: "Navigation", action: () => setActivePage("settings") },
     {
       label: "Go Back", keys: "Esc", mode: "combo", key: "Escape", category: "Navigation",
       action: () => {
