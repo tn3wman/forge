@@ -1,17 +1,18 @@
-use crate::models::terminal::{AgentMode, CreateSessionRequest, SessionInfo};
-use crate::terminal::session::PtySession;
+use crate::models::agent::{AgentMode, AgentSessionInfo, CreateAgentSessionRequest};
 use crate::util::time_from_epoch_secs;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::SystemTime;
 use tauri::AppHandle;
 
-struct SessionEntry {
-    session: PtySession,
-    info: SessionMeta,
+use super::session::AgentSession;
+
+struct AgentEntry {
+    session: AgentSession,
+    info: AgentMeta,
 }
 
-struct SessionMeta {
+struct AgentMeta {
     cli_name: String,
     display_name: String,
     mode: AgentMode,
@@ -20,11 +21,11 @@ struct SessionMeta {
     created_at: String,
 }
 
-pub struct SessionManager {
-    sessions: Mutex<HashMap<String, SessionEntry>>,
+pub struct AgentSessionManager {
+    sessions: Mutex<HashMap<String, AgentEntry>>,
 }
 
-impl SessionManager {
+impl AgentSessionManager {
     pub fn new() -> Self {
         Self {
             sessions: Mutex::new(HashMap::new()),
@@ -33,9 +34,9 @@ impl SessionManager {
 
     pub fn create_session(
         &self,
-        request: CreateSessionRequest,
+        request: CreateAgentSessionRequest,
         app_handle: AppHandle,
-    ) -> Result<SessionInfo, String> {
+    ) -> Result<AgentSessionInfo, String> {
         let id = uuid::Uuid::now_v7().to_string();
 
         let display_name = match request.cli_name.as_str() {
@@ -46,38 +47,38 @@ impl SessionManager {
         }
         .to_string();
 
-        let session = PtySession::spawn(
+        let session = AgentSession::spawn(
             id.clone(),
             &request.cli_name,
             &request.mode,
             request.working_directory.as_deref(),
+            &request.initial_prompt,
             app_handle,
         )?;
 
         let created_at = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .map(|d| {
-                // ISO 8601 timestamp
                 let secs = d.as_secs();
-                let naive_dt = time_from_epoch_secs(secs);
-                naive_dt
+                time_from_epoch_secs(secs)
             })
             .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string());
 
-        let info = SessionInfo {
+        let info = AgentSessionInfo {
             id: id.clone(),
             cli_name: request.cli_name.clone(),
             display_name: display_name.clone(),
             mode: request.mode.clone(),
             working_directory: request.working_directory.clone(),
             workspace_id: request.workspace_id.clone(),
+            conversation_id: None,
             is_alive: true,
             created_at: created_at.clone(),
         };
 
-        let entry = SessionEntry {
+        let entry = AgentEntry {
             session,
-            info: SessionMeta {
+            info: AgentMeta {
                 cli_name: request.cli_name,
                 display_name,
                 mode: request.mode,
@@ -92,7 +93,45 @@ impl SessionManager {
         Ok(info)
     }
 
-    pub fn list_sessions(&self, workspace_id: Option<&str>) -> Vec<SessionInfo> {
+    pub fn send_message(&self, session_id: &str, message: &str) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let entry = sessions
+            .get_mut(session_id)
+            .ok_or_else(|| format!("Agent session '{}' not found", session_id))?;
+        entry.session.send_message(message)
+    }
+
+    pub fn respond_permission(
+        &self,
+        session_id: &str,
+        tool_use_id: &str,
+        allow: bool,
+    ) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let entry = sessions
+            .get_mut(session_id)
+            .ok_or_else(|| format!("Agent session '{}' not found", session_id))?;
+        entry.session.respond_permission(tool_use_id, allow)
+    }
+
+    pub fn abort_session(&self, session_id: &str) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let entry = sessions
+            .get_mut(session_id)
+            .ok_or_else(|| format!("Agent session '{}' not found", session_id))?;
+        entry.session.abort()
+    }
+
+    pub fn kill_session(&self, session_id: &str) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let entry = sessions
+            .get_mut(session_id)
+            .ok_or_else(|| format!("Agent session '{}' not found", session_id))?;
+        entry.session.kill();
+        Ok(())
+    }
+
+    pub fn list_sessions(&self, workspace_id: Option<&str>) -> Vec<AgentSessionInfo> {
         let mut sessions = self.sessions.lock().unwrap();
         sessions
             .iter_mut()
@@ -101,42 +140,18 @@ impl SessionManager {
                     .map(|wid| entry.info.workspace_id == wid)
                     .unwrap_or(true)
             })
-            .map(|(id, entry)| SessionInfo {
+            .map(|(id, entry)| AgentSessionInfo {
                 id: id.clone(),
                 cli_name: entry.info.cli_name.clone(),
                 display_name: entry.info.display_name.clone(),
                 mode: entry.info.mode.clone(),
                 working_directory: entry.info.working_directory.clone(),
                 workspace_id: entry.info.workspace_id.clone(),
+                conversation_id: entry.session.conversation_id(),
                 is_alive: entry.session.is_alive(),
                 created_at: entry.info.created_at.clone(),
             })
             .collect()
-    }
-
-    pub fn write_to_session(&self, session_id: &str, data: &[u8]) -> Result<(), String> {
-        let mut sessions = self.sessions.lock().unwrap();
-        let entry = sessions
-            .get_mut(session_id)
-            .ok_or_else(|| format!("Session '{}' not found", session_id))?;
-        entry.session.write(data)
-    }
-
-    pub fn resize_session(&self, session_id: &str, cols: u16, rows: u16) -> Result<(), String> {
-        let sessions = self.sessions.lock().unwrap();
-        let entry = sessions
-            .get(session_id)
-            .ok_or_else(|| format!("Session '{}' not found", session_id))?;
-        entry.session.resize(cols, rows)
-    }
-
-    pub fn kill_session(&self, session_id: &str) -> Result<(), String> {
-        let mut sessions = self.sessions.lock().unwrap();
-        let entry = sessions
-            .get_mut(session_id)
-            .ok_or_else(|| format!("Session '{}' not found", session_id))?;
-        entry.session.kill();
-        Ok(())
     }
 
     pub fn kill_all(&self) {
@@ -148,9 +163,8 @@ impl SessionManager {
     }
 }
 
-impl Drop for SessionManager {
+impl Drop for AgentSessionManager {
     fn drop(&mut self) {
         self.kill_all();
     }
 }
-

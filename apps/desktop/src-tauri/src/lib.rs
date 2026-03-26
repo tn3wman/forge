@@ -7,6 +7,7 @@ mod github;
 mod keychain;
 mod models;
 mod terminal;
+mod util;
 
 use db::Database;
 use tauri::Manager;
