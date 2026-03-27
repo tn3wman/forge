@@ -18,6 +18,9 @@ impl Database {
     pub fn run_migrations(&self) -> Result<(), rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         conn.execute_batch(include_str!("../migrations/001_initial.sql"))?;
-        conn.execute_batch(include_str!("../migrations/002_terminal_configs.sql"))
+        conn.execute_batch(include_str!("../migrations/002_terminal_configs.sql"))?;
+        // 003 uses ALTER TABLE which isn't idempotent — ignore "duplicate column" errors
+        let _ = conn.execute_batch(include_str!("../migrations/003_workspace_colors.sql"));
+        Ok(())
     }
 }

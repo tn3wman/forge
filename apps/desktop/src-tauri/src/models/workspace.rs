@@ -6,6 +6,7 @@ pub struct Workspace {
     pub id: String,
     pub name: String,
     pub icon: Option<String>,
+    pub color: String,
     pub sort_order: i32,
     pub created_at: String,
     pub updated_at: String,
@@ -40,6 +41,7 @@ pub struct CreateWorkspaceRequest {
 pub struct UpdateWorkspaceRequest {
     pub name: Option<String>,
     pub icon: Option<String>,
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,4 +54,18 @@ pub struct AddRepoRequest {
     pub github_id: Option<i64>,
     pub is_private: bool,
     pub default_branch: String,
+}
+
+pub const WORKSPACE_COLORS: &[&str] = &[
+    "blue", "green", "purple", "orange", "pink",
+    "teal", "red", "yellow", "indigo", "emerald",
+];
+
+pub fn random_color() -> String {
+    use std::time::SystemTime;
+    let nanos = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .subsec_nanos() as usize;
+    WORKSPACE_COLORS[nanos % WORKSPACE_COLORS.len()].to_string()
 }
