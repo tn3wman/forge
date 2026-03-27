@@ -12,6 +12,7 @@ import { PreSessionView } from "@/components/agent/PreSessionView";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { terminalIpc } from "@/ipc/terminal";
 import { agentIpc } from "@/ipc/agent";
+import { CommitPushButton } from "@/components/terminal/CommitPushButton";
 
 class ChatErrorBoundary extends Component<
   { children: ReactNode },
@@ -161,6 +162,8 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
         )}
 
         <div className="flex-1" />
+
+        <CommitPushButton />
 
         <button
           onClick={onNewTerminal}
