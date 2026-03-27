@@ -37,6 +37,7 @@ pub fn run() {
 
             app.manage(background::repo_watcher::RepoWatcher::new());
             app.manage(terminal::manager::SessionManager::new());
+            app.manage(agent::manager::AgentSessionManager::new());
             app.manage(keychain::TokenCache::new());
 
             Ok(())
@@ -113,6 +114,12 @@ pub fn run() {
             commands::terminal::terminal_write,
             commands::terminal::terminal_resize,
             commands::terminal::terminal_kill,
+            commands::agent::agent_create_session,
+            commands::agent::agent_send_message,
+            commands::agent::agent_respond_permission,
+            commands::agent::agent_abort,
+            commands::agent::agent_kill,
+            commands::agent::agent_list_sessions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
