@@ -28,6 +28,9 @@ pub struct CodexBackend {
     request_counter: Arc<AtomicU64>,
     /// Maps JSON-RPC server request IDs to their method + itemId for approval routing
     pending_approvals: Arc<Mutex<std::collections::HashMap<String, PendingApproval>>>,
+    turn_start_time: Arc<Mutex<Option<std::time::Instant>>>,
+    input_tokens: Arc<Mutex<u64>>,
+    output_tokens: Arc<Mutex<u64>>,
 }
 
 #[derive(Clone)]
@@ -77,6 +80,9 @@ impl CodexBackend {
         let request_counter = Arc::new(AtomicU64::new(1));
         let pending_approvals: Arc<Mutex<std::collections::HashMap<String, PendingApproval>>> =
             Arc::new(Mutex::new(std::collections::HashMap::new()));
+        let turn_start_time: Arc<Mutex<Option<std::time::Instant>>> = Arc::new(Mutex::new(None));
+        let input_tokens: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+        let output_tokens: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
 
         let approval_mode = match mode {
             AgentMode::FullAccess => "never",
@@ -116,6 +122,9 @@ impl CodexBackend {
             let thread_id = thread_id.clone();
             let turn_id = turn_id.clone();
             let pending_approvals = pending_approvals.clone();
+            let turn_start_time = turn_start_time.clone();
+            let input_tokens = input_tokens.clone();
+            let output_tokens = output_tokens.clone();
             let session_id_clone = session_id.clone();
             let app_handle_clone = app_handle.clone();
 
@@ -171,6 +180,9 @@ impl CodexBackend {
                             &thread_id,
                             &turn_id,
                             &pending_approvals,
+                            &turn_start_time,
+                            &input_tokens,
+                            &output_tokens,
                         );
 
                         for event in events {
@@ -333,6 +345,9 @@ impl CodexBackend {
             turn_id,
             request_counter,
             pending_approvals,
+            turn_start_time,
+            input_tokens,
+            output_tokens,
         })
     }
 
@@ -376,6 +391,9 @@ fn parse_codex_notification(
     thread_id: &Arc<Mutex<Option<String>>>,
     turn_id: &Arc<Mutex<Option<String>>>,
     pending_approvals: &Arc<Mutex<std::collections::HashMap<String, PendingApproval>>>,
+    turn_start_time: &Arc<Mutex<Option<std::time::Instant>>>,
+    input_tokens: &Arc<Mutex<u64>>,
+    output_tokens: &Arc<Mutex<u64>>,
 ) -> Vec<AgentEvent> {
     let current_turn_id = turn_id.lock().ok().and_then(|t| t.clone());
 
@@ -410,6 +428,9 @@ fn parse_codex_notification(
                     *t = Some(tid.to_string());
                 }
             }
+            if let Ok(mut ts) = turn_start_time.lock() {
+                *ts = Some(std::time::Instant::now());
+            }
             vec![AgentEvent::Raw {
                 data: serde_json::json!({"type": "turn_started"}),
             }]
@@ -426,9 +447,15 @@ fn parse_codex_notification(
                 .unwrap_or("")
                 .to_string();
 
+            let elapsed_ms = turn_start_time
+                .lock()
+                .ok()
+                .and_then(|ts| ts.map(|t| t.elapsed().as_millis() as u64))
+                .unwrap_or(0);
+
             vec![AgentEvent::Result {
                 result_text: error_msg,
-                duration_ms: 0,
+                duration_ms: elapsed_ms,
                 total_cost_usd: 0.0,
                 is_error,
             }]
@@ -670,10 +697,17 @@ fn parse_codex_notification(
         }
 
         "thread/tokenUsage/updated" => {
-            // Could extract cost info here in the future
-            vec![AgentEvent::Raw {
-                data: serde_json::json!({"type": "token_usage"}),
-            }]
+            if let Some(input) = params.get("inputTokens").and_then(|v| v.as_u64()) {
+                if let Ok(mut t) = input_tokens.lock() {
+                    *t = input;
+                }
+            }
+            if let Some(output) = params.get("outputTokens").and_then(|v| v.as_u64()) {
+                if let Ok(mut t) = output_tokens.lock() {
+                    *t = output;
+                }
+            }
+            vec![]
         }
 
         "error" => {
@@ -831,17 +865,23 @@ mod tests {
         Arc<Mutex<Option<String>>>,
         Arc<Mutex<Option<String>>>,
         Arc<Mutex<std::collections::HashMap<String, PendingApproval>>>,
+        Arc<Mutex<Option<std::time::Instant>>>,
+        Arc<Mutex<u64>>,
+        Arc<Mutex<u64>>,
     ) {
         (
             Arc::new(Mutex::new(Some("thread-1".to_string()))),
             Arc::new(Mutex::new(Some("turn-1".to_string()))),
             Arc::new(Mutex::new(std::collections::HashMap::new())),
+            Arc::new(Mutex::new(None)),
+            Arc::new(Mutex::new(0)),
+            Arc::new(Mutex::new(0)),
         )
     }
 
     #[test]
     fn parses_agent_message_start_and_complete_without_duplicates() {
-        let (thread_id, turn_id, pending_approvals) = test_state();
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
 
         let start = parse_codex_notification(
             "item/started",
@@ -856,6 +896,9 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
         assert_eq!(start.len(), 1);
         assert!(matches!(
@@ -878,6 +921,9 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
         assert_eq!(complete.len(), 1);
         assert!(matches!(
@@ -889,7 +935,7 @@ mod tests {
 
     #[test]
     fn reasoning_delta_is_not_mapped_to_assistant_text() {
-        let (thread_id, turn_id, pending_approvals) = test_state();
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
 
         let events = parse_codex_notification(
             "item/reasoning/summaryTextDelta",
@@ -902,6 +948,9 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
 
         assert_eq!(events.len(), 1);
@@ -914,7 +963,7 @@ mod tests {
 
     #[test]
     fn command_output_stays_in_tool_result_events() {
-        let (thread_id, turn_id, pending_approvals) = test_state();
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
 
         let delta = parse_codex_notification(
             "item/commandExecution/outputDelta",
@@ -927,6 +976,9 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
         assert_eq!(delta.len(), 1);
         assert!(matches!(
@@ -950,6 +1002,9 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
         assert_eq!(complete.len(), 1);
         assert!(matches!(
@@ -963,7 +1018,7 @@ mod tests {
 
     #[test]
     fn parse_returns_vec_of_events() {
-        let (thread_id, turn_id, pending_approvals) = test_state();
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
         let events = parse_codex_notification(
             "item/agentMessage/delta",
             &serde_json::json!({"itemId": "msg-1", "delta": "hello"}),
@@ -972,6 +1027,9 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
         assert_eq!(events.len(), 1);
         assert!(matches!(&events[0], AgentEvent::AssistantMessageDelta { message_id, .. } if message_id == "msg-1"));
@@ -986,7 +1044,7 @@ mod tests {
 
     #[test]
     fn approval_request_emits_both_approval_and_status_events() {
-        let (thread_id, turn_id, pending_approvals) = test_state();
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
         let events = parse_codex_notification(
             "item/commandExecution/requestApproval",
             &serde_json::json!({
@@ -998,6 +1056,9 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
         assert_eq!(events.len(), 2);
         assert!(matches!(&events[0], AgentEvent::ApprovalRequested {
@@ -1015,7 +1076,7 @@ mod tests {
 
     #[test]
     fn file_change_approval_includes_filename_in_detail() {
-        let (thread_id, turn_id, pending_approvals) = test_state();
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
         let events = parse_codex_notification(
             "item/fileChange/requestApproval",
             &serde_json::json!({
@@ -1027,6 +1088,9 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
         assert_eq!(events.len(), 2);
         assert!(matches!(&events[0], AgentEvent::ApprovalRequested {
@@ -1036,7 +1100,7 @@ mod tests {
 
     #[test]
     fn reasoning_item_started_emits_thinking_start() {
-        let (thread_id, turn_id, pending_approvals) = test_state();
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
         let events = parse_codex_notification(
             "item/started",
             &serde_json::json!({
@@ -1050,6 +1114,9 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
         assert_eq!(events.len(), 1);
         assert!(matches!(&events[0], AgentEvent::ThinkingStart { message_id, turn_id }
