@@ -9,6 +9,7 @@ export interface CreateWorkspaceRequest {
 export interface UpdateWorkspaceRequest {
   name?: string;
   icon?: string;
+  color?: string;
 }
 
 export const workspaceIpc = {

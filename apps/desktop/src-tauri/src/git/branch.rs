@@ -173,6 +173,27 @@ pub fn delete_branch(path: &str, name: &str, force: bool) -> Result<(), String> 
     Ok(())
 }
 
+pub fn delete_remote_branch(path: &str, remote: &str, branch: &str, token: &str) -> Result<(), String> {
+    let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
+
+    let mut remote_obj = repo
+        .find_remote(remote)
+        .map_err(|e| format!("Failed to find remote '{remote}': {e}"))?;
+
+    let callbacks = crate::git::remote::make_callbacks(token);
+    let mut push_opts = git2::PushOptions::new();
+    push_opts.remote_callbacks(callbacks);
+
+    // Push empty source to delete the remote branch
+    let refspec = format!(":refs/heads/{branch}");
+
+    remote_obj
+        .push(&[&refspec], Some(&mut push_opts))
+        .map_err(|e| format!("Failed to delete remote branch '{remote}/{branch}': {e}"))?;
+
+    Ok(())
+}
+
 pub fn rename_branch(path: &str, old_name: &str, new_name: &str) -> Result<(), String> {
     let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
 

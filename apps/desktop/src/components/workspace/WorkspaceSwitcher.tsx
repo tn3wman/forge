@@ -1,46 +1,34 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useWorkspaces } from "@/queries/useWorkspaces";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { AddWorkspaceDialog } from "./AddWorkspaceDialog";
 import { RenameWorkspaceDialog } from "./RenameWorkspaceDialog";
 import { DeleteWorkspaceDialog } from "./DeleteWorkspaceDialog";
 import { AddRepoDialog } from "@/components/repository/AddRepoDialog";
+import { WorkspaceContextMenu } from "./WorkspaceContextMenu";
 import { cn } from "@/lib/utils";
+import { getWorkspaceColor } from "@/lib/workspaceColors";
 import type { Workspace } from "@forge/shared";
-
-const WORKSPACE_ICONS: Record<string, string> = {
-  briefcase: "Briefcase",
-  code: "Code",
-  rocket: "Rocket",
-  star: "Star",
-  heart: "Heart",
-  zap: "Zap",
-};
 
 function WorkspaceIcon({ workspace }: { workspace: Workspace }) {
   const initial = workspace.name[0]?.toUpperCase() ?? "W";
+  const color = getWorkspaceColor(workspace.color);
   return (
-    <span className="text-xs font-semibold">{initial}</span>
+    <span className="text-xs font-semibold" style={{ color: color.text }}>
+      {initial}
+    </span>
   );
 }
 
 export function WorkspaceSwitcher() {
   const [showAdd, setShowAdd] = useState(false);
   const [showAddRepo, setShowAddRepo] = useState(false);
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<Workspace | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Workspace | null>(null);
   const { data: workspaces } = useWorkspaces();
@@ -49,63 +37,59 @@ export function WorkspaceSwitcher() {
   return (
     <>
       <div className="flex flex-col items-center gap-1">
-        {workspaces?.map((ws, i) => (
-          <DropdownMenu
-            key={ws.id}
-            open={menuOpenId === ws.id}
-            onOpenChange={(open) => setMenuOpenId(open ? ws.id : null)}
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    onClick={() => {
-                      if (activeWorkspaceId === ws.id) {
-                        setActivePage("home");
-                      } else {
-                        setActiveWorkspaceId(ws.id);
-                      }
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setMenuOpenId(ws.id);
-                    }}
-                    className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
-                      activeWorkspaceId === ws.id
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                    )}
-                  >
-                    <WorkspaceIcon workspace={ws} />
-                  </button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {ws.name}
-                {i < 9 && (
-                  <span className="ml-2 text-xs text-muted-foreground">
-                    {"\u2318"}{i + 1}
-                  </span>
+        {workspaces?.map((ws, i) => {
+          const isActive = activeWorkspaceId === ws.id;
+          const color = getWorkspaceColor(ws.color);
+
+          return (
+            <div key={ws.id} className="relative flex items-center">
+              {/* Active indicator pill */}
+              <div
+                className={cn(
+                  "absolute -left-3 w-1 rounded-full bg-white transition-all",
+                  isActive ? "h-5" : "h-0",
                 )}
-              </TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent side="right" align="start">
-              <DropdownMenuItem onClick={() => setRenameTarget(ws)}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Rename
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => setDeleteTarget(ws)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ))}
+              />
+
+              <Tooltip>
+                <WorkspaceContextMenu
+                  workspace={ws}
+                  onRename={() => setRenameTarget(ws)}
+                  onDelete={() => setDeleteTarget(ws)}
+                >
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => {
+                        if (isActive) {
+                          setActivePage("home");
+                        } else {
+                          setActiveWorkspaceId(ws.id);
+                        }
+                      }}
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-md transition-all",
+                        isActive
+                          ? "opacity-100"
+                          : "opacity-60 hover:opacity-90",
+                      )}
+                      style={{ backgroundColor: color.bg }}
+                    >
+                      <WorkspaceIcon workspace={ws} />
+                    </button>
+                  </TooltipTrigger>
+                </WorkspaceContextMenu>
+                <TooltipContent side="right">
+                  {ws.name}
+                  {i < 9 && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {"\u2318"}{i + 1}
+                    </span>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          );
+        })}
 
         <Tooltip>
           <TooltipTrigger asChild>

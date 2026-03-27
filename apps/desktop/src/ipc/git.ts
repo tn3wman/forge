@@ -12,6 +12,8 @@ export const gitIpc = {
     invoke<BranchInfo>("git_create_branch", { path, name, fromRef: fromRef ?? null }),
   checkoutBranch: (path: string, name: string) => invoke<void>("git_checkout_branch", { path, name }),
   deleteBranch: (path: string, name: string, force?: boolean) => invoke<void>("git_delete_branch", { path, name, force: force ?? null }),
+  deleteRemoteBranch: (path: string, remote: string, branch: string, token: string) =>
+    invoke<void>("git_delete_remote_branch", { path, remote, branch, token }),
   renameBranch: (path: string, oldName: string, newName: string) =>
     invoke<void>("git_rename_branch", { path, oldName, newName }),
   getCurrentBranch: (path: string) => invoke<string | null>("git_get_current_branch", { path }),
