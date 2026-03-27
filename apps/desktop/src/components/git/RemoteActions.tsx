@@ -18,6 +18,7 @@ export function RemoteActions({ localPath }: RemoteActionsProps) {
   const pushMutation = useGitPush();
   const checkoutMutation = useCheckoutBranch();
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const localBranches = branches.filter((b) => !b.isRemote);
@@ -66,7 +67,16 @@ export function RemoteActions({ localPath }: RemoteActionsProps) {
                 )}
                 onClick={() => {
                   if (!branch.isHead) {
-                    checkoutMutation.mutate({ path: localPath, name: branch.name });
+                    setActionError(null);
+                    checkoutMutation.mutate(
+                      { path: localPath, name: branch.name },
+                      {
+                        onError: (err) =>
+                          setActionError(
+                            err instanceof Error ? err.message : String(err),
+                          ),
+                      },
+                    );
                   }
                   setBranchMenuOpen(false);
                 }}
@@ -135,6 +145,12 @@ export function RemoteActions({ localPath }: RemoteActionsProps) {
         )}
         Push
       </Button>
+
+      {actionError && (
+        <div className="mx-3 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5">
+          <p className="text-xs text-red-400">{actionError}</p>
+        </div>
+      )}
     </div>
   );
 }
