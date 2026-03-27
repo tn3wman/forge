@@ -1,5 +1,8 @@
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
 import {
   Bot,
   Brain,
@@ -73,7 +76,9 @@ export const ChatMessage = memo(function ChatMessage({
 
             {message.content ? (
               <div className="prose prose-sm prose-invert max-w-none">
-                <ReactMarkdown>{message.content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                  {message.content}
+                </ReactMarkdown>
               </div>
             ) : isAssistantStreaming ? (
               <p className="text-sm text-muted-foreground">Thinking...</p>
