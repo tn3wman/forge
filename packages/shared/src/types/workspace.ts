@@ -2,6 +2,7 @@ export interface Workspace {
   id: string;
   name: string;
   icon: string | null;
+  color: string;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
