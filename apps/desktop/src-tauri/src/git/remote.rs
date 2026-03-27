@@ -1,6 +1,6 @@
 use git2::{Cred, FetchOptions, PushOptions, RemoteCallbacks, Repository};
 
-fn make_callbacks(token: &str) -> RemoteCallbacks<'_> {
+pub(crate) fn make_callbacks(token: &str) -> RemoteCallbacks<'_> {
     let mut callbacks = RemoteCallbacks::new();
     let token = token.to_string();
     callbacks.credentials(move |_url, _username, _allowed| {

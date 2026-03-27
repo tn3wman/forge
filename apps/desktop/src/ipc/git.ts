@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { FileStatus, DiffEntry, BranchInfo, GraphRow, StashEntry } from "@forge/shared";
+import type { FileStatus, DiffEntry, BranchInfo, GraphRow, StashEntry, WorktreeInfo } from "@forge/shared";
 
 export const gitIpc = {
   getStatus: (path: string) => invoke<FileStatus[]>("git_get_status", { path }),
@@ -32,6 +32,14 @@ export const gitIpc = {
   stashPop: (path: string, index?: number) => invoke<void>("git_stash_pop", { path, index: index ?? 0 }),
   stashApply: (path: string, index?: number) => invoke<void>("git_stash_apply", { path, index: index ?? 0 }),
   stashDrop: (path: string, index: number) => invoke<void>("git_stash_drop", { path, index }),
+  cloneRepo: (url: string, localPath: string, token: string, repoId?: string) =>
+    invoke<void>("git_clone_repo", { url, localPath, token, repoId: repoId ?? null }),
+  getRemoteUrl: (path: string, remote?: string) =>
+    invoke<string | null>("git_get_remote_url", { path, remote: remote ?? null }),
+  listWorktrees: (path: string) => invoke<WorktreeInfo[]>("git_list_worktrees", { path }),
+  createWorktree: (path: string, branch: string, fromRef?: string, worktreeBase?: string) =>
+    invoke<WorktreeInfo>("git_create_worktree", { path, branch, fromRef: fromRef ?? null, worktreeBase: worktreeBase ?? null }),
+  removeWorktree: (path: string, name: string) => invoke<void>("git_remove_worktree", { path, name }),
   startWatching: (path: string) => invoke<void>("git_start_watching", { path }),
   stopWatching: (path: string) => invoke<void>("git_stop_watching", { path }),
   setLocalPath: (repoId: string, localPath: string) =>

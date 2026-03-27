@@ -197,6 +197,18 @@ export function useStashDrop() {
   });
 }
 
+export function useCloneRepo() {
+  const queryClient = useQueryClient();
+  const token = useAuthStore((s) => s.token);
+  return useMutation({
+    mutationFn: async ({ url, localPath, repoId }: { url: string; localPath: string; repoId?: string }) =>
+      gitIpc.cloneRepo(url, localPath, token!, repoId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["repositories"] });
+    },
+  });
+}
+
 export function useSetLocalPath() {
   const queryClient = useQueryClient();
   return useMutation({

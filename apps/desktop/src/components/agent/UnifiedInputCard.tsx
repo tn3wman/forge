@@ -234,7 +234,7 @@ export function UnifiedInputCard({
   const isDisabled = disabled || (showAgentSelector && !selectedCli);
 
   return (
-    <div className="shrink-0 px-4 pb-4">
+    <div className="shrink-0 px-4 pb-1">
       {confirmation && (
         <div className="flex justify-center pb-2">
           <div className="rounded-md bg-muted px-3 py-1 text-xs text-muted-foreground animate-in fade-in zoom-in duration-150">

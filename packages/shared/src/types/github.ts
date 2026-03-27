@@ -10,6 +10,7 @@ export interface LinkedPrRef {
   state: string;
   repoFullName: string;
   willCloseTarget: boolean;
+  headRef: string | null;
 }
 
 export interface PullRequest {

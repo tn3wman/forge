@@ -12,6 +12,7 @@ export interface TerminalTab {
   mode: AgentMode;
   type: "terminal" | "chat";
   status: "pre-session" | "active";
+  workingDirectory?: string;    // optional override for the working directory
 }
 
 let tabCounter = 0;
@@ -25,7 +26,7 @@ interface TerminalStore {
   activeTabId: string | null;   // references tabId
   setLayoutMode: (mode: TerminalLayoutMode) => void;
   addTab: (tab: TerminalTab) => void;
-  addPreSessionTab: (workspaceId: string) => string;
+  addPreSessionTab: (workspaceId: string, config?: { label?: string; workingDirectory?: string }) => string;
   activateTab: (tabId: string, sessionId: string, updates: Partial<TerminalTab>) => void;
   updateTabConfig: (tabId: string, updates: Partial<Pick<TerminalTab, "cliName" | "mode" | "type">>) => void;
   removeTab: (tabId: string) => void;
@@ -42,7 +43,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
       tabs: [...s.tabs, tab],
       activeTabId: tab.tabId,
     })),
-  addPreSessionTab: (workspaceId) => {
+  addPreSessionTab: (workspaceId, config?) => {
     const tabId = generateTabId();
     set((s) => ({
       tabs: [
@@ -51,11 +52,12 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
           tabId,
           sessionId: null,
           workspaceId,
-          label: "New Agent",
+          label: config?.label ?? "New Agent",
           cliName: null,
           mode: "Normal",
           type: "chat",
           status: "pre-session",
+          workingDirectory: config?.workingDirectory,
         },
       ],
       activeTabId: tabId,

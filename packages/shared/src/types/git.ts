@@ -61,3 +61,11 @@ export interface StashEntry {
   message: string;
   timestamp: number;
 }
+
+export interface WorktreeInfo {
+  name: string;
+  path: string;
+  branch: string | null;
+  isLocked: boolean;
+  isMain: boolean;
+}

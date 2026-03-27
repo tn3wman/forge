@@ -1,13 +1,18 @@
 import { useState, useCallback, useEffect } from "react";
 import { useCliDiscovery, useSlashCommands } from "@/hooks/useCliDiscovery";
 import { useRepositories } from "@/queries/useRepositories";
+import { useGitBranches, useCurrentBranch } from "@/queries/useGitBranches";
+import { useGitWorktrees } from "@/queries/useGitWorktrees";
 import { useTerminalStore } from "@/stores/terminalStore";
 import { useAgentStore } from "@/stores/agentStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { agentIpc } from "@/ipc/agent";
+import { gitIpc } from "@/ipc/git";
 import { terminalIpc } from "@/ipc/terminal";
 import { UnifiedInputCard } from "./UnifiedInputCard";
-import type { AgentChatMode, ClaudeEffort } from "@forge/shared";
+import { WorkModeSelector, type WorkMode } from "./WorkModeSelector";
+import { RepoSetupBar } from "./RepoSetupBar";
+import type { AgentChatMode, ClaudeEffort, WorktreeInfo } from "@forge/shared";
 
 interface PreSessionViewProps {
   tabId: string;
@@ -17,7 +22,8 @@ interface PreSessionViewProps {
 export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
   const { data: clis, isLoading: clisLoading } = useCliDiscovery();
   const { data: repos } = useRepositories(workspaceId);
-  const workingDirectory = repos?.find((r) => r.localPath)?.localPath ?? undefined;
+  const tab = useTerminalStore((s) => s.tabs.find((t) => t.tabId === tabId));
+  const workingDirectory = tab?.workingDirectory ?? repos?.find((r) => r.localPath)?.localPath ?? undefined;
 
   const [selectedCli, setSelectedCli] = useState<string | null>(null);
   const [mode, setMode] = useState<AgentChatMode>("auto");
@@ -27,6 +33,28 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
   const [effort, setEffort] = useState<ClaudeEffort>("medium");
   const [launchError, setLaunchError] = useState<string | null>(null);
   const claudeExecutablePath = useSettingsStore((s) => s.claudeExecutablePath);
+
+  // Work mode & branch/worktree selection
+  const [workMode, setWorkMode] = useState<WorkMode>("local");
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+  const [selectedWorktree, setSelectedWorktree] = useState<WorktreeInfo | null>(null);
+
+  const { data: branches, isLoading: branchesLoading } = useGitBranches(workingDirectory ?? null);
+  const { data: currentBranch } = useCurrentBranch(workingDirectory ?? null);
+  const { data: worktrees, isLoading: worktreesLoading } = useGitWorktrees(workingDirectory ?? null);
+
+  // Auto-select default branch for "new worktree" mode
+  useEffect(() => {
+    if (branches && branches.length > 0 && !selectedBranch) {
+      const defaultBranch =
+        branches.find((b) => !b.isRemote && (b.name === "main" || b.name === "master")) ??
+        branches.find((b) => !b.isRemote && b.isHead) ??
+        branches.find((b) => !b.isRemote);
+      if (defaultBranch) {
+        setSelectedBranch(defaultBranch.name);
+      }
+    }
+  }, [branches, selectedBranch]);
 
   const { data: slashCommands } = useSlashCommands(selectedCli);
   const selectedCliInfo = clis?.find((cli) => cli.name === selectedCli);
@@ -47,10 +75,19 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
       setCreating(true);
       setLaunchError(null);
       try {
+        // Resolve effective working directory based on work mode
+        let effectiveWorkDir = workingDirectory;
+        if (workMode === "new-worktree" && selectedBranch && workingDirectory) {
+          const wt = await gitIpc.createWorktree(workingDirectory, selectedBranch);
+          effectiveWorkDir = wt.path;
+        } else if (workMode === "existing-worktree" && selectedWorktree) {
+          effectiveWorkDir = selectedWorktree.path;
+        }
+
         const session = await agentIpc.createSession({
           cliName: selectedCli,
           mode,
-          workingDirectory,
+          workingDirectory: effectiveWorkDir,
           workspaceId,
           initialPrompt: text,
           claude: isClaude
@@ -111,8 +148,11 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
       isClaude,
       mode,
       model,
+      selectedBranch,
       selectedCli,
+      selectedWorktree,
       tabId,
+      workMode,
       workingDirectory,
       workspaceId,
     ],
@@ -159,24 +199,49 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
         </div>
       )}
 
-      <UnifiedInputCard
-        onSend={handleSend}
-        disabled={creating}
-        mode={mode}
-        onModeChange={setMode}
-        slashCommands={slashCommands ?? []}
-        model={isClaude ? model : undefined}
-        onModelChange={isClaude ? setModel : undefined}
-        effort={isClaude ? effort : undefined}
-        onEffortChange={isClaude ? setEffort : undefined}
-        showAgentSelector
-        clis={clis ?? []}
-        selectedCli={selectedCli}
-        onSelectCli={setSelectedCli}
-        clisLoading={clisLoading}
-        showTerminalButton
-        onOpenTerminal={handleOpenTerminal}
-      />
+      <div className="shrink-0">
+        <UnifiedInputCard
+          onSend={handleSend}
+          disabled={creating}
+          mode={mode}
+          onModeChange={setMode}
+          slashCommands={slashCommands ?? []}
+          model={isClaude ? model : undefined}
+          onModelChange={isClaude ? setModel : undefined}
+          effort={isClaude ? effort : undefined}
+          onEffortChange={isClaude ? setEffort : undefined}
+          showAgentSelector
+          clis={clis ?? []}
+          selectedCli={selectedCli}
+          onSelectCli={setSelectedCli}
+          clisLoading={clisLoading}
+          showTerminalButton
+          onOpenTerminal={handleOpenTerminal}
+        />
+
+        {workingDirectory ? (
+          <WorkModeSelector
+            workMode={workMode}
+            onWorkModeChange={setWorkMode}
+            currentBranch={currentBranch ?? null}
+            branches={branches ?? []}
+            branchesLoading={branchesLoading}
+            selectedBranch={selectedBranch}
+            onBranchChange={setSelectedBranch}
+            worktrees={worktrees ?? []}
+            worktreesLoading={worktreesLoading}
+            selectedWorktree={selectedWorktree}
+            onWorktreeChange={setSelectedWorktree}
+            disabled={creating}
+          />
+        ) : (
+          <RepoSetupBar
+            workspaceId={workspaceId}
+            repos={repos ?? []}
+            disabled={creating}
+          />
+        )}
+      </div>
     </div>
   );
 }

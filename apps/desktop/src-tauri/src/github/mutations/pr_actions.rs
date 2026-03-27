@@ -96,3 +96,54 @@ pub async fn reopen_pr(
 
     Ok(())
 }
+
+#[derive(Debug, serde::Serialize)]
+pub struct CreatePrResult {
+    pub number: i32,
+    pub html_url: String,
+}
+
+pub async fn create_pr(
+    client: &Client,
+    token: &str,
+    owner: &str,
+    repo: &str,
+    title: &str,
+    body: &str,
+    head: &str,
+    base: &str,
+    draft: bool,
+) -> Result<CreatePrResult, String> {
+    let resp = client
+        .post(format!(
+            "{GITHUB_API_BASE}/repos/{owner}/{repo}/pulls"
+        ))
+        .header("Authorization", format!("Bearer {token}"))
+        .header("Accept", "application/vnd.github+json")
+        .header("X-GitHub-Api-Version", "2022-11-28")
+        .json(&serde_json::json!({
+            "title": title,
+            "body": body,
+            "head": head,
+            "base": base,
+            "draft": draft,
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to create PR: {e}"))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(format!("GitHub API error {status}: {text}"));
+    }
+
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse response: {e}"))?;
+    Ok(CreatePrResult {
+        number: json["number"].as_i64().unwrap_or(0) as i32,
+        html_url: json["html_url"].as_str().unwrap_or("").to_string(),
+    })
+}

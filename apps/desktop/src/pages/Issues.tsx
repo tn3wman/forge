@@ -1,17 +1,19 @@
 import { useState, useMemo } from "react";
-import { CircleDot, Loader2 } from "lucide-react";
+import { CircleDot, Loader2, Search } from "lucide-react";
 import { useIssues } from "@/queries/useIssues";
-import { FilterBar, type FilterOption } from "@/components/common/FilterBar";
 import { IssueListItem } from "@/components/github/IssueListItem";
+import { StartWorkDialog } from "@/components/github/StartWorkDialog";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useIssueLinkedPrs } from "@/hooks/useLinkedItems";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import type { Issue } from "@forge/shared";
 
-const ISSUE_FILTERS: FilterOption[] = [
+const ISSUE_FILTERS = [
   { value: "all", label: "All" },
   { value: "open", label: "Open" },
   { value: "closed", label: "Closed" },
-];
+] as const;
 
 function filterIssues(issues: Issue[], filter: string, query: string): Issue[] {
   let filtered = issues;
@@ -39,17 +41,19 @@ function filterIssues(issues: Issue[], filter: string, query: string): Issue[] {
 }
 
 export function Issues() {
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [activeFilter, setActiveFilter] = useState("open");
   const [searchQuery, setSearchQuery] = useState("");
+  const [startWorkIssue, setStartWorkIssue] = useState<Issue | null>(null);
   const { navigateToIssue } = useWorkspaceStore();
   const { data: issues = [], isLoading, error } = useIssues();
   const linkedPrMap = useIssueLinkedPrs();
 
-  const filters = useMemo<FilterOption[]>(() => {
-    return ISSUE_FILTERS.map((f) => ({
-      ...f,
-      count: filterIssues(issues, f.value, "").length,
-    }));
+  const filterCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const f of ISSUE_FILTERS) {
+      counts[f.value] = filterIssues(issues, f.value, "").length;
+    }
+    return counts;
   }, [issues]);
 
   const filteredIssues = useMemo(
@@ -59,14 +63,44 @@ export function Issues() {
 
   return (
     <div className="flex flex-col h-full">
-      <FilterBar
-        filters={filters}
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        searchPlaceholder="Filter issues..."
-      />
+      {/* Header */}
+      <div className="flex items-center gap-4 px-4 py-2 border-b border-border">
+        {/* Left: Title + filter pills */}
+        <div className="flex items-center gap-2 shrink-0">
+          <h2 className="text-sm font-semibold">Issues</h2>
+          {ISSUE_FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setActiveFilter(f.value)}
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
+                activeFilter === f.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-accent text-accent-foreground hover:bg-accent/80",
+              )}
+            >
+              {f.label}
+              {filterCounts[f.value] != null && (
+                <span className="ml-1 opacity-70">{filterCounts[f.value]}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Center: Search */}
+        <div className="flex-1 max-w-sm mx-auto relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Filter issues..."
+            className="h-7 pl-8 text-xs"
+          />
+        </div>
+
+        {/* Right: spacer for visual balance */}
+        <div className="shrink-0 w-[120px]" />
+      </div>
 
       <div className="flex-1 overflow-y-auto">
         {isLoading && (
@@ -95,9 +129,19 @@ export function Issues() {
             issue={issue}
             linkedPrs={linkedPrMap.get(`${issue.repoFullName}#${issue.number}`)}
             onClick={() => issue.repoFullName && navigateToIssue(issue.repoFullName, issue.number)}
+            onStartWork={() => setStartWorkIssue(issue)}
           />
         ))}
       </div>
+
+      {startWorkIssue && (
+        <StartWorkDialog
+          open={!!startWorkIssue}
+          onOpenChange={(open) => { if (!open) setStartWorkIssue(null); }}
+          issue={startWorkIssue}
+          linkedPrs={linkedPrMap.get(`${startWorkIssue.repoFullName}#${startWorkIssue.number}`)}
+        />
+      )}
     </div>
   );
 }

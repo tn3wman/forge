@@ -6,6 +6,7 @@ export interface LinkedPrSummary {
   prTitle: string;
   prState: string;
   repoFullName: string;
+  headRef: string;
 }
 
 export function useIssueLinkedPrs(): Map<string, LinkedPrSummary[]> {
@@ -24,6 +25,7 @@ export function useIssueLinkedPrs(): Map<string, LinkedPrSummary[]> {
           prTitle: pr.title,
           prState: pr.state,
           repoFullName: pr.repoFullName ?? "",
+          headRef: pr.headRef,
         });
         map.set(key, existing);
       }

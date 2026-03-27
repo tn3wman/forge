@@ -1,5 +1,46 @@
 use crate::db::Database;
-use crate::models::git::{BranchInfo, DiffEntry, FileStatus, GraphRow, StashEntry};
+use crate::models::git::{BranchInfo, DiffEntry, FileStatus, GraphRow, StashEntry, WorktreeInfo};
+
+// ── Clone ──────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn git_clone_repo(
+    db: tauri::State<'_, Database>,
+    url: String,
+    local_path: String,
+    token: String,
+    repo_id: Option<String>,
+) -> Result<(), String> {
+    let lp = local_path.clone();
+    tokio::task::spawn_blocking(move || crate::git::clone::clone_repo(&url, &lp, &token))
+        .await
+        .map_err(|e| format!("Task failed: {e}"))??;
+
+    // If repo_id provided, update local_path in DB
+    if let Some(rid) = repo_id {
+        let now = super::workspace::chrono_now_pub();
+        let conn = db.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE repositories SET local_path = ?1, updated_at = ?2 WHERE id = ?3",
+            rusqlite::params![local_path, now, rid],
+        )
+        .map_err(|e| format!("Failed to update local path: {e}"))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_get_remote_url(
+    path: String,
+    remote: Option<String>,
+) -> Result<Option<String>, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::git::clone::get_remote_url(&path, remote.as_deref())
+    })
+    .await
+    .map_err(|e| format!("Task failed: {e}"))?
+}
 
 // ── Status ──────────────────────────────────────────────────────────────────
 
@@ -93,6 +134,41 @@ pub async fn git_rename_branch(
 #[tauri::command]
 pub async fn git_get_current_branch(path: String) -> Result<Option<String>, String> {
     tokio::task::spawn_blocking(move || crate::git::branch::get_current_branch(&path))
+        .await
+        .map_err(|e| format!("Task failed: {e}"))?
+}
+
+// ── Worktrees ──────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn git_list_worktrees(path: String) -> Result<Vec<WorktreeInfo>, String> {
+    tokio::task::spawn_blocking(move || crate::git::worktree::list_worktrees(&path))
+        .await
+        .map_err(|e| format!("Task failed: {e}"))?
+}
+
+#[tauri::command]
+pub async fn git_create_worktree(
+    path: String,
+    branch: String,
+    from_ref: Option<String>,
+    worktree_base: Option<String>,
+) -> Result<WorktreeInfo, String> {
+    tokio::task::spawn_blocking(move || {
+        crate::git::worktree::create_worktree(
+            &path,
+            &branch,
+            from_ref.as_deref(),
+            worktree_base.as_deref(),
+        )
+    })
+    .await
+    .map_err(|e| format!("Task failed: {e}"))?
+}
+
+#[tauri::command]
+pub async fn git_remove_worktree(path: String, name: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || crate::git::worktree::remove_worktree(&path, &name))
         .await
         .map_err(|e| format!("Task failed: {e}"))?
 }

@@ -37,6 +37,7 @@ query($owner: String!, $repo: String!, $number: Int!) {
                 number
                 title
                 state
+                headRefName
                 repository { nameWithOwner }
               }
             }
@@ -56,6 +57,7 @@ pub struct LinkedPrRef {
     pub state: String,
     pub repo_full_name: String,
     pub will_close_target: bool,
+    pub head_ref: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -282,6 +284,7 @@ fn extract_linked_prs(nodes: &Value) -> Vec<LinkedPrRef> {
                 .unwrap_or_default()
                 .to_string(),
             will_close_target: node["willCloseTarget"].as_bool().unwrap_or(false),
+            head_ref: source["headRefName"].as_str().map(|s| s.to_string()),
         });
     }
 

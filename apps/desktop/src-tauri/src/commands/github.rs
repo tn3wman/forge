@@ -256,3 +256,21 @@ pub async fn github_reopen_pr(
 ) -> Result<(), String> {
     pr_actions::reopen_pr(&client, &token, &owner, &repo, number).await
 }
+
+#[tauri::command]
+pub async fn github_create_pr(
+    client: tauri::State<'_, reqwest::Client>,
+    token: String,
+    owner: String,
+    repo: String,
+    title: String,
+    body: String,
+    head: String,
+    base: String,
+    draft: bool,
+) -> Result<crate::github::mutations::pr_actions::CreatePrResult, String> {
+    crate::github::mutations::pr_actions::create_pr(
+        &client, &token, &owner, &repo, &title, &body, &head, &base, draft,
+    )
+    .await
+}

@@ -2,6 +2,16 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct WorktreeInfo {
+    pub name: String,
+    pub path: String,
+    pub branch: Option<String>,
+    pub is_locked: bool,
+    pub is_main: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CommitInfo {
     pub oid: String,
     pub short_id: String,

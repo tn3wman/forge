@@ -55,4 +55,7 @@ export const githubIpc = {
 
   reopenPr: (token: string, owner: string, repo: string, number: number) =>
     invoke<void>("github_reopen_pr", { token, owner, repo, number }),
+
+  createPr: (token: string, owner: string, repo: string, title: string, body: string, head: string, base: string, draft: boolean) =>
+    invoke<{ number: number; htmlUrl: string }>("github_create_pr", { token, owner, repo, title, body, head, base, draft }),
 };

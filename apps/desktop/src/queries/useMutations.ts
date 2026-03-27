@@ -92,3 +92,16 @@ export function useReopenPr() {
     },
   });
 }
+
+export function useCreatePr() {
+  const token = useAuthStore((s) => s.token);
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; title: string; body: string; head: string; base: string; draft: boolean }) =>
+      githubIpc.createPr(token!, args.owner, args.repo, args.title, args.body, args.head, args.base, args.draft),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pullRequests"] });
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+    },
+  });
+}
