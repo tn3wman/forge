@@ -160,6 +160,17 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
             );
           }
 
+          // Skip empty completed assistant messages (issue #6)
+          if (
+            msg.type === "assistant" &&
+            msg.streamState !== "pending" &&
+            msg.streamState !== "streaming" &&
+            !msg.content?.trim() &&
+            !msg.reasoning?.trim()
+          ) {
+            return null;
+          }
+
           if (msg.type === "user" || msg.type === "assistant") {
             return (
               <ChatMessage
