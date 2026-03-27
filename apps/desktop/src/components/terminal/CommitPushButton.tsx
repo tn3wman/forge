@@ -93,7 +93,7 @@ export function CommitPushButton() {
       <div className="inline-flex items-center">
         <Button
           size="sm"
-          disabled={!hasChanges || isLoading}
+          disabled={!hasChanges || !token || isLoading}
           onClick={() => {
             setError(null);
             setDialogMode("commit-push");
@@ -109,6 +109,7 @@ export function CommitPushButton() {
               size="sm"
               disabled={isLoading}
               className="h-6 rounded-l-none border-l border-primary-foreground/20 px-1"
+              aria-label="More commit options"
             >
               <ChevronDown className="h-3 w-3" />
             </Button>
@@ -161,13 +162,11 @@ export function CommitPushButton() {
         error={error}
       />
 
-      {workingDirectory && (
-        <CreatePrDialog
-          open={dialogMode === "create-pr"}
-          onOpenChange={(v) => !v && setDialogMode(null)}
-          workingDirectory={workingDirectory}
-        />
-      )}
+      <CreatePrDialog
+        open={dialogMode === "create-pr"}
+        onOpenChange={(v) => !v && setDialogMode(null)}
+        workingDirectory={workingDirectory}
+      />
     </>
   );
 }

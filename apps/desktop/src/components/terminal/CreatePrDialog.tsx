@@ -36,8 +36,12 @@ export function CreatePrDialog({ open, onOpenChange, workingDirectory }: CreateP
   const [draft, setDraft] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Reset form state when dialog opens
   useEffect(() => {
     if (!open) return;
+    setBody("");
+    setBase("main");
+    setDraft(true);
     setError(null);
     gitIpc.getRemoteUrl(workingDirectory).then((url) => {
       if (url) {
@@ -47,6 +51,8 @@ export function CreatePrDialog({ open, onOpenChange, workingDirectory }: CreateP
       } else {
         setError("No remote configured for this repository");
       }
+    }).catch((e) => {
+      setError(e instanceof Error ? e.message : String(e));
     });
   }, [open, workingDirectory]);
 
@@ -71,7 +77,6 @@ export function CreatePrDialog({ open, onOpenChange, workingDirectory }: CreateP
         base,
         draft,
       });
-      console.log("PR created:", result);
       onOpenChange(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
