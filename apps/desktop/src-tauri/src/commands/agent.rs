@@ -1,6 +1,6 @@
 use crate::agent::manager::AgentSessionManager;
 use crate::agent::slash_commands;
-use crate::models::agent::{AgentSessionInfo, CreateAgentSessionRequest, ImageAttachment, SlashCommandInfo};
+use crate::models::agent::{AgentMode, AgentSessionInfo, CreateAgentSessionRequest, ImageAttachment, SlashCommandInfo};
 use tauri::AppHandle;
 
 #[tauri::command]
@@ -54,6 +54,15 @@ pub async fn agent_list_sessions(
     workspace_id: Option<String>,
 ) -> Result<Vec<AgentSessionInfo>, String> {
     Ok(manager.list_sessions(workspace_id.as_deref()))
+}
+
+#[tauri::command]
+pub async fn agent_update_permission_mode(
+    manager: tauri::State<'_, AgentSessionManager>,
+    session_id: String,
+    mode: AgentMode,
+) -> Result<(), String> {
+    manager.update_permission_mode(&session_id, mode)
 }
 
 #[tauri::command]

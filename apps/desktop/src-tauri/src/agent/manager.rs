@@ -162,6 +162,28 @@ impl AgentSessionManager {
         entry.session.abort()
     }
 
+    pub fn update_permission_mode(
+        &self,
+        session_id: &str,
+        mode: AgentMode,
+    ) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let entry = sessions
+            .get_mut(session_id)
+            .ok_or_else(|| format!("Agent session '{}' not found", session_id))?;
+        let permission_str = match &mode {
+            AgentMode::Default => "default",
+            AgentMode::Plan => "plan",
+            AgentMode::AcceptEdits => "acceptEdits",
+            AgentMode::BypassPermissions => "bypassPermissions",
+            AgentMode::DontAsk => "dontAsk",
+            AgentMode::Auto => "auto",
+        };
+        entry.info.mode = mode;
+        entry.info.permission_mode = Some(permission_str.to_string());
+        Ok(())
+    }
+
     pub fn kill_session(&self, session_id: &str) -> Result<(), String> {
         let mut sessions = self.sessions.lock().unwrap();
         let entry = sessions

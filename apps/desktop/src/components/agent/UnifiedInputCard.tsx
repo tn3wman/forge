@@ -501,10 +501,14 @@ export function UnifiedInputCard({
             <DropdownMenuContent align="start">
               <DropdownMenuItem
                 onClick={() => onModeChange?.("plan")}
+                disabled={agentState !== undefined && agentState !== "idle" && mode !== "plan"}
                 className={cn(mode === "plan" && "bg-accent")}
               >
                 <FileText className="mr-2 h-3.5 w-3.5" />
                 Plan
+                {agentState !== undefined && agentState !== "idle" && mode !== "plan" && (
+                  <span className="ml-auto text-[10px] text-muted-foreground">start only</span>
+                )}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
-import type { AgentEventPayload, AgentExitPayload } from "@forge/shared";
+import type { AgentEventPayload, AgentExitPayload, AgentChatMode } from "@forge/shared";
 import { useAgentStore } from "@/stores/agentStore";
+import { agentIpc } from "@/ipc/agent";
 
 declare global {
   var __forgeAgentBridgePromise: Promise<void> | undefined;
@@ -21,6 +22,14 @@ function hasPendingApproval(
   );
 }
 
+const EDIT_TOOL_NAMES = ["Write", "Edit", "Bash", "NotebookEdit"];
+
+function shouldAutoApprove(mode: AgentChatMode, toolName?: string): boolean {
+  if (mode === "bypassPermissions" || mode === "dontAsk") return true;
+  if (mode === "acceptEdits" && toolName && EDIT_TOOL_NAMES.includes(toolName)) return true;
+  return false;
+}
+
 function handleAgentEvent(payload: AgentEventPayload) {
   const { sessionId, event } = payload;
   const store = useAgentStore.getState();
@@ -35,6 +44,14 @@ function handleAgentEvent(payload: AgentEventPayload) {
         ...(event.model ? { model: event.model } : {}),
         ...(event.permissionMode ? { permissionMode: event.permissionMode } : {}),
       });
+      // Sync the UI mode selector when the SDK reports a mode transition
+      // (e.g., plan mode → default after ExitPlanMode approval)
+      if (event.permissionMode) {
+        const tab = store.tabs.find((t) => t.sessionId === sessionId);
+        if (tab && tab.mode !== event.permissionMode) {
+          store.updateTabMode(sessionId, event.permissionMode as AgentChatMode);
+        }
+      }
       store.updateTabState(sessionId, "thinking");
       break;
     }
@@ -142,6 +159,30 @@ function handleAgentEvent(payload: AgentEventPayload) {
       break;
     }
     case "approval_requested": {
+      const tab = store.tabs.find((t) => t.sessionId === sessionId);
+      const currentMode = tab?.mode ?? "default";
+
+      if (event.toolUseId && shouldAutoApprove(currentMode, event.toolName)) {
+        void agentIpc.respondPermission(sessionId, event.toolUseId, true).catch((err) => {
+          console.error("Failed to auto-approve:", err);
+        });
+        store.appendMessage(sessionId, {
+          id: `auto-approved-${event.approvalId}-${now}`,
+          type: "status",
+          content: `Auto-approved ${event.toolName ?? "tool"} (${currentMode} mode)`,
+          state: "awaiting_approval",
+          approvalId: event.approvalId,
+          toolUseId: event.toolUseId,
+          toolName: event.toolName,
+          toolInput: event.input,
+          timestamp: now,
+          collapsed: false,
+          resolved: true,
+        });
+        store.updateTabState(sessionId, "executing");
+        break;
+      }
+
       store.appendMessage(sessionId, {
         id: `approval-${event.approvalId}-${now}`,
         type: "status",

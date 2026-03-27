@@ -1,13 +1,15 @@
 import { useEffect, useRef, useMemo, useCallback } from "react";
 import { useAgentStore, type AgentMessage } from "@/stores/agentStore";
 import { agentIpc } from "@/ipc/agent";
-import type { ImageAttachment } from "@forge/shared";
+import type { AgentChatMode, ImageAttachment } from "@forge/shared";
 import { ChatMessage } from "./ChatMessage";
 import { ToolCallCard } from "./ToolCallCard";
 import { PermissionPrompt } from "./PermissionPrompt";
 import { AgentStatusBar } from "./AgentStatusBar";
 import { UnifiedInputCard } from "./UnifiedInputCard";
 import { useSlashCommands } from "@/hooks/useCliDiscovery";
+
+const PERMISSIVE_MODES: AgentChatMode[] = ["bypassPermissions", "dontAsk"];
 
 interface ChatViewProps {
   sessionId: string;
@@ -112,6 +114,33 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
     [sessionId, appendMessage, createPendingAssistant, updateTabState],
   );
 
+  const handleModeChange = useCallback(
+    (mode: AgentChatMode) => {
+      updateTabMode(sessionId, mode);
+      void agentIpc.updatePermissionMode(sessionId, mode).catch((err) => {
+        console.error("Failed to update permission mode:", err);
+      });
+
+      // Auto-resolve any pending approvals when switching to a permissive mode
+      if (PERMISSIVE_MODES.includes(mode)) {
+        const currentMessages = useAgentStore.getState().messagesBySession[sessionId] ?? [];
+        for (const msg of currentMessages) {
+          if (
+            msg.type === "status" &&
+            msg.state === "awaiting_approval" &&
+            !msg.resolved &&
+            msg.toolUseId
+          ) {
+            void agentIpc.respondPermission(sessionId, msg.toolUseId, true).catch((err) => {
+              console.error("Failed to auto-approve pending:", err);
+            });
+          }
+        }
+      }
+    },
+    [sessionId, updateTabMode],
+  );
+
   const handleAbort = useCallback(() => {
     void agentIpc.abort(sessionId).catch((error) => {
       console.error("Failed to abort agent session:", error);
@@ -208,7 +237,7 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
         onAbort={handleAbort}
         agentState={tab.state}
         mode={tab.mode}
-        onModeChange={(mode) => updateTabMode(sessionId, mode)}
+        onModeChange={handleModeChange}
         slashCommands={slashCommands ?? []}
         onFocusChange={(focused) => {
           inputFocusedRef.current = focused;
