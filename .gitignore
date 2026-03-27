@@ -1,10 +1,10 @@
 # Dependencies
-node_modules/
+node_modules
 .pnpm-store/
 
 # Build outputs
 dist/
-target/
+target
 *.tsbuildinfo
 
 # IDE
@@ -25,7 +25,7 @@ Thumbs.db
 apps/desktop/src-tauri/gen/
 
 # Turbo
-.turbo/
+.turbo
 
 # Test
 coverage/

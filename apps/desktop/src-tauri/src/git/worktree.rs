@@ -211,6 +211,13 @@ pub fn remove_worktree(path: &str, name: &str) -> Result<(), String> {
 
 /// Best-effort: symlink common build artifact / dependency directories.
 fn setup_symlinks(repo_root: &Path, wt_path: &Path) {
+    // Guard: don't create circular symlinks if paths resolve to the same directory
+    if let (Ok(src), Ok(dst)) = (repo_root.canonicalize(), wt_path.canonicalize()) {
+        if src == dst {
+            return;
+        }
+    }
+
     for dir_name in SYMLINK_DIRS {
         let source = repo_root.join(dir_name);
         let target = wt_path.join(dir_name);

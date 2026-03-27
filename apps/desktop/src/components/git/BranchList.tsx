@@ -35,6 +35,8 @@ export function BranchList({ localPath }: BranchListProps) {
   const [newBranchName, setNewBranchName] = useState("");
   const [localExpanded, setLocalExpanded] = useState(true);
   const [remoteExpanded, setRemoteExpanded] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingForceDelete, setPendingForceDelete] = useState<string | null>(null);
 
   const localBranches = branches.filter((b) => !b.isRemote);
   const remoteBranches = branches.filter((b) => b.isRemote);
@@ -54,12 +56,35 @@ export function BranchList({ localPath }: BranchListProps) {
   };
 
   const handleCheckout = (name: string) => {
-    checkoutBranch.mutate({ path: localPath, name });
+    setActionError(null);
+    checkoutBranch.mutate(
+      { path: localPath, name },
+      { onError: (err) => setActionError(err instanceof Error ? err.message : String(err)) },
+    );
   };
 
-  const handleDelete = (name: string) => {
-    if (!window.confirm(`Delete branch "${name}"?`)) return;
-    deleteBranch.mutate({ path: localPath, name });
+  const handleDelete = (name: string, force?: boolean) => {
+    const msg = force
+      ? `This will remove the worktree and delete branch "${name}". Continue?`
+      : `Delete branch "${name}"?`;
+    if (!window.confirm(msg)) return;
+    setActionError(null);
+    deleteBranch.mutate(
+      { path: localPath, name, force },
+      {
+        onError: (err) => {
+          const message = err instanceof Error ? err.message : String(err);
+          // If it's a worktree conflict, offer force delete
+          if (message.includes("worktree")) {
+            setActionError(message);
+            setPendingForceDelete(name);
+          } else {
+            setActionError(message);
+            setPendingForceDelete(null);
+          }
+        },
+      },
+    );
   };
 
   if (isLoading) {
@@ -116,6 +141,28 @@ export function BranchList({ localPath }: BranchListProps) {
               "Create"
             )}
           </Button>
+        </div>
+      )}
+
+      {/* Error display */}
+      {actionError && (
+        <div className="mx-3 mb-1 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5">
+          <p className="text-xs text-red-400">{actionError}</p>
+          {pendingForceDelete && (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="mt-1.5 h-6 text-[10px]"
+              onClick={() => {
+                const name = pendingForceDelete;
+                setPendingForceDelete(null);
+                setActionError(null);
+                handleDelete(name, true);
+              }}
+            >
+              Force Delete (removes worktree)
+            </Button>
+          )}
         </div>
       )}
 

@@ -94,19 +94,73 @@ pub fn create_branch(
 pub fn checkout_branch(path: &str, name: &str) -> Result<(), String> {
     let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
 
+    // Verify the branch exists
+    repo.find_branch(name, BranchType::Local)
+        .map_err(|_| format!("Branch '{name}' not found"))?;
+
     let refname = format!("refs/heads/{name}");
+
+    // First try a safe checkout to detect conflicts with dirty working tree
+    let obj = repo.revparse_single(&refname)
+        .map_err(|e| format!("Failed to resolve '{name}': {e}"))?;
+
+    repo.checkout_tree(
+        &obj,
+        Some(git2::build::CheckoutBuilder::new().safe()),
+    )
+    .map_err(|e| format!("Cannot checkout '{name}': {e}. Commit or stash your changes first."))?;
 
     repo.set_head(&refname)
         .map_err(|e| format!("Failed to set HEAD to '{name}': {e}"))?;
 
-    repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))
-        .map_err(|e| format!("Failed to checkout '{name}': {e}"))?;
-
     Ok(())
 }
 
-pub fn delete_branch(path: &str, name: &str) -> Result<(), String> {
+pub fn delete_branch(path: &str, name: &str, force: bool) -> Result<(), String> {
     let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
+
+    // Don't allow deleting the current branch
+    if let Ok(head) = repo.head() {
+        if head.is_branch() {
+            if let Some(current) = head.shorthand() {
+                if current == name {
+                    return Err(format!("Cannot delete the current branch '{name}'. Switch to another branch first."));
+                }
+            }
+        }
+    }
+
+    // Check if branch is checked out in a linked worktree
+    if let Ok(worktree_names) = repo.worktrees() {
+        for i in 0..worktree_names.len() {
+            let wt_name = match worktree_names.get(i) {
+                Some(n) => n.to_string(),
+                None => continue,
+            };
+            if let Ok(wt) = repo.find_worktree(&wt_name) {
+                // Open the worktree as a repo to check its HEAD
+                if let Ok(wt_repo) = Repository::open(wt.path()) {
+                    if let Ok(wt_head) = wt_repo.head() {
+                        if wt_head.is_branch() {
+                            if let Some(wt_branch) = wt_head.shorthand() {
+                                if wt_branch == name {
+                                    if force {
+                                        // Remove the worktree first, then delete the branch
+                                        crate::git::worktree::remove_worktree(path, &wt_name)?;
+                                        break;
+                                    } else {
+                                        return Err(format!(
+                                            "Branch '{name}' is checked out in worktree '{wt_name}'. Delete the worktree first or use force delete."
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     let mut branch = repo
         .find_branch(name, BranchType::Local)

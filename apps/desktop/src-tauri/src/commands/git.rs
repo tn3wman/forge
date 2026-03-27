@@ -112,8 +112,8 @@ pub async fn git_checkout_branch(path: String, name: String) -> Result<(), Strin
 }
 
 #[tauri::command]
-pub async fn git_delete_branch(path: String, name: String) -> Result<(), String> {
-    tokio::task::spawn_blocking(move || crate::git::branch::delete_branch(&path, &name))
+pub async fn git_delete_branch(path: String, name: String, force: Option<bool>) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || crate::git::branch::delete_branch(&path, &name, force.unwrap_or(false)))
         .await
         .map_err(|e| format!("Task failed: {e}"))?
 }

@@ -131,10 +131,11 @@ export function useCheckoutBranch() {
 export function useDeleteBranch() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ path, name }: { path: string; name: string }) =>
-      gitIpc.deleteBranch(path, name),
+    mutationFn: async ({ path, name, force }: { path: string; name: string; force?: boolean }) =>
+      gitIpc.deleteBranch(path, name, force),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["git-branches"] });
+      queryClient.invalidateQueries({ queryKey: ["git-worktrees"] });
     },
   });
 }
