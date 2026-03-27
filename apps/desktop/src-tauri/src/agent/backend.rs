@@ -1,11 +1,13 @@
+use crate::models::agent::ImageAttachment;
+
 /// Abstraction over different CLI agent communication protocols.
 ///
 /// Claude Code speaks `--output-format stream-json`, Codex uses JSON-RPC,
 /// and unknown CLIs fall back to raw PTY I/O.  Implementations live in
 /// sibling modules (added in later tasks).
 pub trait AgentBackend: Send {
-    /// Send a user message to the running agent.
-    fn send_message(&mut self, message: &str) -> Result<(), String>;
+    /// Send a user message to the running agent, optionally with image attachments.
+    fn send_message(&mut self, message: &str, images: Option<&[ImageAttachment]>) -> Result<(), String>;
 
     /// Respond to a permission/tool-use request from the agent.
     fn respond_permission(&mut self, tool_use_id: &str, allow: bool) -> Result<(), String>;

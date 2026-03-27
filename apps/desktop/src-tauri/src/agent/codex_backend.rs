@@ -640,7 +640,7 @@ fn parse_codex_notification(
 }
 
 impl AgentBackend for CodexBackend {
-    fn send_message(&mut self, message: &str) -> Result<(), String> {
+    fn send_message(&mut self, message: &str, _images: Option<&[crate::models::agent::ImageAttachment]>) -> Result<(), String> {
         // For follow-up messages, send a new turn/start on the existing thread
         let tid = self
             .thread_id

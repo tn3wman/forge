@@ -1,6 +1,7 @@
 import { useEffect, useRef, useMemo, useCallback } from "react";
 import { useAgentStore, type AgentMessage } from "@/stores/agentStore";
 import { agentIpc } from "@/ipc/agent";
+import type { ImageAttachment } from "@forge/shared";
 import { ChatMessage } from "./ChatMessage";
 import { ToolCallCard } from "./ToolCallCard";
 import { PermissionPrompt } from "./PermissionPrompt";
@@ -92,7 +93,7 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
   }, [pendingPermission, sessionId, activeTabId]);
 
   const handleSend = useCallback(
-    (text: string) => {
+    (text: string, images?: ImageAttachment[]) => {
       const now = Date.now();
       appendMessage(sessionId, {
         id: `user-${Date.now()}`,
@@ -100,10 +101,11 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
         content: text,
         timestamp: now,
         collapsed: false,
+        images: images?.length ? images : undefined,
       });
       createPendingAssistant(sessionId);
       updateTabState(sessionId, "thinking");
-      void agentIpc.sendMessage(sessionId, text).catch((error) => {
+      void agentIpc.sendMessage(sessionId, text, images).catch((error) => {
         console.error("Failed to send agent message:", error);
       });
     },

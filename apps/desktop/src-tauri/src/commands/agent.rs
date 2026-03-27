@@ -1,6 +1,6 @@
 use crate::agent::manager::AgentSessionManager;
 use crate::agent::slash_commands;
-use crate::models::agent::{AgentSessionInfo, CreateAgentSessionRequest, SlashCommandInfo};
+use crate::models::agent::{AgentSessionInfo, CreateAgentSessionRequest, ImageAttachment, SlashCommandInfo};
 use tauri::AppHandle;
 
 #[tauri::command]
@@ -17,8 +17,9 @@ pub async fn agent_send_message(
     manager: tauri::State<'_, AgentSessionManager>,
     session_id: String,
     message: String,
+    images: Option<Vec<ImageAttachment>>,
 ) -> Result<(), String> {
-    manager.send_message(&session_id, &message)
+    manager.send_message(&session_id, &message, images.as_deref())
 }
 
 #[tauri::command]

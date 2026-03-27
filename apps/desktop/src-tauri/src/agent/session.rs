@@ -1,7 +1,7 @@
 use super::backend::{backend_for_cli, AgentBackend, BackendKind};
 use super::claude_backend::ClaudeBackend;
 use super::codex_backend::CodexBackend;
-use crate::models::agent::{AgentMode, ClaudeLaunchOptions};
+use crate::models::agent::{AgentMode, ClaudeLaunchOptions, ImageAttachment};
 use tauri::AppHandle;
 
 pub struct AgentSession {
@@ -47,8 +47,8 @@ impl AgentSession {
         Ok(Self { backend })
     }
 
-    pub fn send_message(&mut self, message: &str) -> Result<(), String> {
-        self.backend.send_message(message)
+    pub fn send_message(&mut self, message: &str, images: Option<&[ImageAttachment]>) -> Result<(), String> {
+        self.backend.send_message(message, images)
     }
 
     pub fn respond_permission(&mut self, tool_use_id: &str, allow: bool) -> Result<(), String> {

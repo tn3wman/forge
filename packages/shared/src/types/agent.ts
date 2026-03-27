@@ -45,6 +45,17 @@ export interface AgentSessionInfo {
   capabilitiesLoaded?: boolean;
 }
 
+export type ImageMediaType = "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+
+export interface ImageAttachment {
+  /** base64-encoded image data (no data-uri prefix) */
+  data: string;
+  /** MIME type */
+  mediaType: ImageMediaType;
+  /** Optional display filename */
+  fileName?: string;
+}
+
 export interface ContentBlock {
   type: "text" | "tool_use";
   text?: string;
