@@ -2,6 +2,8 @@ import { memo } from "react";
 import { ChevronRight, ChevronDown, Wrench, Check, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AgentMessage } from "@/stores/agentStore";
+import { ToolInputSummary } from "./tool-renderers/ToolInputSummary";
+import { ToolOutputRenderer } from "./tool-renderers/ToolOutputRenderer";
 
 interface ToolCallCardProps {
   toolUse: AgentMessage;
@@ -52,13 +54,11 @@ export const ToolCallCard = memo(function ToolCallCard({
           {(toolUse.toolInput || toolUse.toolInputText) && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">Input</p>
-              <pre className="max-h-48 overflow-auto rounded bg-background p-2 text-xs">
-                <code>
-                  {toolUse.toolInput
-                    ? JSON.stringify(toolUse.toolInput, null, 2)
-                    : toolUse.toolInputText}
-                </code>
-              </pre>
+              <ToolInputSummary
+                toolName={toolUse.toolName ?? "tool"}
+                toolInput={toolUse.toolInput}
+                toolInputText={toolUse.toolInputText}
+              />
             </div>
           )}
           {toolUse.toolStatus && (
@@ -74,14 +74,19 @@ export const ToolCallCard = memo(function ToolCallCard({
               <p className={cn("text-xs font-medium mb-1", isError ? "text-red-400" : "text-muted-foreground")}>
                 Output
               </p>
-              <pre className="max-h-48 overflow-auto rounded bg-background p-2 text-xs">
-                <code>
-                  {toolResult.content ||
-                    (pending
-                      ? "Waiting for tool output..."
-                      : "Tool completed without output.")}
-                </code>
-              </pre>
+              {toolResult.content ? (
+                <ToolOutputRenderer
+                  content={toolResult.content}
+                  toolName={toolUse.toolName}
+                  toolInput={toolUse.toolInput}
+                  isStreaming={toolResult.streamState === "streaming"}
+                  isError={isError}
+                />
+              ) : (
+                <p className="rounded bg-background px-2 py-1 text-xs text-muted-foreground">
+                  {pending ? "Waiting for tool output..." : "Tool completed without output."}
+                </p>
+              )}
             </div>
           )}
         </div>

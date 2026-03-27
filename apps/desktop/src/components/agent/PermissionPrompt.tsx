@@ -2,6 +2,7 @@ import { memo, useCallback } from "react";
 import { ShieldAlert } from "lucide-react";
 import { agentIpc } from "@/ipc/agent";
 import type { AgentMessage } from "@/stores/agentStore";
+import { ToolInputSummary } from "./tool-renderers/ToolInputSummary";
 
 interface PermissionPromptProps {
   message: AgentMessage;
@@ -36,9 +37,12 @@ export const PermissionPrompt = memo(function PermissionPrompt({
             )}
           </div>
           {message.toolInput && (
-            <pre className="max-h-40 overflow-auto rounded-md border border-yellow-500/20 bg-background/80 p-2 text-xs text-muted-foreground">
-              <code>{JSON.stringify(message.toolInput, null, 2)}</code>
-            </pre>
+            <div className="max-h-40 overflow-auto rounded-md border border-yellow-500/20 bg-background/80 p-2">
+              <ToolInputSummary
+                toolName={message.toolName ?? "tool"}
+                toolInput={message.toolInput}
+              />
+            </div>
           )}
           <div className="flex gap-2">
             <button
