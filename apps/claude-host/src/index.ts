@@ -359,6 +359,19 @@ async function createCapabilitiesQuery(claudePath?: string | null) {
   }
 }
 
+const READ_ONLY_TOOLS = new Set([
+  "Read",
+  "Glob",
+  "Grep",
+  "LSP",
+  "WebSearch",
+  "WebFetch",
+  "Agent",
+  "TodoRead",
+  "ListMcpResourcesTool",
+  "ReadMcpResourceTool",
+]);
+
 async function startSession(command: Extract<HostCommand, { type: "start_session" }>) {
   if (sessions.has(command.sessionId)) {
     throw new Error(`Session '${command.sessionId}' already exists`);
@@ -380,8 +393,13 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
     closed: false,
   };
 
-  const canUseTool: CanUseTool = (toolName, toolInput, callbackOptions) =>
-    new Promise<PermissionResult>((resolve) => {
+  const canUseTool: CanUseTool = (toolName, toolInput, callbackOptions) => {
+    // Auto-approve read-only tools in plan mode
+    if (session.permissionMode === "plan" && READ_ONLY_TOOLS.has(toolName)) {
+      return Promise.resolve({ behavior: "allow" as const });
+    }
+
+    return new Promise<PermissionResult>((resolve) => {
       const approvalId =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
@@ -403,6 +421,7 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
         detail: summarizeToolRequest(toolName, normalizedInput),
       });
     });
+  };
 
   session.queryRuntime = query({
     prompt: promptStream(session),
