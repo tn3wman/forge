@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -9,30 +9,26 @@ import {
   ContextMenuLabel,
 } from "@/components/ui/context-menu";
 import { WORKSPACE_COLORS } from "@/lib/workspaceColors";
-import { useUpdateWorkspace, useDeleteWorkspace } from "@/queries/useWorkspaces";
+import { useUpdateWorkspace } from "@/queries/useWorkspaces";
+import type { Workspace } from "@forge/shared";
 
 interface WorkspaceContextMenuProps {
-  workspaceId: string;
-  currentColor: string;
+  workspace: Workspace;
+  onRename: () => void;
+  onDelete: () => void;
   children: ReactNode;
 }
 
 export function WorkspaceContextMenu({
-  workspaceId,
-  currentColor,
+  workspace,
+  onRename,
+  onDelete,
   children,
 }: WorkspaceContextMenuProps) {
   const updateWorkspace = useUpdateWorkspace();
-  const deleteWorkspace = useDeleteWorkspace();
 
   function handleColorChange(colorId: string) {
-    updateWorkspace.mutate({ id: workspaceId, request: { color: colorId } });
-  }
-
-  function handleDelete() {
-    if (confirm("Are you sure you want to delete this workspace?")) {
-      deleteWorkspace.mutate(workspaceId);
-    }
+    updateWorkspace.mutate({ id: workspace.id, request: { color: colorId } });
   }
 
   return (
@@ -49,7 +45,7 @@ export function WorkspaceContextMenu({
               onClick={() => handleColorChange(color.id)}
               className={
                 "h-6 w-6 rounded-full transition-transform hover:scale-110" +
-                (currentColor === color.id
+                (workspace.color === color.id
                   ? " ring-2 ring-white ring-offset-1 ring-offset-background"
                   : "")
               }
@@ -58,9 +54,13 @@ export function WorkspaceContextMenu({
           ))}
         </div>
         <ContextMenuSeparator />
+        <ContextMenuItem onClick={onRename}>
+          <Pencil className="h-4 w-4" />
+          Rename
+        </ContextMenuItem>
         <ContextMenuItem
           className="text-destructive focus:text-destructive"
-          onClick={handleDelete}
+          onClick={onDelete}
         >
           <Trash2 className="h-4 w-4" />
           Delete Workspace

@@ -8,6 +8,8 @@ import {
 import { useWorkspaces } from "@/queries/useWorkspaces";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { AddWorkspaceDialog } from "./AddWorkspaceDialog";
+import { RenameWorkspaceDialog } from "./RenameWorkspaceDialog";
+import { DeleteWorkspaceDialog } from "./DeleteWorkspaceDialog";
 import { AddRepoDialog } from "@/components/repository/AddRepoDialog";
 import { WorkspaceContextMenu } from "./WorkspaceContextMenu";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,8 @@ function WorkspaceIcon({ workspace }: { workspace: Workspace }) {
 export function WorkspaceSwitcher() {
   const [showAdd, setShowAdd] = useState(false);
   const [showAddRepo, setShowAddRepo] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<Workspace | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Workspace | null>(null);
   const { data: workspaces } = useWorkspaces();
   const { activeWorkspaceId, setActiveWorkspaceId, setActivePage } = useWorkspaceStore();
 
@@ -48,7 +52,11 @@ export function WorkspaceSwitcher() {
               />
 
               <Tooltip>
-                <WorkspaceContextMenu workspaceId={ws.id} currentColor={ws.color}>
+                <WorkspaceContextMenu
+                  workspace={ws}
+                  onRename={() => setRenameTarget(ws)}
+                  onDelete={() => setDeleteTarget(ws)}
+                >
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => {
@@ -100,6 +108,16 @@ export function WorkspaceSwitcher() {
         open={showAdd}
         onOpenChange={setShowAdd}
         onCreated={() => setShowAddRepo(true)}
+      />
+      <RenameWorkspaceDialog
+        open={!!renameTarget}
+        onOpenChange={() => setRenameTarget(null)}
+        workspace={renameTarget}
+      />
+      <DeleteWorkspaceDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        workspace={deleteTarget}
       />
       <AddRepoDialog open={showAddRepo} onOpenChange={setShowAddRepo} />
     </>
