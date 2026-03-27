@@ -126,6 +126,7 @@ pub fn run() {
             commands::agent::agent_abort,
             commands::agent::agent_kill,
             commands::agent::agent_list_sessions,
+            commands::agent::agent_update_permission_mode,
             commands::agent::agent_discover_slash_commands,
         ])
         .run(tauri::generate_context!())
