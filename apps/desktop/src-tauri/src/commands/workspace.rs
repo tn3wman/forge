@@ -1,5 +1,5 @@
 use crate::db::Database;
-use crate::models::workspace::{CreateWorkspaceRequest, UpdateWorkspaceRequest, Workspace};
+use crate::models::workspace::{CreateWorkspaceRequest, UpdateWorkspaceRequest, Workspace, random_color};
 
 #[tauri::command]
 pub fn workspace_create(
@@ -9,6 +9,7 @@ pub fn workspace_create(
     let conn = db.conn.lock().unwrap();
     let id = uuid::Uuid::now_v7().to_string();
     let now = chrono_now();
+    let color = random_color();
 
     // Get next sort order
     let sort_order: i32 = conn
@@ -18,8 +19,8 @@ pub fn workspace_create(
         .map_err(|e| format!("Failed to get sort order: {e}"))?;
 
     conn.execute(
-        "INSERT INTO workspaces (id, name, icon, sort_order, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
-        rusqlite::params![id, request.name, request.icon, sort_order, now],
+        "INSERT INTO workspaces (id, name, icon, color, sort_order, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?6)",
+        rusqlite::params![id, request.name, request.icon, color, sort_order, now],
     )
     .map_err(|e| format!("Failed to create workspace: {e}"))?;
 
@@ -27,6 +28,7 @@ pub fn workspace_create(
         id,
         name: request.name,
         icon: request.icon,
+        color,
         sort_order,
         created_at: now.clone(),
         updated_at: now,
@@ -37,7 +39,7 @@ pub fn workspace_create(
 pub fn workspace_list(db: tauri::State<'_, Database>) -> Result<Vec<Workspace>, String> {
     let conn = db.conn.lock().unwrap();
     let mut stmt = conn
-        .prepare("SELECT id, name, icon, sort_order, created_at, updated_at FROM workspaces ORDER BY sort_order")
+        .prepare("SELECT id, name, icon, color, sort_order, created_at, updated_at FROM workspaces ORDER BY sort_order")
         .map_err(|e| format!("Failed to prepare query: {e}"))?;
 
     let workspaces = stmt
@@ -46,9 +48,10 @@ pub fn workspace_list(db: tauri::State<'_, Database>) -> Result<Vec<Workspace>, 
                 id: row.get(0)?,
                 name: row.get(1)?,
                 icon: row.get(2)?,
-                sort_order: row.get(3)?,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
+                color: row.get(3)?,
+                sort_order: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
             })
         })
         .map_err(|e| format!("Failed to query workspaces: {e}"))?
@@ -65,16 +68,17 @@ pub fn workspace_get(
 ) -> Result<Workspace, String> {
     let conn = db.conn.lock().unwrap();
     conn.query_row(
-        "SELECT id, name, icon, sort_order, created_at, updated_at FROM workspaces WHERE id = ?1",
+        "SELECT id, name, icon, color, sort_order, created_at, updated_at FROM workspaces WHERE id = ?1",
         [&id],
         |row| {
             Ok(Workspace {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 icon: row.get(2)?,
-                sort_order: row.get(3)?,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
+                color: row.get(3)?,
+                sort_order: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
             })
         },
     )
@@ -104,6 +108,14 @@ pub fn workspace_update(
             rusqlite::params![icon, now, id],
         )
         .map_err(|e| format!("Failed to update workspace icon: {e}"))?;
+    }
+
+    if let Some(ref color) = request.color {
+        conn.execute(
+            "UPDATE workspaces SET color = ?1, updated_at = ?2 WHERE id = ?3",
+            rusqlite::params![color, now, id],
+        )
+        .map_err(|e| format!("Failed to update workspace color: {e}"))?;
     }
 
     // Return the updated workspace
