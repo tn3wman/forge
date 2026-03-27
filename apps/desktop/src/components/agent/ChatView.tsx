@@ -9,7 +9,7 @@ import { AgentStatusBar } from "./AgentStatusBar";
 import { UnifiedInputCard } from "./UnifiedInputCard";
 import { useSlashCommands } from "@/hooks/useCliDiscovery";
 
-const PERMISSIVE_MODES: AgentChatMode[] = ["bypassPermissions", "dontAsk"];
+const PERMISSIVE_MODES: AgentChatMode[] = ["fullAccess"];
 
 interface ChatViewProps {
   sessionId: string;
@@ -187,6 +187,17 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
                 {msg.content}
               </p>
             );
+          }
+
+          // Skip empty completed assistant messages (issue #6)
+          if (
+            msg.type === "assistant" &&
+            msg.streamState !== "pending" &&
+            msg.streamState !== "streaming" &&
+            !msg.content?.trim() &&
+            !msg.reasoning?.trim()
+          ) {
+            return null;
           }
 
           if (msg.type === "user" || msg.type === "assistant") {

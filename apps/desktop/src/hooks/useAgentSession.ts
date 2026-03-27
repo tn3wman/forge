@@ -22,12 +22,8 @@ function hasPendingApproval(
   );
 }
 
-const EDIT_TOOL_NAMES = ["Write", "Edit", "Bash", "NotebookEdit"];
-
-function shouldAutoApprove(mode: AgentChatMode, toolName?: string): boolean {
-  if (mode === "bypassPermissions" || mode === "dontAsk") return true;
-  if (mode === "acceptEdits" && toolName && EDIT_TOOL_NAMES.includes(toolName)) return true;
-  return false;
+function shouldAutoApprove(mode: AgentChatMode): boolean {
+  return mode === "fullAccess";
 }
 
 function handleAgentEvent(payload: AgentEventPayload) {
@@ -160,9 +156,9 @@ function handleAgentEvent(payload: AgentEventPayload) {
     }
     case "approval_requested": {
       const tab = store.tabs.find((t) => t.sessionId === sessionId);
-      const currentMode = tab?.mode ?? "default";
+      const currentMode = tab?.mode ?? "supervised";
 
-      if (event.toolUseId && shouldAutoApprove(currentMode, event.toolName)) {
+      if (event.toolUseId && shouldAutoApprove(currentMode)) {
         void agentIpc.respondPermission(sessionId, event.toolUseId, true).catch((err) => {
           console.error("Failed to auto-approve:", err);
         });

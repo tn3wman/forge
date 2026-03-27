@@ -17,10 +17,10 @@ interface ChatInputProps {
 }
 
 const MODE_COMMANDS: Record<string, AgentChatMode> = {
-  plan: "plan",
-  default: "default",
-  yolo: "bypassPermissions",
-  auto: "auto",
+  supervised: "supervised",
+  assisted: "assisted",
+  full: "fullAccess",
+  yolo: "fullAccess",
 };
 
 export function ChatInput({

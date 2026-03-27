@@ -1,11 +1,8 @@
-export type AgentChatMode = "default" | "plan" | "acceptEdits" | "bypassPermissions" | "dontAsk" | "auto";
+export type AgentChatMode = "supervised" | "assisted" | "fullAccess";
 export type AgentState = "idle" | "thinking" | "executing" | "awaiting_approval" | "completed" | "error";
 export type AgentStreamState = "pending" | "streaming" | "completed" | "error";
 export type AgentProvider = "claude" | "codex" | "aider" | "unknown";
-export type ClaudePermissionMode = Extract<
-  AgentChatMode,
-  "default" | "plan" | "acceptEdits" | "bypassPermissions" | "dontAsk" | "auto"
->;
+export type ClaudePermissionMode = AgentChatMode;
 export type ClaudeEffort = "low" | "medium" | "high";
 
 export interface ClaudeLaunchOptions {

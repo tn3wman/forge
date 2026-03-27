@@ -172,12 +172,9 @@ impl AgentSessionManager {
             .get_mut(session_id)
             .ok_or_else(|| format!("Agent session '{}' not found", session_id))?;
         let permission_str = match &mode {
-            AgentMode::Default => "default",
-            AgentMode::Plan => "plan",
-            AgentMode::AcceptEdits => "acceptEdits",
-            AgentMode::BypassPermissions => "bypassPermissions",
-            AgentMode::DontAsk => "dontAsk",
-            AgentMode::Auto => "auto",
+            AgentMode::Supervised => "supervised",
+            AgentMode::Assisted => "assisted",
+            AgentMode::FullAccess => "fullAccess",
         };
         entry.info.mode = mode;
         entry.info.permission_mode = Some(permission_str.to_string());

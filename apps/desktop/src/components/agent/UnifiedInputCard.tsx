@@ -5,7 +5,6 @@ import {
   Terminal,
   Loader2,
   ChevronDown,
-  FileText,
   ShieldCheck,
   Shield,
   ShieldAlert,
@@ -31,22 +30,19 @@ const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB base64 limit (~3.75MB raw)
 const MAX_IMAGES = 5;
 
 const MODE_COMMANDS: Record<string, AgentChatMode> = {
-  plan: "plan",
-  default: "default",
-  yolo: "bypassPermissions",
-  auto: "auto",
+  supervised: "supervised",
+  assisted: "assisted",
+  full: "fullAccess",
+  yolo: "fullAccess",
 };
 
 const MODE_CONFIG: Record<
   AgentChatMode,
   { label: string; icon: typeof Shield }
 > = {
-  plan: { label: "Plan", icon: FileText },
-  auto: { label: "Auto", icon: ShieldAlert },
-  default: { label: "Default", icon: Shield },
-  acceptEdits: { label: "Accept edits", icon: ShieldAlert },
-  bypassPermissions: { label: "Bypass permissions", icon: ShieldCheck },
-  dontAsk: { label: "Don't ask", icon: ShieldCheck },
+  supervised: { label: "Supervised", icon: Shield },
+  assisted: { label: "Assisted", icon: ShieldAlert },
+  fullAccess: { label: "Full Access", icon: ShieldCheck },
 };
 
 const MODEL_PRESETS = [
@@ -98,7 +94,7 @@ export function UnifiedInputCard({
   onAbort,
   agentState,
   disabled,
-  mode = "auto",
+  mode = "assisted",
   onModeChange,
   slashCommands = [],
   model,
@@ -129,7 +125,7 @@ export function UnifiedInputCard({
     text.startsWith("/") && !text.includes(" ") && !slashMenuDismissed;
   const slashFilter = text.slice(1);
 
-  const currentModeConfig = MODE_CONFIG[mode] ?? MODE_CONFIG.auto;
+  const currentModeConfig = MODE_CONFIG[mode] ?? MODE_CONFIG.assisted;
   const ModeIcon = currentModeConfig.icon;
 
   const currentModelLabel =
@@ -500,51 +496,25 @@ export function UnifiedInputCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuItem
-                onClick={() => onModeChange?.("plan")}
-                disabled={agentState !== undefined && agentState !== "idle" && mode !== "plan"}
-                className={cn(mode === "plan" && "bg-accent")}
-              >
-                <FileText className="mr-2 h-3.5 w-3.5" />
-                Plan
-                {agentState !== undefined && agentState !== "idle" && mode !== "plan" && (
-                  <span className="ml-auto text-[10px] text-muted-foreground">start only</span>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => onModeChange?.("auto")}
-                className={cn(mode === "auto" && "bg-accent")}
-              >
-                <ShieldAlert className="mr-2 h-3.5 w-3.5" />
-                Auto
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onModeChange?.("default")}
-                className={cn(mode === "default" && "bg-accent")}
+                onClick={() => onModeChange?.("supervised")}
+                className={cn(mode === "supervised" && "bg-accent")}
               >
                 <Shield className="mr-2 h-3.5 w-3.5" />
-                Default
+                Supervised
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => onModeChange?.("acceptEdits")}
-                className={cn(mode === "acceptEdits" && "bg-accent")}
+                onClick={() => onModeChange?.("assisted")}
+                className={cn(mode === "assisted" && "bg-accent")}
               >
                 <ShieldAlert className="mr-2 h-3.5 w-3.5" />
-                Accept edits
+                Assisted
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => onModeChange?.("bypassPermissions")}
-                className={cn(mode === "bypassPermissions" && "bg-accent")}
+                onClick={() => onModeChange?.("fullAccess")}
+                className={cn(mode === "fullAccess" && "bg-accent")}
               >
                 <ShieldCheck className="mr-2 h-3.5 w-3.5" />
-                Bypass permissions
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onModeChange?.("dontAsk")}
-                className={cn(mode === "dontAsk" && "bg-accent")}
-              >
-                <ShieldCheck className="mr-2 h-3.5 w-3.5" />
-                Don't ask
+                Full Access
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

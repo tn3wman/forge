@@ -22,7 +22,7 @@ type HostCommand =
       cwd?: string | null;
       prompt: string;
       model?: string | null;
-      permissionMode?: PermissionMode | null;
+      permissionMode?: string | null;
       effort?: string | null;
       agent?: string | null;
       claudePath?: string | null;
@@ -194,7 +194,7 @@ interface PendingApproval {
 interface ClaudeSession {
   sessionId: string;
   cwd?: string | null;
-  permissionMode?: PermissionMode | null;
+  permissionMode?: string | null;
   claudePath?: string | null;
   agent?: string | null;
   effort?: string | null;
@@ -359,6 +359,28 @@ async function createCapabilitiesQuery(claudePath?: string | null) {
   }
 }
 
+function toSdkPermissionMode(mode?: string | null): PermissionMode | undefined {
+  switch (mode) {
+    case "supervised": return "default";
+    case "assisted": return "default";
+    case "fullAccess": return "bypassPermissions";
+    default: return undefined;
+  }
+}
+
+const READ_ONLY_TOOLS = new Set([
+  "Read",
+  "Glob",
+  "Grep",
+  "LSP",
+  "WebSearch",
+  "WebFetch",
+  "Agent",
+  "TodoRead",
+  "ListMcpResourcesTool",
+  "ReadMcpResourceTool",
+]);
+
 async function startSession(command: Extract<HostCommand, { type: "start_session" }>) {
   if (sessions.has(command.sessionId)) {
     throw new Error(`Session '${command.sessionId}' already exists`);
@@ -380,8 +402,19 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
     closed: false,
   };
 
-  const canUseTool: CanUseTool = (toolName, toolInput, callbackOptions) =>
-    new Promise<PermissionResult>((resolve) => {
+  const canUseTool: CanUseTool = (toolName, toolInput, callbackOptions) => {
+    // Full Access: auto-approve all tools
+    if (session.permissionMode === "fullAccess") {
+      return Promise.resolve({ behavior: "allow" as const });
+    }
+
+    // Assisted: auto-approve read-only tools, prompt for writes
+    if (session.permissionMode === "assisted" && READ_ONLY_TOOLS.has(toolName)) {
+      return Promise.resolve({ behavior: "allow" as const });
+    }
+
+    // Supervised (default): prompt for everything
+    return new Promise<PermissionResult>((resolve) => {
       const approvalId =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
@@ -403,13 +436,14 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
         detail: summarizeToolRequest(toolName, normalizedInput),
       });
     });
+  };
 
   session.queryRuntime = query({
     prompt: promptStream(session),
     options: {
       cwd: command.cwd ?? undefined,
       includePartialMessages: true,
-      permissionMode: command.permissionMode ?? undefined,
+      permissionMode: toSdkPermissionMode(command.permissionMode),
       maxThinkingTokens: command.effort === "high" ? 12000 : undefined,
       pathToClaudeCodeExecutable: command.claudePath ?? undefined,
       canUseTool,

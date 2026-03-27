@@ -606,12 +606,9 @@ fn parse_host_events(
 
 fn mode_to_permission_mode(mode: &AgentMode) -> &'static str {
     match mode {
-        AgentMode::Default => "default",
-        AgentMode::Plan => "plan",
-        AgentMode::AcceptEdits => "acceptEdits",
-        AgentMode::BypassPermissions => "bypassPermissions",
-        AgentMode::DontAsk => "dontAsk",
-        AgentMode::Auto => "auto",
+        AgentMode::Supervised => "supervised",
+        AgentMode::Assisted => "assisted",
+        AgentMode::FullAccess => "fullAccess",
     }
 }
 
