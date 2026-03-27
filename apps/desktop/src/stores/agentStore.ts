@@ -298,12 +298,13 @@ export const useAgentStore = create<AgentStore>((set) => ({
         finalText && finalText.length >= existing.content.length
           ? finalText
           : existing.content;
+      const hasContent = content.trim().length > 0 || !!existing.reasoning?.trim();
       messages[idx] = {
         ...existing,
         messageId,
         turnId: turnId ?? existing.turnId,
         content,
-        streamState: "completed",
+        streamState: hasContent ? "completed" : existing.streamState,
       };
       return {
         messagesBySession: { ...s.messagesBySession, [sessionId]: messages },
@@ -514,22 +515,21 @@ export const useAgentStore = create<AgentStore>((set) => ({
   fillEmptyAssistant: (sessionId, text) =>
     set((s) => {
       const messages = getMessagesForSession(s.messagesBySession, sessionId);
-      const idx = findMessageIndex(
-        messages,
-        (message) => message.type === "assistant",
-      );
-      if (idx < 0) return s;
-      const existing = messages[idx];
-      if (existing.content && existing.content.trim().length > 0) return s;
-      const next = [...messages];
-      next[idx] = {
-        ...existing,
-        content: text,
-        streamState: "completed",
-      };
-      return {
-        messagesBySession: { ...s.messagesBySession, [sessionId]: next },
-      };
+      let changed = false;
+      const next = messages.map((message) => {
+        if (
+          message.type === "assistant" &&
+          (!message.content || !message.content.trim()) &&
+          (!message.reasoning || !message.reasoning.trim())
+        ) {
+          changed = true;
+          return { ...message, content: text, streamState: "completed" as const };
+        }
+        return message;
+      });
+      return changed
+        ? { messagesBySession: { ...s.messagesBySession, [sessionId]: next } }
+        : s;
     }),
 
   markAssistantError: (sessionId, content) =>
