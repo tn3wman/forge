@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "pnpm vite dev",
-    "beforeBuildCommand": "pnpm vite build"
+    "beforeDevCommand": "pnpm --filter @forge/claude-host build && pnpm vite dev",
+    "beforeBuildCommand": "pnpm --filter @forge/claude-host build && pnpm vite build"
   },
   "app": {
     "windows": [
@@ -32,6 +32,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": [
+      "../../claude-host/dist/*"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

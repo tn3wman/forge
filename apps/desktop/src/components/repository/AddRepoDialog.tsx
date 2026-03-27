@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Lock, Star, Loader2 } from "lucide-react";
+import { Search, Lock, Star, Loader2, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { repoIpc, type SearchRepoResult } from "@/ipc/repository";
-import { useAddRepo } from "@/queries/useRepositories";
+import { useAddRepo, useRepositories } from "@/queries/useRepositories";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -27,6 +27,8 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
   const addRepo = useAddRepo();
   const { activeWorkspaceId } = useWorkspaceStore();
   const token = useAuthStore((s) => s.token);
+  const { data: existingRepos } = useRepositories(activeWorkspaceId);
+  const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
 
   // Load user repos on open
   useEffect(() => {
@@ -41,6 +43,7 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
     if (!open) {
       setQuery("");
       setResults([]);
+      setAddedIds(new Set());
     }
   }, [open, token]);
 
@@ -63,6 +66,8 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
     return () => clearTimeout(timeout);
   }, [query, token]);
 
+  const existingGithubIds = new Set(existingRepos?.map((r) => r.githubId) ?? []);
+
   async function handleAdd(repo: SearchRepoResult) {
     if (!activeWorkspaceId) return;
     setAddingId(repo.githubId);
@@ -76,6 +81,7 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
         isPrivate: repo.isPrivate,
         defaultBranch: repo.defaultBranch,
       });
+      setAddedIds((prev) => new Set(prev).add(repo.githubId));
     } catch (e) {
       console.error("Failed to add repo:", e);
     } finally {
@@ -141,15 +147,22 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
                       {repo.stars}
                     </div>
                   )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleAdd(repo)}
-                    disabled={addingId === repo.githubId}
-                    className="h-7 text-xs"
-                  >
-                    {addingId === repo.githubId ? "Adding..." : "Add"}
-                  </Button>
+                  {existingGithubIds.has(repo.githubId) || addedIds.has(repo.githubId) ? (
+                    <span className="flex h-7 items-center gap-1 text-xs text-muted-foreground">
+                      <Check className="h-3.5 w-3.5" />
+                      Added
+                    </span>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAdd(repo)}
+                      disabled={addingId === repo.githubId}
+                      className="h-7 text-xs"
+                    >
+                      {addingId === repo.githubId ? "Adding..." : "Add"}
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>

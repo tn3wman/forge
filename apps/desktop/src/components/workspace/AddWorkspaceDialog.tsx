@@ -14,9 +14,10 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 interface AddWorkspaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCreated?: () => void;
 }
 
-export function AddWorkspaceDialog({ open, onOpenChange }: AddWorkspaceDialogProps) {
+export function AddWorkspaceDialog({ open, onOpenChange, onCreated }: AddWorkspaceDialogProps) {
   const [name, setName] = useState("");
   const createWorkspace = useCreateWorkspace();
   const { setActiveWorkspaceId } = useWorkspaceStore();
@@ -29,6 +30,7 @@ export function AddWorkspaceDialog({ open, onOpenChange }: AddWorkspaceDialogPro
     setActiveWorkspaceId(workspace.id);
     setName("");
     onOpenChange(false);
+    onCreated?.();
   }
 
   return (

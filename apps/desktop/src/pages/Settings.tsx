@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
-import { User, Bell, GitBranch, Settings as SettingsIcon } from "lucide-react";
+import { User, Bell, GitBranch, FolderGit2, Settings as SettingsIcon, Bot } from "lucide-react";
 import { check } from "@tauri-apps/plugin-updater";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useAuthStore } from "@/stores/authStore";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { RepoItem } from "@/components/repository/RepoList";
+import { AddRepoDialog } from "@/components/repository/AddRepoDialog";
+import { useRepositories } from "@/queries/useRepositories";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -33,10 +37,15 @@ export function Settings() {
     gitPollInterval,
     showNotificationBadge,
     autoFetchOnSwitch,
+    claudeExecutablePath,
   } = useSettingsStore();
 
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+
+  const { activeWorkspaceId } = useWorkspaceStore();
+  const { data: repos } = useRepositories(activeWorkspaceId);
+  const [showAddRepo, setShowAddRepo] = useState(false);
 
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "none" | "error">("idle");
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
@@ -90,6 +99,41 @@ export function Settings() {
                 Sign Out
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Repositories */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <FolderGit2 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>Repositories</CardTitle>
+            </div>
+            <CardDescription>
+              Manage repositories in this workspace
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {repos && repos.length > 0 ? (
+              <div className="space-y-0.5">
+                {repos.map((repo) => (
+                  <RepoItem key={repo.id} repo={repo} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No repositories added yet
+              </p>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAddRepo(true)}
+              className="mt-2"
+            >
+              Add Repository
+            </Button>
+            <AddRepoDialog open={showAddRepo} onOpenChange={setShowAddRepo} />
           </CardContent>
         </Card>
 
@@ -164,6 +208,34 @@ export function Settings() {
                 ))}
               </select>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Claude Code */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>Claude Code</CardTitle>
+            </div>
+            <CardDescription>
+              Override the Claude executable Forge uses for SDK-backed chat sessions
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="claude-executable-path">Executable path override</Label>
+              <input
+                id="claude-executable-path"
+                value={claudeExecutablePath}
+                onChange={(e) => updateSetting("claudeExecutablePath", e.target.value)}
+                placeholder="Leave empty to use the discovered claude binary from PATH"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Forge uses the official Claude Agent SDK host and still requires Claude Code to be installed and authenticated locally.
+            </p>
           </CardContent>
         </Card>
 

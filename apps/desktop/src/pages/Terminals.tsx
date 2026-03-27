@@ -1,13 +1,50 @@
-import { useCallback } from "react";
-import { Plus, LayoutGrid, Columns, Layers, X } from "lucide-react";
-import { Terminal as TerminalIcon, MessageSquare } from "lucide-react";
+import { useCallback, useEffect, Component, type ReactNode } from "react";
+import { Plus, LayoutGrid, Columns, Layers, X, AlertTriangle, RotateCcw, Loader2 } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTerminalStore, type TerminalLayoutMode } from "@/stores/terminalStore";
+import { useAgentStore } from "@/stores/agentStore";
 import { TerminalTab } from "@/components/terminal/TerminalTab";
 import { TerminalView } from "@/components/terminal/TerminalView";
 import { ChatView } from "@/components/agent/ChatView";
+import { ClaudeChatView } from "@/components/agent/ClaudeChatView";
+import { PreSessionView } from "@/components/agent/PreSessionView";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { terminalIpc } from "@/ipc/terminal";
 import { agentIpc } from "@/ipc/agent";
+
+class ChatErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-3 p-4">
+          <AlertTriangle className="h-8 w-8 text-yellow-500" />
+          <p className="text-sm font-medium text-foreground">Chat session crashed</p>
+          <p className="max-w-sm text-center text-xs text-muted-foreground">
+            {this.state.error.message}
+          </p>
+          <button
+            onClick={() => this.setState({ error: null })}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Retry
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const LAYOUT_OPTIONS: { mode: TerminalLayoutMode; icon: typeof LayoutGrid; label: string }[] = [
   { mode: "tabs", icon: Layers, label: "Tabs" },
@@ -28,18 +65,30 @@ interface TerminalsProps {
 }
 
 export function Terminals({ onNewTerminal }: TerminalsProps) {
-  const { tabs, activeTabId, layoutMode, setLayoutMode, setActiveTab, removeTab } =
+  const { tabs: allTabs, activeTabId, layoutMode, setLayoutMode, setActiveTab, removeTab } =
     useTerminalStore();
+  const agentTabs = useAgentStore((s) => s.tabs);
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const tabs = allTabs.filter((t) => t.workspaceId === activeWorkspaceId);
+
+  // Auto-select first workspace tab when activeTabId is not in filtered set
+  useEffect(() => {
+    if (tabs.length > 0 && !tabs.some((t) => t.tabId === activeTabId)) {
+      setActiveTab(tabs[0].tabId);
+    }
+  }, [tabs, activeTabId, setActiveTab]);
 
   const handleClose = useCallback(
-    (sessionId: string) => {
-      const tab = tabs.find((t) => t.sessionId === sessionId);
-      if (tab?.type === "chat") {
-        agentIpc.kill(sessionId).catch(() => {});
-      } else {
-        terminalIpc.kill(sessionId).catch(() => {});
+    (tabId: string) => {
+      const tab = tabs.find((t) => t.tabId === tabId);
+      if (tab && tab.status === "active" && tab.sessionId) {
+        if (tab.type === "chat") {
+          agentIpc.kill(tab.sessionId).catch(() => {});
+        } else {
+          terminalIpc.kill(tab.sessionId).catch(() => {});
+        }
       }
-      removeTab(sessionId);
+      removeTab(tabId);
     },
     [removeTab, tabs],
   );
@@ -47,11 +96,11 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
   if (tabs.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
-        <TerminalIcon className="h-12 w-12 text-muted-foreground/30" />
+        <MessageSquare className="h-12 w-12 text-muted-foreground/30" />
         <div className="text-center">
-          <p className="text-sm font-medium text-muted-foreground">No terminal sessions</p>
+          <p className="text-sm font-medium text-muted-foreground">No sessions</p>
           <p className="mt-1 text-xs text-muted-foreground/70">
-            Create a new terminal to get started
+            Start a new agent to get going
           </p>
         </div>
         <button
@@ -59,7 +108,7 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
           className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           <Plus className="h-4 w-4" />
-          New Terminal
+          New Agent
         </button>
       </div>
     );
@@ -95,11 +144,11 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
           <div className="flex flex-1 items-center overflow-x-auto">
             {tabs.map((tab) => (
               <TerminalTab
-                key={tab.sessionId}
+                key={tab.tabId}
                 tab={tab}
-                isActive={tab.sessionId === activeTabId}
-                onSelect={() => setActiveTab(tab.sessionId)}
-                onClose={() => handleClose(tab.sessionId)}
+                isActive={tab.tabId === activeTabId}
+                onSelect={() => setActiveTab(tab.tabId)}
+                onClose={() => handleClose(tab.tabId)}
               />
             ))}
           </div>
@@ -107,7 +156,7 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
 
         {layoutMode !== "tabs" && (
           <span className="text-xs text-muted-foreground">
-            {tabs.length} terminal{tabs.length !== 1 ? "s" : ""}
+            {tabs.length} session{tabs.length !== 1 ? "s" : ""}
           </span>
         )}
 
@@ -116,16 +165,16 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
         <button
           onClick={onNewTerminal}
           className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
-          title="New Terminal (⌘⇧`)"
+          title="New Agent (⌘⇧`)"
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      {/* Terminal content area — SINGLE render path, never unmounts terminals */}
+      {/* Content area — SINGLE render path, never unmounts terminals */}
       <div
         className={cn(
-          "flex-1 overflow-hidden",
+          "flex-1 overflow-hidden relative",
           layoutMode === "grid" && "grid gap-1 p-1",
           layoutMode === "horizontal-scroll" && "flex gap-1 overflow-x-auto p-1",
         )}
@@ -139,15 +188,24 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
         }
       >
         {tabs.map((tab) => {
-          const isActive = tab.sessionId === activeTabId;
+          const isActive = tab.tabId === activeTabId;
+          const agentTab =
+            tab.type === "chat" && tab.sessionId
+              ? agentTabs.find((entry) => entry.sessionId === tab.sessionId)
+              : undefined;
+          const agentState = agentTab?.state;
+          const isAgentRunning =
+            agentState === "thinking" ||
+            agentState === "executing" ||
+            agentState === "awaiting_approval";
 
           return (
             <div
-              key={tab.sessionId}
+              key={tab.tabId}
               className={cn(
-                // Tabs mode: hide inactive, fill active
-                layoutMode === "tabs" && !isActive && "hidden",
-                layoutMode === "tabs" && isActive && "h-full",
+                // Tabs mode: absolute fill, flex column for child stretching, hide inactive
+                layoutMode === "tabs" && "absolute inset-0 flex flex-col",
+                layoutMode === "tabs" && !isActive && "invisible",
                 // Grid mode: each cell fills its grid area
                 layoutMode === "grid" && "flex flex-col overflow-hidden rounded-md border min-h-0",
                 layoutMode === "grid" && isActive && "ring-1 ring-primary border-primary",
@@ -162,7 +220,7 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
                   ? { width: tabs.length <= 2 ? `${100 / tabs.length}%` : "600px" }
                   : undefined
               }
-              onClick={showCellChrome ? () => setActiveTab(tab.sessionId) : undefined}
+              onClick={showCellChrome ? () => setActiveTab(tab.tabId) : undefined}
             >
               {/* Cell header — only in grid/columns modes */}
               {showCellChrome && (
@@ -170,6 +228,9 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
                   <span className="flex-1 truncate text-xs font-medium text-muted-foreground">
                     {tab.label}
                   </span>
+                  {isAgentRunning && (
+                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  )}
                   {tab.mode !== "Normal" && (
                     <span className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
                       {tab.mode === "Plan" ? "plan" : "yolo"}
@@ -178,7 +239,7 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleClose(tab.sessionId);
+                      handleClose(tab.tabId);
                     }}
                     className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
                   >
@@ -187,11 +248,19 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
                 </div>
               )}
               <div className="flex-1 overflow-hidden">
-                {tab.type === "chat" ? (
-                  <ChatView sessionId={tab.sessionId} />
+                {tab.status === "pre-session" ? (
+                  <PreSessionView tabId={tab.tabId} workspaceId={tab.workspaceId} />
+                ) : tab.type === "chat" ? (
+                  <ChatErrorBoundary>
+                    {agentTab?.provider === "claude" || tab.cliName === "claude" ? (
+                      <ClaudeChatView sessionId={tab.sessionId!} />
+                    ) : (
+                      <ChatView sessionId={tab.sessionId!} />
+                    )}
+                  </ChatErrorBoundary>
                 ) : (
                   <TerminalView
-                    sessionId={tab.sessionId}
+                    sessionId={tab.sessionId!}
                     isActive={isActive}
                     alwaysVisible={showCellChrome}
                   />

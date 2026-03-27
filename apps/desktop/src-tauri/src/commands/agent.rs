@@ -1,5 +1,6 @@
 use crate::agent::manager::AgentSessionManager;
-use crate::models::agent::{AgentSessionInfo, CreateAgentSessionRequest};
+use crate::agent::slash_commands;
+use crate::models::agent::{AgentSessionInfo, CreateAgentSessionRequest, SlashCommandInfo};
 use tauri::AppHandle;
 
 #[tauri::command]
@@ -52,4 +53,9 @@ pub async fn agent_list_sessions(
     workspace_id: Option<String>,
 ) -> Result<Vec<AgentSessionInfo>, String> {
     Ok(manager.list_sessions(workspace_id.as_deref()))
+}
+
+#[tauri::command]
+pub async fn agent_discover_slash_commands(cli_name: String) -> Result<Vec<SlashCommandInfo>, String> {
+    Ok(slash_commands::discover_slash_commands(&cli_name))
 }

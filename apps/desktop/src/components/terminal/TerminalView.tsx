@@ -4,14 +4,16 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import { useTerminalSession } from "@/hooks/useTerminalSession";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 
 interface TerminalViewProps {
   sessionId: string;
   isActive: boolean;
+  alwaysVisible?: boolean;
   onExit?: (exitCode: number | null) => void;
 }
 
-export function TerminalView({ sessionId, isActive, onExit }: TerminalViewProps) {
+export function TerminalView({ sessionId, isActive, alwaysVisible, onExit }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -70,21 +72,23 @@ export function TerminalView({ sessionId, isActive, onExit }: TerminalViewProps)
     return () => observer.disconnect();
   }, []);
 
+  // Refit terminal when it becomes active or when home page becomes visible
+  const isHomePage = useWorkspaceStore((s) => s.activePage === "home");
   useEffect(() => {
-    if (isActive) {
+    if (isActive && isHomePage) {
       const id = requestAnimationFrame(() => {
         fitAddonRef.current?.fit();
         terminal?.focus();
       });
       return () => cancelAnimationFrame(id);
     }
-  }, [isActive, terminal]);
+  }, [isActive, isHomePage, terminal]);
 
   return (
     <div
       ref={containerRef}
       className="h-full w-full"
-      style={{ display: isActive ? "block" : "none" }}
+      style={{ display: alwaysVisible || isActive ? "block" : "none" }}
     />
   );
 }

@@ -16,8 +16,11 @@ export const ToolCallCard = memo(function ToolCallCard({
   collapsed,
   onToggle,
 }: ToolCallCardProps) {
-  const pending = !toolResult;
-  const isError = toolResult?.isError;
+  const pending =
+    !toolResult ||
+    toolResult.streamState === "pending" ||
+    toolResult.streamState === "streaming";
+  const isError = toolResult?.isError || toolUse.streamState === "error";
 
   return (
     <div className="rounded-lg border border-border bg-muted/30">
@@ -46,12 +49,24 @@ export const ToolCallCard = memo(function ToolCallCard({
 
       {!collapsed && (
         <div className="border-t border-border px-3 py-2 space-y-2">
-          {toolUse.toolInput && (
+          {(toolUse.toolInput || toolUse.toolInputText) && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">Input</p>
               <pre className="max-h-48 overflow-auto rounded bg-background p-2 text-xs">
-                <code>{JSON.stringify(toolUse.toolInput, null, 2)}</code>
+                <code>
+                  {toolUse.toolInput
+                    ? JSON.stringify(toolUse.toolInput, null, 2)
+                    : toolUse.toolInputText}
+                </code>
               </pre>
+            </div>
+          )}
+          {toolUse.toolStatus && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Status</p>
+              <p className="rounded bg-background px-2 py-1 text-xs text-muted-foreground">
+                {toolUse.toolStatus}
+              </p>
             </div>
           )}
           {toolResult && (
@@ -60,7 +75,12 @@ export const ToolCallCard = memo(function ToolCallCard({
                 Output
               </p>
               <pre className="max-h-48 overflow-auto rounded bg-background p-2 text-xs">
-                <code>{toolResult.content}</code>
+                <code>
+                  {toolResult.content ||
+                    (pending
+                      ? "Waiting for tool output..."
+                      : "Tool completed without output.")}
+                </code>
               </pre>
             </div>
           )}

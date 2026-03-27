@@ -26,8 +26,10 @@ pub trait AgentBackend: Send {
 /// The communication protocol a CLI agent supports.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BackendKind {
-    /// Structured streaming JSON (e.g. `claude --output-format stream-json`).
-    StreamJson,
+    /// Claude Code: structured streaming JSON via `--output-format stream-json`.
+    ClaudeStreamJson,
+    /// OpenAI Codex: JSONL output via `codex exec --json`.
+    CodexJson,
     /// Raw PTY fallback for CLIs without a machine-readable protocol.
     PtyFallback,
 }
@@ -35,7 +37,8 @@ pub enum BackendKind {
 /// Determine which [`BackendKind`] to use for a given CLI name.
 pub fn backend_for_cli(cli_name: &str) -> BackendKind {
     match cli_name {
-        "claude" => BackendKind::StreamJson,
+        "claude" => BackendKind::ClaudeStreamJson,
+        "codex" => BackendKind::CodexJson,
         _ => BackendKind::PtyFallback,
     }
 }

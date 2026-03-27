@@ -1,6 +1,7 @@
 use super::backend::{backend_for_cli, AgentBackend, BackendKind};
 use super::claude_backend::ClaudeBackend;
-use crate::models::agent::AgentMode;
+use super::codex_backend::CodexBackend;
+use crate::models::agent::{AgentMode, ClaudeLaunchOptions};
 use tauri::AppHandle;
 
 pub struct AgentSession {
@@ -14,12 +15,21 @@ impl AgentSession {
         mode: &AgentMode,
         working_directory: Option<&str>,
         initial_prompt: &str,
+        claude: Option<&ClaudeLaunchOptions>,
         app_handle: AppHandle,
     ) -> Result<Self, String> {
         let kind = backend_for_cli(cli_name);
 
         let backend: Box<dyn AgentBackend> = match kind {
-            BackendKind::StreamJson => Box::new(ClaudeBackend::spawn(
+            BackendKind::ClaudeStreamJson => Box::new(ClaudeBackend::spawn(
+                session_id,
+                mode,
+                working_directory,
+                initial_prompt,
+                claude,
+                app_handle,
+            )?),
+            BackendKind::CodexJson => Box::new(CodexBackend::spawn(
                 session_id,
                 mode,
                 working_directory,

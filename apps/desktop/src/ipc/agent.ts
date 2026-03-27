@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { CreateAgentSessionRequest, AgentSessionInfo } from "@forge/shared";
+import type { CreateAgentSessionRequest, AgentSessionInfo, SlashCommandInfo } from "@forge/shared";
 
 export const agentIpc = {
   createSession: (request: CreateAgentSessionRequest) =>
@@ -14,4 +14,6 @@ export const agentIpc = {
     invoke<void>("agent_kill", { sessionId }),
   listSessions: (workspaceId?: string) =>
     invoke<AgentSessionInfo[]>("agent_list_sessions", { workspaceId }),
+  discoverSlashCommands: (cliName: string) =>
+    invoke<SlashCommandInfo[]>("agent_discover_slash_commands", { cliName }),
 };

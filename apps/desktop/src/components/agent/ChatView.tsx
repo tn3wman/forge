@@ -1,31 +1,38 @@
 import { useEffect, useRef, useMemo, useCallback } from "react";
-import { useAgentSession } from "@/hooks/useAgentSession";
 import { useAgentStore, type AgentMessage } from "@/stores/agentStore";
 import { agentIpc } from "@/ipc/agent";
 import { ChatMessage } from "./ChatMessage";
 import { ToolCallCard } from "./ToolCallCard";
 import { PermissionPrompt } from "./PermissionPrompt";
-import { ChatInput } from "./ChatInput";
 import { AgentStatusBar } from "./AgentStatusBar";
-import { ModeSelector } from "./ModeSelector";
+import { UnifiedInputCard } from "./UnifiedInputCard";
+import { useSlashCommands } from "@/hooks/useCliDiscovery";
 
 interface ChatViewProps {
   sessionId: string;
+  variant?: "default" | "claude";
 }
 
-export function ChatView({ sessionId }: ChatViewProps) {
-  useAgentSession(sessionId);
-
+export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
   const tab = useAgentStore((s) => s.tabs.find((t) => t.sessionId === sessionId));
   const messages = useAgentStore((s) => s.messagesBySession[sessionId] ?? []);
   const appendMessage = useAgentStore((s) => s.appendMessage);
+  const createPendingAssistant = useAgentStore((s) => s.createPendingAssistant);
   const toggleMessageCollapsed = useAgentStore((s) => s.toggleMessageCollapsed);
+  const toggleReasoningCollapsed = useAgentStore((s) => s.toggleReasoningCollapsed);
+  const updateTabState = useAgentStore((s) => s.updateTabState);
   const updateTabMode = useAgentStore((s) => s.updateTabMode);
   const clearMessages = useAgentStore((s) => s.clearMessages);
   const activeTabId = useAgentStore((s) => s.activeTabId);
+  const { data: discoveredSlashCommands } = useSlashCommands(tab?.cliName ?? null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputFocusedRef = useRef(false);
+  const isClaude = tab?.provider === "claude" || variant === "claude" || tab?.cliName === "claude";
+  const slashCommands =
+    isClaude && tab?.slashCommands?.length
+      ? tab.slashCommands
+      : (discoveredSlashCommands ?? []);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -33,7 +40,7 @@ export function ChatView({ sessionId }: ChatViewProps) {
     if (el) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [messages.length]);
+  }, [messages]);
 
   // Build a map of toolUseId -> tool_result message
   const toolResultMap = useMemo(() => {
@@ -46,17 +53,15 @@ export function ChatView({ sessionId }: ChatViewProps) {
     return map;
   }, [messages]);
 
-  // Find the pending permission prompt (last awaiting_approval status message without a tool_result)
+  // Find the pending permission prompt
   const pendingPermission = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];
       if (msg.type === "status" && msg.state === "awaiting_approval" && msg.toolUseId) {
-        // Check if it already has a tool_result
-        if (!toolResultMap.has(msg.toolUseId)) {
+        if (!msg.resolved && !toolResultMap.has(msg.toolUseId)) {
           return msg;
         }
       }
-      // Stop scanning once we hit a non-status message going backwards
       if (msg.type === "assistant" || msg.type === "user") break;
     }
     return null;
@@ -67,7 +72,6 @@ export function ChatView({ sessionId }: ChatViewProps) {
     if (!pendingPermission || activeTabId !== sessionId) return;
 
     const handler = (e: KeyboardEvent) => {
-      // Don't intercept if input is focused or modifier keys are held
       if (inputFocusedRef.current) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
@@ -89,37 +93,66 @@ export function ChatView({ sessionId }: ChatViewProps) {
 
   const handleSend = useCallback(
     (text: string) => {
+      const now = Date.now();
       appendMessage(sessionId, {
         id: `user-${Date.now()}`,
         type: "user",
         content: text,
-        timestamp: Date.now(),
+        timestamp: now,
         collapsed: false,
       });
-      agentIpc.sendMessage(sessionId, text);
+      createPendingAssistant(sessionId);
+      updateTabState(sessionId, "thinking");
+      void agentIpc.sendMessage(sessionId, text).catch((error) => {
+        console.error("Failed to send agent message:", error);
+      });
     },
-    [sessionId, appendMessage],
+    [sessionId, appendMessage, createPendingAssistant, updateTabState],
   );
 
   const handleAbort = useCallback(() => {
-    agentIpc.abort(sessionId);
+    void agentIpc.abort(sessionId).catch((error) => {
+      console.error("Failed to abort agent session:", error);
+    });
   }, [sessionId]);
 
-  if (!tab) return null;
+  if (!tab) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-muted-foreground">Session not found</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b px-3 py-1.5">
-        <ModeSelector
-          value={tab.mode}
-          onChange={(mode) => updateTabMode(sessionId, mode)}
-        />
-        <div className="flex-1" />
-      </div>
+      {isClaude && (
+        <div className="border-b border-border bg-muted/20 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="rounded-full border border-border px-2 py-1 font-medium text-foreground">
+              Claude SDK
+            </span>
+            {tab.model && <span className="font-mono">{tab.model}</span>}
+            {tab.permissionMode && <span className="font-mono">{tab.permissionMode}</span>}
+            {tab.agent && <span>{tab.agent}</span>}
+            {tab.effort && <span>{tab.effort}</span>}
+            {tab.conversationId && (
+              <span className="max-w-48 truncate font-mono" title={tab.conversationId}>
+                {tab.conversationId}
+              </span>
+            )}
+            {tab.claudePath && (
+              <span className="max-w-72 truncate" title={tab.claudePath}>
+                {tab.claudePath}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
+      {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.map((msg) => {
-          // Skip tool_result messages — shown inside ToolCallCard
           if (msg.type === "tool_result") return null;
 
           if (msg.type === "tool_use") {
@@ -135,14 +168,32 @@ export function ChatView({ sessionId }: ChatViewProps) {
             );
           }
 
-          if (msg.type === "status" && msg.state === "awaiting_approval") {
+          if (msg.type === "status" && msg.state === "awaiting_approval" && !msg.resolved) {
             return (
               <PermissionPrompt key={msg.id} message={msg} sessionId={sessionId} />
             );
           }
 
+          if (msg.type === "status") {
+            return (
+              <p key={msg.id} className="text-center text-xs text-muted-foreground">
+                {msg.content}
+              </p>
+            );
+          }
+
           if (msg.type === "user" || msg.type === "assistant") {
-            return <ChatMessage key={msg.id} message={msg} />;
+            return (
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                onToggleReasoning={
+                  msg.type === "assistant"
+                    ? () => toggleReasoningCollapsed(sessionId, msg.id)
+                    : undefined
+                }
+              />
+            );
           }
 
           if (msg.type === "system") {
@@ -165,14 +216,28 @@ export function ChatView({ sessionId }: ChatViewProps) {
         })}
       </div>
 
-      <AgentStatusBar state={tab.state} model={tab.model} totalCost={tab.totalCost} />
-      <ChatInput
+      <AgentStatusBar
+        state={tab.state}
+        model={tab.model}
+        permissionMode={tab.permissionMode}
+        agent={tab.agent}
+        effort={tab.effort}
+        conversationId={tab.conversationId}
+        totalCost={tab.totalCost}
+      />
+
+      <UnifiedInputCard
         onSend={handleSend}
         onAbort={handleAbort}
         agentState={tab.state}
+        mode={tab.mode}
         onModeChange={(mode) => updateTabMode(sessionId, mode)}
+        slashCommands={slashCommands ?? []}
+        modeVariant={isClaude ? "claude" : "legacy"}
+        onFocusChange={(focused) => {
+          inputFocusedRef.current = focused;
+        }}
         onClear={() => clearMessages(sessionId)}
-        onFocusChange={(focused) => { inputFocusedRef.current = focused; }}
       />
     </div>
   );

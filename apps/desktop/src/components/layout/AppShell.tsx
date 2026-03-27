@@ -18,9 +18,8 @@ import {
 } from "@/components/ui/tooltip";
 import { UserMenu } from "@/components/auth/UserMenu";
 import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
-import { RepoList } from "@/components/repository/RepoList";
 import { useWorkspaceStore, type AppPage } from "@/stores/workspaceStore";
-import { useWorkspaces, useWorkspace } from "@/queries/useWorkspaces";
+import { useWorkspaces } from "@/queries/useWorkspaces";
 import { useRepositories } from "@/queries/useRepositories";
 import { Dashboard } from "@/pages/Dashboard";
 import { PullRequests } from "@/pages/PullRequests";
@@ -37,10 +36,9 @@ import { CommandPalette } from "@/components/layout/CommandPalette";
 import { useUnreadCount } from "@/queries/useNotifications";
 import { Notifications } from "@/pages/Notifications";
 import { Search } from "@/pages/Search";
-import { Terminal as TerminalIcon } from "lucide-react";
-import { TerminalPanel } from "@/components/terminal/TerminalPanel";
-import { NewTerminalDialog } from "@/components/terminal/NewTerminalDialog";
+import { Terminals } from "@/pages/Terminals";
 import { useTerminalStore } from "@/stores/terminalStore";
+import { useAgentEventBridge } from "@/hooks/useAgentSession";
 
 const navItems: { icon: typeof LayoutDashboard; label: string; shortcut: string; page: AppPage }[] = [
   { icon: LayoutDashboard, label: "Dashboard", shortcut: "G D", page: "dashboard" },
@@ -56,6 +54,7 @@ const gitNavItems: { icon: typeof LayoutDashboard; label: string; shortcut: stri
 ];
 
 const PAGE_TITLES: Record<AppPage, string> = {
+  home: "",
   dashboard: "Dashboard",
   "pull-requests": "Pull Requests",
   issues: "Issues",
@@ -93,23 +92,23 @@ function PageContent({ page }: { page: AppPage }) {
       return <Search />;
     case "settings":
       return <Settings />;
+    case "home":
+      return null;
   }
 }
 
 const GIT_PAGES: AppPage[] = ["changes", "commit-graph", "branches"];
 
 export function AppShell() {
+  useAgentEventBridge();
+
   const { activeWorkspaceId, activePage, setActiveWorkspaceId, setActivePage, navigateToChanges, navigateToCommitGraph, navigateToBranches } =
     useWorkspaceStore();
   const unreadCount = useUnreadCount();
   const { data: workspaces } = useWorkspaces();
-  const { data: activeWorkspace } = useWorkspace(activeWorkspaceId);
   const { data: repos } = useRepositories(activeWorkspaceId);
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [newTerminalOpen, setNewTerminalOpen] = useState(false);
-  const { isOpen: terminalOpen, togglePanel: toggleTerminal, tabs: terminalTabs } = useTerminalStore();
-
   // Find first repo with a local path for git navigation
   const firstLocalPath = repos?.find((r) => r.localPath)?.localPath ?? null;
   const firstLocalPathRef = useRef(firstLocalPath);
@@ -160,8 +159,9 @@ export function AppShell() {
     { label: "Branches", keys: "G B", mode: "sequence", sequenceKey: "b", category: "Git", enabled: !!firstLocalPath, action: () => firstLocalPathRef.current && navigateToBranches(firstLocalPathRef.current) },
     { label: "Search", keys: "G S", mode: "sequence", sequenceKey: "s", category: "Navigation", action: () => setActivePage("search") },
     { label: "Settings", keys: "G ,", mode: "sequence", sequenceKey: ",", category: "Navigation", action: () => setActivePage("settings") },
-    { label: "Toggle Terminal", keys: "⌘ `", mode: "combo" as const, key: "`", meta: true, category: "Terminal", action: () => useTerminalStore.getState().togglePanel() },
-    { label: "New Terminal", keys: "⌘ ⇧ `", mode: "combo" as const, key: "`", meta: true, shift: true, category: "Terminal", action: () => setNewTerminalOpen(true) },
+    { label: "Home", keys: "G T", mode: "sequence", sequenceKey: "t", category: "Navigation", action: () => setActivePage("home") },
+    { label: "Home", keys: "⌘ `", mode: "combo" as const, key: "`", meta: true, category: "Navigation", action: () => setActivePage("home") },
+    { label: "New Agent", keys: "⌘ ⇧ `", mode: "combo" as const, key: "`", meta: true, shift: true, category: "Terminal", action: () => { if (activeWorkspaceId) { useTerminalStore.getState().addPreSessionTab(activeWorkspaceId); setActivePage("home"); } } },
     {
       label: "Go Back", keys: "Esc", mode: "combo", key: "Escape", category: "Navigation",
       action: () => {
@@ -264,33 +264,6 @@ export function AppShell() {
           ))}
         </div>
 
-        <Separator className="my-3 w-6" />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={toggleTerminal}
-              className={cn(
-                "relative flex h-8 w-8 items-center justify-center rounded-md transition-colors",
-                terminalOpen
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-              )}
-            >
-              <TerminalIcon className="h-4 w-4" />
-              {terminalTabs.length > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-medium text-primary-foreground">
-                  {terminalTabs.length}
-                </span>
-              )}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            Terminal
-            <span className="ml-2 text-xs text-muted-foreground">⌘`</span>
-          </TooltipContent>
-        </Tooltip>
-
         <div className="flex-1" />
 
         <Tooltip>
@@ -317,55 +290,50 @@ export function AppShell() {
         <UserMenu />
       </div>
 
-      {/* Repo sidebar */}
-      <div className="flex w-56 flex-col border-r bg-sidebar/50">
-        <div
-          className="flex h-10 shrink-0 items-center border-b px-3"
-          data-tauri-drag-region
-        >
-          <span
-            className="text-xs font-medium text-muted-foreground"
-            data-tauri-drag-region
-          >
-            {activeWorkspace?.name ?? "Forge"}
-          </span>
-        </div>
-
-        <div className="flex-1 overflow-y-auto py-1">
-          <RepoList />
-        </div>
-      </div>
-
       {/* Main content area */}
       <div className="flex flex-1 flex-col">
         <div
-          className="flex h-10 shrink-0 items-center border-b px-4"
+          className={cn(
+            "flex shrink-0 items-center border-b px-4",
+            activePage === "home" ? "h-3" : "h-10"
+          )}
           data-tauri-drag-region
         >
-          <span
-            className="text-xs font-medium text-muted-foreground"
-            data-tauri-drag-region
-          >
-            {PAGE_TITLES[activePage]}
-          </span>
+          {activePage !== "home" && (
+            <span className="text-xs font-medium text-muted-foreground" data-tauri-drag-region>
+              {PAGE_TITLES[activePage]}
+            </span>
+          )}
         </div>
 
-        <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex-1 overflow-hidden">
-            {activeWorkspaceId ? (
-              <PageContent page={activePage} />
-            ) : (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <Anvil className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
-                  <h2 className="text-lg font-medium text-muted-foreground">Welcome to Forge</h2>
-                  <p className="mt-1 text-sm text-muted-foreground/70">Create a workspace to get started</p>
-                </div>
+        <div className="flex-1 overflow-hidden relative">
+          {activeWorkspaceId ? (
+            <>
+              {/* Terminal layer: always mounted, hidden when another page is active */}
+              <div
+                className={cn(
+                  "absolute inset-0",
+                  activePage !== "home" && "invisible"
+                )}
+              >
+                <Terminals onNewTerminal={() => { if (activeWorkspaceId) { useTerminalStore.getState().addPreSessionTab(activeWorkspaceId); } }} />
               </div>
-            )}
-          </div>
-          {terminalOpen && (
-            <TerminalPanel onNewTerminal={() => setNewTerminalOpen(true)} />
+
+              {/* Page layer: rendered on top when not on home */}
+              {activePage !== "home" && (
+                <div className="absolute inset-0">
+                  <PageContent page={activePage} />
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <Anvil className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+                <h2 className="text-lg font-medium text-muted-foreground">Welcome to Forge</h2>
+                <p className="mt-1 text-sm text-muted-foreground/70">Create a workspace to get started</p>
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -374,7 +342,6 @@ export function AppShell() {
         onOpenChange={setCommandPaletteOpen}
         shortcuts={shortcuts}
       />
-      <NewTerminalDialog open={newTerminalOpen} onOpenChange={setNewTerminalOpen} />
     </div>
   );
 }

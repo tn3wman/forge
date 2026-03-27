@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type AppPage = "dashboard" | "pull-requests" | "issues" | "notifications" | "pr-detail" | "issue-detail" | "commit-graph" | "changes" | "branches" | "search" | "settings";
+export type AppPage = "home" | "dashboard" | "pull-requests" | "issues" | "notifications" | "pr-detail" | "issue-detail" | "commit-graph" | "changes" | "branches" | "search" | "settings";
 
 interface NavState {
   activePage: AppPage;
@@ -38,13 +38,13 @@ const DETAIL_PAGES: AppPage[] = ["pr-detail", "issue-detail"];
 
 export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
   activeWorkspaceId: null,
-  activePage: "dashboard",
+  activePage: "home",
   selectedPrNumber: null,
   selectedIssueNumber: null,
   selectedRepoFullName: null,
   selectedRepoLocalPath: null,
   navHistory: [],
-  setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id }),
+  setActiveWorkspaceId: (id) => set({ activeWorkspaceId: id, activePage: "home", navHistory: [] }),
   setActivePage: (page) => set({ activePage: page, navHistory: [] }),
   navigateToPr: (repoFullName, number) => {
     const state = get();
@@ -75,7 +75,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
       } else if (activePage === "issue-detail") {
         set({ selectedIssueNumber: null, selectedRepoFullName: null, activePage: "issues", navHistory: [] });
       } else if (activePage === "changes" || activePage === "commit-graph" || activePage === "branches") {
-        set({ selectedRepoLocalPath: null, activePage: "dashboard", navHistory: [] });
+        set({ selectedRepoLocalPath: null, activePage: "home", navHistory: [] });
       }
     }
   },

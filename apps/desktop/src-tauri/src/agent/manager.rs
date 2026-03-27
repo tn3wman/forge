@@ -15,10 +15,16 @@ struct AgentEntry {
 struct AgentMeta {
     cli_name: String,
     display_name: String,
+    provider: Option<String>,
     mode: AgentMode,
     working_directory: Option<String>,
     workspace_id: String,
     created_at: String,
+    model: Option<String>,
+    permission_mode: Option<String>,
+    agent: Option<String>,
+    effort: Option<String>,
+    claude_path: Option<String>,
 }
 
 pub struct AgentSessionManager {
@@ -53,6 +59,7 @@ impl AgentSessionManager {
             &request.mode,
             request.working_directory.as_deref(),
             &request.initial_prompt,
+            request.claude.as_ref(),
             app_handle,
         )?;
 
@@ -67,6 +74,11 @@ impl AgentSessionManager {
         let info = AgentSessionInfo {
             id: id.clone(),
             cli_name: request.cli_name.clone(),
+            provider: Some(request
+                .claude
+                .as_ref()
+                .and_then(|claude| claude.provider.clone())
+                .unwrap_or_else(|| request.cli_name.clone())),
             display_name: display_name.clone(),
             mode: request.mode.clone(),
             working_directory: request.working_directory.clone(),
@@ -74,6 +86,18 @@ impl AgentSessionManager {
             conversation_id: None,
             is_alive: true,
             created_at: created_at.clone(),
+            model: request.claude.as_ref().and_then(|claude| claude.model.clone()),
+            permission_mode: request
+                .claude
+                .as_ref()
+                .and_then(|claude| claude.permission_mode.clone()),
+            agent: request.claude.as_ref().and_then(|claude| claude.agent.clone()),
+            effort: request.claude.as_ref().and_then(|claude| claude.effort.clone()),
+            claude_path: request
+                .claude
+                .as_ref()
+                .and_then(|claude| claude.claude_path.clone()),
+            capabilities_loaded: Some(false),
         };
 
         let entry = AgentEntry {
@@ -81,10 +105,26 @@ impl AgentSessionManager {
             info: AgentMeta {
                 cli_name: request.cli_name,
                 display_name,
+                provider: request
+                    .claude
+                    .as_ref()
+                    .and_then(|claude| claude.provider.clone())
+                    .or_else(|| Some("unknown".to_string())),
                 mode: request.mode,
                 working_directory: request.working_directory,
                 workspace_id: request.workspace_id,
                 created_at,
+                model: request.claude.as_ref().and_then(|claude| claude.model.clone()),
+                permission_mode: request
+                    .claude
+                    .as_ref()
+                    .and_then(|claude| claude.permission_mode.clone()),
+                agent: request.claude.as_ref().and_then(|claude| claude.agent.clone()),
+                effort: request.claude.as_ref().and_then(|claude| claude.effort.clone()),
+                claude_path: request
+                    .claude
+                    .as_ref()
+                    .and_then(|claude| claude.claude_path.clone()),
             },
         };
 
@@ -143,6 +183,7 @@ impl AgentSessionManager {
             .map(|(id, entry)| AgentSessionInfo {
                 id: id.clone(),
                 cli_name: entry.info.cli_name.clone(),
+                provider: entry.info.provider.clone(),
                 display_name: entry.info.display_name.clone(),
                 mode: entry.info.mode.clone(),
                 working_directory: entry.info.working_directory.clone(),
@@ -150,6 +191,12 @@ impl AgentSessionManager {
                 conversation_id: entry.session.conversation_id(),
                 is_alive: entry.session.is_alive(),
                 created_at: entry.info.created_at.clone(),
+                model: entry.info.model.clone(),
+                permission_mode: entry.info.permission_mode.clone(),
+                agent: entry.info.agent.clone(),
+                effort: entry.info.effort.clone(),
+                claude_path: entry.info.claude_path.clone(),
+                capabilities_loaded: Some(entry.info.cli_name == "claude"),
             })
             .collect()
     }

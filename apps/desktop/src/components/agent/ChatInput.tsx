@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Send, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SlashCommandMenu } from "./SlashCommandMenu";
 import type { AgentState } from "@forge/shared";
-import type { AgentChatMode } from "@forge/shared";
+import type { AgentChatMode, SlashCommandInfo } from "@forge/shared";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
@@ -12,13 +13,14 @@ interface ChatInputProps {
   onModeChange?: (mode: AgentChatMode) => void;
   onClear?: () => void;
   onFocusChange?: (focused: boolean) => void;
+  slashCommands?: SlashCommandInfo[];
 }
 
-const SLASH_COMMANDS: Record<string, AgentChatMode> = {
-  "/plan": "Plan",
-  "/default": "Default",
-  "/yolo": "BypassPermissions",
-  "/auto": "Auto",
+const MODE_COMMANDS: Record<string, AgentChatMode> = {
+  plan: "plan",
+  default: "default",
+  yolo: "bypassPermissions",
+  auto: "auto",
 };
 
 export function ChatInput({
@@ -29,11 +31,23 @@ export function ChatInput({
   onModeChange,
   onClear,
   onFocusChange,
+  slashCommands = [],
 }: ChatInputProps) {
   const [text, setText] = useState("");
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [slashMenuDismissed, setSlashMenuDismissed] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isRunning = agentState === "thinking" || agentState === "executing";
+
+  const showSlashMenu = text.startsWith("/") && !text.includes(" ") && !slashMenuDismissed;
+  const slashFilter = text.slice(1);
+
+  // Reset dismissed state when text changes away from slash
+  useEffect(() => {
+    if (!text.startsWith("/")) {
+      setSlashMenuDismissed(false);
+    }
+  }, [text]);
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
@@ -46,22 +60,48 @@ export function ChatInput({
     adjustHeight();
   }, [text, adjustHeight]);
 
-  const showConfirmation = useCallback((msg: string) => {
+  const showConfirmationMsg = useCallback((msg: string) => {
     setConfirmation(msg);
     setTimeout(() => setConfirmation(null), 1000);
   }, []);
+
+  const handleCommandSelect = useCallback(
+    (cmd: SlashCommandInfo) => {
+      if (cmd.category === "local") {
+        switch (cmd.name) {
+          case "clear":
+            onClear?.();
+            showConfirmationMsg("Messages cleared");
+            break;
+          case "abort":
+            onAbort();
+            break;
+          default: {
+            const mode = MODE_COMMANDS[cmd.name];
+            if (mode) {
+              onModeChange?.(mode);
+              showConfirmationMsg(`Mode changed to ${mode}`);
+            }
+          }
+        }
+      } else {
+        onSend(`/${cmd.name}`);
+      }
+      setText("");
+    },
+    [onClear, onAbort, onModeChange, onSend, showConfirmationMsg],
+  );
 
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed) return;
 
-    // Check for slash commands
     const lower = trimmed.toLowerCase();
 
     if (lower === "/clear") {
       onClear?.();
       setText("");
-      showConfirmation("Messages cleared");
+      showConfirmationMsg("Messages cleared");
       return;
     }
 
@@ -71,31 +111,39 @@ export function ChatInput({
       return;
     }
 
-    const modeCmd = SLASH_COMMANDS[lower];
-    if (modeCmd) {
+    const modeCmd = MODE_COMMANDS[lower.slice(1)];
+    if (lower.startsWith("/") && modeCmd) {
       onModeChange?.(modeCmd);
       setText("");
-      showConfirmation(`Mode changed to ${modeCmd}`);
+      showConfirmationMsg(`Mode changed to ${modeCmd}`);
       return;
     }
 
     // Normal message (including unknown slash commands)
     onSend(trimmed);
     setText("");
-  }, [text, onSend, onAbort, onModeChange, onClear, showConfirmation]);
+  }, [text, onSend, onAbort, onModeChange, onClear, showConfirmationMsg]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (showSlashMenu) {
+          e.preventDefault();
+          setSlashMenuDismissed(true);
+          return;
+        }
+        if (isRunning) {
+          e.preventDefault();
+          onAbort();
+        }
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
         handleSend();
       }
-      if (e.key === "Escape" && isRunning) {
-        e.preventDefault();
-        onAbort();
-      }
     },
-    [handleSend, isRunning, onAbort],
+    [handleSend, isRunning, onAbort, showSlashMenu],
   );
 
   return (
@@ -105,6 +153,13 @@ export function ChatInput({
           {confirmation}
         </div>
       )}
+      <SlashCommandMenu
+        filter={slashFilter}
+        commands={slashCommands}
+        onSelect={handleCommandSelect}
+        onDismiss={() => setSlashMenuDismissed(true)}
+        visible={showSlashMenu}
+      />
       <textarea
         ref={textareaRef}
         value={text}

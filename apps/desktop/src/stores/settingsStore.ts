@@ -6,6 +6,7 @@ export interface AppSettings {
   gitPollInterval: number;
   showNotificationBadge: boolean;
   autoFetchOnSwitch: boolean;
+  claudeExecutablePath: string;
 }
 
 const DEFAULTS: AppSettings = {
@@ -13,6 +14,7 @@ const DEFAULTS: AppSettings = {
   gitPollInterval: 5_000,
   showNotificationBadge: true,
   autoFetchOnSwitch: true,
+  claudeExecutablePath: "",
 };
 
 interface SettingsStore extends AppSettings {

@@ -27,7 +27,19 @@ export const PermissionPrompt = memo(function PermissionPrompt({
       <div className="flex items-start gap-3">
         <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-yellow-500" />
         <div className="flex-1 space-y-2">
-          <p className="text-sm font-medium text-foreground">{message.content}</p>
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              {message.toolName ? `Approve ${message.toolName}` : message.content}
+            </p>
+            {message.detail && (
+              <p className="text-xs text-muted-foreground">{message.detail}</p>
+            )}
+          </div>
+          {message.toolInput && (
+            <pre className="max-h-40 overflow-auto rounded-md border border-yellow-500/20 bg-background/80 p-2 text-xs text-muted-foreground">
+              <code>{JSON.stringify(message.toolInput, null, 2)}</code>
+            </pre>
+          )}
           <div className="flex gap-2">
             <button
               type="button"

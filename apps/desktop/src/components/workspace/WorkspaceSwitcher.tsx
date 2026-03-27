@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { useWorkspaces } from "@/queries/useWorkspaces";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { AddWorkspaceDialog } from "./AddWorkspaceDialog";
+import { AddRepoDialog } from "@/components/repository/AddRepoDialog";
 import { cn } from "@/lib/utils";
 import type { Workspace } from "@forge/shared";
 
@@ -30,8 +31,9 @@ function WorkspaceIcon({ workspace }: { workspace: Workspace }) {
 
 export function WorkspaceSwitcher() {
   const [showAdd, setShowAdd] = useState(false);
+  const [showAddRepo, setShowAddRepo] = useState(false);
   const { data: workspaces } = useWorkspaces();
-  const { activeWorkspaceId, setActiveWorkspaceId } = useWorkspaceStore();
+  const { activeWorkspaceId, setActiveWorkspaceId, setActivePage } = useWorkspaceStore();
 
   return (
     <>
@@ -40,7 +42,13 @@ export function WorkspaceSwitcher() {
           <Tooltip key={ws.id}>
             <TooltipTrigger asChild>
               <button
-                onClick={() => setActiveWorkspaceId(ws.id)}
+                onClick={() => {
+                  if (activeWorkspaceId === ws.id) {
+                    setActivePage("home");
+                  } else {
+                    setActiveWorkspaceId(ws.id);
+                  }
+                }}
                 className={cn(
                   "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
                   activeWorkspaceId === ws.id
@@ -75,7 +83,12 @@ export function WorkspaceSwitcher() {
         </Tooltip>
       </div>
 
-      <AddWorkspaceDialog open={showAdd} onOpenChange={setShowAdd} />
+      <AddWorkspaceDialog
+        open={showAdd}
+        onOpenChange={setShowAdd}
+        onCreated={() => setShowAddRepo(true)}
+      />
+      <AddRepoDialog open={showAddRepo} onOpenChange={setShowAddRepo} />
     </>
   );
 }

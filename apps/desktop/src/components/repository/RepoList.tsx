@@ -13,7 +13,7 @@ import { useSetLocalPath } from "@/queries/useGitMutations";
 import { AddRepoDialog } from "./AddRepoDialog";
 import type { Repository } from "@forge/shared";
 
-function RepoItem({ repo }: { repo: Repository }) {
+export function RepoItem({ repo }: { repo: Repository }) {
   const removeRepo = useRemoveRepo();
   const setLocalPath = useSetLocalPath();
 
