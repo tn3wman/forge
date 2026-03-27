@@ -15,6 +15,7 @@ import {
   useCreateBranch,
   useCheckoutBranch,
   useDeleteBranch,
+  useDeleteRemoteBranch,
 } from "@/queries/useGitMutations";
 import { cn } from "@/lib/utils";
 import type { BranchInfo } from "@forge/shared";
@@ -30,6 +31,7 @@ export function BranchList({ localPath }: BranchListProps) {
   const createBranch = useCreateBranch();
   const checkoutBranch = useCheckoutBranch();
   const deleteBranch = useDeleteBranch();
+  const deleteRemoteBranch = useDeleteRemoteBranch();
 
   const [showNewBranch, setShowNewBranch] = useState(false);
   const [newBranchName, setNewBranchName] = useState("");
@@ -82,6 +84,25 @@ export function BranchList({ localPath }: BranchListProps) {
             setActionError(message);
             setPendingForceDelete(null);
           }
+        },
+      },
+    );
+  };
+
+  const handleDeleteRemote = (fullName: string) => {
+    // Parse "origin/feature-x" → remote: "origin", branch: "feature-x"
+    const slashIndex = fullName.indexOf("/");
+    if (slashIndex === -1) return;
+    const remote = fullName.slice(0, slashIndex);
+    const branch = fullName.slice(slashIndex + 1);
+
+    if (!window.confirm(`Delete remote branch '${fullName}'? This will remove it from the remote repository.`)) return;
+    setActionError(null);
+    deleteRemoteBranch.mutate(
+      { path: localPath, remote, branch },
+      {
+        onError: (err) => {
+          setActionError(err instanceof Error ? err.message : String(err));
         },
       },
     );
@@ -201,6 +222,7 @@ export function BranchList({ localPath }: BranchListProps) {
             branch={branch}
             isCurrent={false}
             isRemote
+            onDelete={() => handleDeleteRemote(branch.name)}
           />
         ))}
         {remoteBranches.length === 0 && (
@@ -275,7 +297,7 @@ function BranchRow({
       <span className="shrink-0 font-mono text-xs text-muted-foreground">
         {branch.commitOid.slice(0, 7)}
       </span>
-      {!isRemote && !isCurrent && (
+      {!isCurrent && (
         <div className="hidden shrink-0 items-center gap-0.5 group-hover:flex">
           {onCheckout && (
             <Button

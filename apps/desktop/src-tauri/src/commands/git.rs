@@ -119,6 +119,20 @@ pub async fn git_delete_branch(path: String, name: String, force: Option<bool>) 
 }
 
 #[tauri::command]
+pub async fn git_delete_remote_branch(
+    path: String,
+    remote: String,
+    branch: String,
+    token: String,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        crate::git::branch::delete_remote_branch(&path, &remote, &branch, &token)
+    })
+    .await
+    .map_err(|e| format!("Task failed: {e}"))?
+}
+
+#[tauri::command]
 pub async fn git_rename_branch(
     path: String,
     old_name: String,
