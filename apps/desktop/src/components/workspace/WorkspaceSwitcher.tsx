@@ -9,6 +9,7 @@ import { useWorkspaces } from "@/queries/useWorkspaces";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { AddWorkspaceDialog } from "./AddWorkspaceDialog";
 import { AddRepoDialog } from "@/components/repository/AddRepoDialog";
+import { WorkspaceContextMenu } from "./WorkspaceContextMenu";
 import { cn } from "@/lib/utils";
 import { getWorkspaceColor } from "@/lib/workspaceColors";
 import type { Workspace } from "@forge/shared";
@@ -47,26 +48,28 @@ export function WorkspaceSwitcher() {
               />
 
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={() => {
-                      if (isActive) {
-                        setActivePage("home");
-                      } else {
-                        setActiveWorkspaceId(ws.id);
-                      }
-                    }}
-                    className={cn(
-                      "flex h-8 w-8 items-center justify-center rounded-md transition-all",
-                      isActive
-                        ? "opacity-100"
-                        : "opacity-60 hover:opacity-90",
-                    )}
-                    style={{ backgroundColor: color.bg }}
-                  >
-                    <WorkspaceIcon workspace={ws} />
-                  </button>
-                </TooltipTrigger>
+                <WorkspaceContextMenu workspaceId={ws.id} currentColor={ws.color}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => {
+                        if (isActive) {
+                          setActivePage("home");
+                        } else {
+                          setActiveWorkspaceId(ws.id);
+                        }
+                      }}
+                      className={cn(
+                        "flex h-8 w-8 items-center justify-center rounded-md transition-all",
+                        isActive
+                          ? "opacity-100"
+                          : "opacity-60 hover:opacity-90",
+                      )}
+                      style={{ backgroundColor: color.bg }}
+                    >
+                      <WorkspaceIcon workspace={ws} />
+                    </button>
+                  </TooltipTrigger>
+                </WorkspaceContextMenu>
                 <TooltipContent side="right">
                   {ws.name}
                   {i < 9 && (
