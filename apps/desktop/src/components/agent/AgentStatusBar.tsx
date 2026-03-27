@@ -1,4 +1,4 @@
-import { Brain, Wrench, Check, AlertTriangle } from "lucide-react";
+import { Brain, Wrench, Check, AlertTriangle, Dot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AgentState } from "@forge/shared";
 
@@ -21,35 +21,62 @@ const stateConfig: Record<AgentState, { label: string; icon: typeof Check; spin?
   error: { label: "Error", icon: AlertTriangle },
 };
 
+const PERMISSION_LABELS: Record<string, string> = {
+  default: "Default",
+  acceptEdits: "Accept edits",
+  bypassPermissions: "Bypass permissions",
+  dontAsk: "Don't ask",
+  auto: "Auto",
+  plan: "Plan",
+};
+
+const EFFORT_LABELS: Record<string, string> = {
+  low: "Low effort",
+  medium: "Medium effort",
+  high: "High effort",
+};
+
+function formatModel(model: string): string {
+  return model
+    .replace("claude-", "Claude ")
+    .replace("opus-4-6", "Opus 4.6")
+    .replace("sonnet-4-6", "Sonnet 4.6")
+    .replace("haiku-4-5", "Haiku 4.5")
+    .replace("[1m]", "")
+    .replace("[1M]", "")
+    .replace(/\[.*?\]$/, "")
+    .trim();
+}
+
 export function AgentStatusBar({
   state,
   model,
   permissionMode,
   agent,
   effort,
-  conversationId,
   totalCost,
 }: AgentStatusBarProps) {
   const { label, icon: Icon, spin } = stateConfig[state] ?? stateConfig.idle;
 
+  const details: string[] = [];
+  if (model) details.push(formatModel(model));
+  if (permissionMode) details.push(PERMISSION_LABELS[permissionMode] ?? permissionMode);
+  if (agent) details.push(agent);
+  if (effort) details.push(EFFORT_LABELS[effort] ?? effort);
+
   return (
-    <div className="flex items-center justify-between border-t border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+    <div className="mx-4 mb-1.5 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
       <div className="flex items-center gap-1.5">
         <Icon className={cn("h-3.5 w-3.5", spin && "animate-spin")} />
         <span>{label}</span>
-      </div>
-      <div className="flex items-center gap-3 overflow-hidden">
-        {model && <span className="font-mono">{model}</span>}
-        {permissionMode && <span className="font-mono">{permissionMode}</span>}
-        {agent && <span>{agent}</span>}
-        {effort && <span>{effort}</span>}
-        {conversationId && (
-          <span className="max-w-32 truncate font-mono" title={conversationId}>
-            {conversationId}
-          </span>
+        {details.length > 0 && (
+          <>
+            <Dot className="h-4 w-4 text-muted-foreground/40" />
+            <span>{details.join(" \u00b7 ")}</span>
+          </>
         )}
-        <span className="font-mono">${(totalCost ?? 0).toFixed(4)}</span>
       </div>
+      <span className="font-mono tabular-nums">${(totalCost ?? 0).toFixed(4)}</span>
     </div>
   );
 }

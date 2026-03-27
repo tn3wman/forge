@@ -36,13 +36,6 @@ function handleAgentEvent(payload: AgentEventPayload) {
         ...(event.permissionMode ? { permissionMode: event.permissionMode } : {}),
       });
       store.updateTabState(sessionId, "thinking");
-      store.appendMessage(sessionId, {
-        id: `system-${sessionId}-${now}`,
-        type: "system",
-        content: `Session initialized${event.model ? ` (model: ${event.model})` : ""}${event.permissionMode ? ` [${event.permissionMode}]` : ""}`,
-        timestamp: now,
-        collapsed: false,
-      });
       break;
     }
     case "session_meta": {
@@ -197,6 +190,11 @@ function handleAgentEvent(payload: AgentEventPayload) {
         store.markAssistantError(sessionId, event.resultText);
         store.updateTabState(sessionId, "error");
       } else {
+        // Fallback: if streaming events were lost, populate the assistant
+        // message with the final result text so the user sees *something*.
+        if (event.resultText) {
+          store.fillEmptyAssistant(sessionId, event.resultText);
+        }
         store.completeReasoning(sessionId);
         store.updateTabState(sessionId, "completed");
       }

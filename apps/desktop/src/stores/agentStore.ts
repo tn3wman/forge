@@ -72,6 +72,7 @@ interface AgentStore {
   appendToolResultDelta: (sessionId: string, toolUseId: string, contentDelta: string, isError?: boolean) => void;
   completeToolResult: (sessionId: string, toolUseId: string, content?: string, isError?: boolean) => void;
   resolveApproval: (sessionId: string, approvalId: string, allow: boolean) => void;
+  fillEmptyAssistant: (sessionId: string, text: string) => void;
   markAssistantError: (sessionId: string, content?: string) => void;
   updateTabState: (sessionId: string, state: AgentState) => void;
   updateTabCost: (sessionId: string, cost: number) => void;
@@ -199,7 +200,10 @@ export const useAgentStore = create<AgentStore>((set) => ({
     set((s) => ({
       tabs: [...s.tabs, tab],
       activeTabId: tab.sessionId,
-      messagesBySession: { ...s.messagesBySession, [tab.sessionId]: [] },
+      messagesBySession: {
+        ...s.messagesBySession,
+        [tab.sessionId]: s.messagesBySession[tab.sessionId] ?? [],
+      },
     })),
 
   removeTab: (sessionId) =>
@@ -500,6 +504,27 @@ export const useAgentStore = create<AgentStore>((set) => ({
         };
       });
 
+      return {
+        messagesBySession: { ...s.messagesBySession, [sessionId]: next },
+      };
+    }),
+
+  fillEmptyAssistant: (sessionId, text) =>
+    set((s) => {
+      const messages = getMessagesForSession(s.messagesBySession, sessionId);
+      const idx = findMessageIndex(
+        messages,
+        (message) => message.type === "assistant",
+      );
+      if (idx < 0) return s;
+      const existing = messages[idx];
+      if (existing.content && existing.content.trim().length > 0) return s;
+      const next = [...messages];
+      next[idx] = {
+        ...existing,
+        content: text,
+        streamState: "completed",
+      };
       return {
         messagesBySession: { ...s.messagesBySession, [sessionId]: next },
       };

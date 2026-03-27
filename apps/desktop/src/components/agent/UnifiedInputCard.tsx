@@ -5,11 +5,12 @@ import {
   Terminal,
   Loader2,
   ChevronDown,
-  MessageSquare,
   FileText,
   ShieldCheck,
   Shield,
   ShieldAlert,
+  Gauge,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SlashCommandMenu } from "./SlashCommandMenu";
@@ -18,26 +19,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { AgentChatMode, AgentState, SlashCommandInfo, CliInfo } from "@forge/shared";
-
-type SessionType = "chat" | "plan";
-type AccessLevel = "supervised" | "acceptEdits" | "full-access";
-type ModeVariant = "legacy" | "claude";
-
-const ACCESS_TO_MODE: Record<AccessLevel, AgentChatMode> = {
-  supervised: "default",
-  acceptEdits: "acceptEdits",
-  "full-access": "auto",
-};
-
-const MODE_TO_ACCESS: Partial<Record<AgentChatMode, AccessLevel>> = {
-  default: "supervised",
-  acceptEdits: "acceptEdits",
-  auto: "full-access",
-  bypassPermissions: "full-access",
-};
+import type { AgentChatMode, AgentState, SlashCommandInfo, CliInfo, ClaudeEffort } from "@forge/shared";
 
 const MODE_COMMANDS: Record<string, AgentChatMode> = {
   plan: "plan",
@@ -46,16 +31,30 @@ const MODE_COMMANDS: Record<string, AgentChatMode> = {
   auto: "auto",
 };
 
-const CLAUDE_PERMISSION_LABELS: Record<
-  Exclude<AgentChatMode, "plan">,
+const MODE_CONFIG: Record<
+  AgentChatMode,
   { label: string; icon: typeof Shield }
 > = {
+  plan: { label: "Plan", icon: FileText },
+  auto: { label: "Auto", icon: ShieldAlert },
   default: { label: "Default", icon: Shield },
   acceptEdits: { label: "Accept edits", icon: ShieldAlert },
   bypassPermissions: { label: "Bypass permissions", icon: ShieldCheck },
   dontAsk: { label: "Don't ask", icon: ShieldCheck },
-  auto: { label: "Auto", icon: ShieldAlert },
 };
+
+const MODEL_PRESETS = [
+  { value: "", label: "Default" },
+  { value: "claude-opus-4-6", label: "Opus 4.6" },
+  { value: "claude-sonnet-4-6", label: "Sonnet 4.6" },
+  { value: "claude-haiku-4-5", label: "Haiku 4.5" },
+];
+
+const EFFORT_OPTIONS: { value: ClaudeEffort; label: string }[] = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+];
 
 interface UnifiedInputCardProps {
   onSend: (text: string) => void;
@@ -65,10 +64,14 @@ interface UnifiedInputCardProps {
 
   mode?: AgentChatMode;
   onModeChange?: (mode: AgentChatMode) => void;
-  modeVariant?: ModeVariant;
 
-  cliName?: string | null;
   slashCommands?: SlashCommandInfo[];
+
+  // Model & effort (PreSessionView only)
+  model?: string;
+  onModelChange?: (model: string) => void;
+  effort?: ClaudeEffort;
+  onEffortChange?: (effort: ClaudeEffort) => void;
 
   // PreSessionView-only sections
   showAgentSelector?: boolean;
@@ -89,10 +92,13 @@ export function UnifiedInputCard({
   onAbort,
   agentState,
   disabled,
-  mode = "default",
+  mode = "auto",
   onModeChange,
-  modeVariant = "legacy",
   slashCommands = [],
+  model,
+  onModelChange,
+  effort,
+  onEffortChange,
   showAgentSelector,
   clis,
   selectedCli,
@@ -113,12 +119,15 @@ export function UnifiedInputCard({
     text.startsWith("/") && !text.includes(" ") && !slashMenuDismissed;
   const slashFilter = text.slice(1);
 
-  // Derive session type and access level from mode
-  const sessionType: SessionType = mode === "plan" ? "plan" : "chat";
-  const accessLevel: AccessLevel =
-    MODE_TO_ACCESS[mode] ?? "supervised";
-  const claudePermissionMode =
-    mode === "plan" ? "default" : mode;
+  const currentModeConfig = MODE_CONFIG[mode] ?? MODE_CONFIG.auto;
+  const ModeIcon = currentModeConfig.icon;
+
+  const currentModelLabel =
+    MODEL_PRESETS.find((p) => p.value === (model ?? ""))?.label ??
+    (model || "Default");
+
+  const currentEffortLabel =
+    EFFORT_OPTIONS.find((o) => o.value === (effort ?? "medium"))?.label ?? "Medium";
 
   useEffect(() => {
     if (!text.startsWith("/")) {
@@ -141,39 +150,6 @@ export function UnifiedInputCard({
     setConfirmation(msg);
     setTimeout(() => setConfirmation(null), 1000);
   }, []);
-
-  const resolveMode = useCallback(
-    (type: SessionType, access: AccessLevel): AgentChatMode => {
-      if (type === "plan") return "plan";
-      return ACCESS_TO_MODE[access];
-    },
-    [],
-  );
-
-  const handleSessionTypeChange = useCallback(
-    (type: SessionType) => {
-      if (modeVariant === "claude") {
-        onModeChange?.(type === "plan" ? "plan" : mode === "plan" ? "default" : mode);
-        return;
-      }
-      onModeChange?.(resolveMode(type, accessLevel));
-    },
-    [accessLevel, mode, modeVariant, onModeChange, resolveMode],
-  );
-
-  const handleAccessLevelChange = useCallback(
-    (access: AccessLevel) => {
-      onModeChange?.(resolveMode(sessionType, access));
-    },
-    [onModeChange, resolveMode, sessionType],
-  );
-
-  const handleClaudePermissionModeChange = useCallback(
-    (nextMode: Exclude<AgentChatMode, "plan">) => {
-      onModeChange?.(nextMode);
-    },
-    [onModeChange],
-  );
 
   const handleSlashCommandSelect = useCallback(
     (cmd: SlashCommandInfo) => {
@@ -256,9 +232,6 @@ export function UnifiedInputCard({
   );
 
   const isDisabled = disabled || (showAgentSelector && !selectedCli);
-  const claudePermissionUi =
-    modeVariant === "claude" ? CLAUDE_PERMISSION_LABELS[claudePermissionMode] : null;
-  const ClaudePermissionIcon = claudePermissionUi?.icon ?? Shield;
 
   return (
     <div className="shrink-0 px-4 pb-4">
@@ -325,110 +298,116 @@ export function UnifiedInputCard({
             </>
           )}
 
-          {/* Session type: Chat / Plan */}
+          {/* Model selector (PreSessionView only, when Claude) */}
+          {onModelChange && (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  disabled={isDisabled}
+                  className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span className="font-medium">{currentModelLabel}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {MODEL_PRESETS.map((preset) => (
+                    <DropdownMenuItem
+                      key={preset.value}
+                      onClick={() => onModelChange(preset.value)}
+                      className={cn((model ?? "") === preset.value && "bg-accent")}
+                    >
+                      {preset.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Separator />
+            </>
+          )}
+
+          {/* Effort selector (PreSessionView only, when Claude) */}
+          {onEffortChange && (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  disabled={isDisabled}
+                  className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  <Gauge className="h-3.5 w-3.5" />
+                  <span className="font-medium">{currentEffortLabel}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  {EFFORT_OPTIONS.map((option) => (
+                    <DropdownMenuItem
+                      key={option.value}
+                      onClick={() => onEffortChange(option.value)}
+                      className={cn((effort ?? "medium") === option.value && "bg-accent")}
+                    >
+                      {option.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Separator />
+            </>
+          )}
+
+          {/* Unified mode dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger
               disabled={isDisabled}
               className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
             >
-              {sessionType === "chat" ? (
-                <MessageSquare className="h-3.5 w-3.5" />
-              ) : (
-                <FileText className="h-3.5 w-3.5" />
-              )}
-              <span className="font-medium capitalize">{sessionType}</span>
+              <ModeIcon className="h-3.5 w-3.5" />
+              <span className="font-medium">{currentModeConfig.label}</span>
               <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               <DropdownMenuItem
-                onClick={() => handleSessionTypeChange("chat")}
-                className={cn(sessionType === "chat" && "bg-accent")}
-              >
-                <MessageSquare className="mr-2 h-3.5 w-3.5" />
-                Chat
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleSessionTypeChange("plan")}
-                className={cn(sessionType === "plan" && "bg-accent")}
+                onClick={() => onModeChange?.("plan")}
+                className={cn(mode === "plan" && "bg-accent")}
               >
                 <FileText className="mr-2 h-3.5 w-3.5" />
                 Plan
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Separator />
-
-          {/* Access level */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              disabled={isDisabled || sessionType === "plan"}
-              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-            >
-              {modeVariant === "claude" ? (
-                <ClaudePermissionIcon className="h-3.5 w-3.5" />
-              ) : accessLevel === "full-access" ? (
-                <ShieldCheck className="h-3.5 w-3.5" />
-              ) : accessLevel === "acceptEdits" ? (
-                <ShieldAlert className="h-3.5 w-3.5" />
-              ) : (
-                <Shield className="h-3.5 w-3.5" />
-              )}
-              <span className="font-medium">
-                {modeVariant === "claude"
-                  ? claudePermissionUi?.label
-                  : accessLevel === "full-access"
-                    ? "Full access"
-                    : accessLevel === "acceptEdits"
-                      ? "Auto-accept edits"
-                      : "Supervised"}
-              </span>
-              <ChevronDown className="h-3 w-3" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              {modeVariant === "claude" ? (
-                <>
-                  {(
-                    Object.entries(CLAUDE_PERMISSION_LABELS) as [
-                      Exclude<AgentChatMode, "plan">,
-                      { label: string; icon: typeof Shield },
-                    ][]
-                  ).map(([permission, config]) => (
-                    <DropdownMenuItem
-                      key={permission}
-                      onClick={() => handleClaudePermissionModeChange(permission)}
-                      className={cn(claudePermissionMode === permission && "bg-accent")}
-                    >
-                      <config.icon className="mr-2 h-3.5 w-3.5" />
-                      {config.label}
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              ) : (
-                <>
-                  <DropdownMenuItem
-                    onClick={() => handleAccessLevelChange("supervised")}
-                    className={cn(accessLevel === "supervised" && "bg-accent")}
-                  >
-                    <Shield className="mr-2 h-3.5 w-3.5" />
-                    Supervised
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleAccessLevelChange("acceptEdits")}
-                    className={cn(accessLevel === "acceptEdits" && "bg-accent")}
-                  >
-                    <ShieldAlert className="mr-2 h-3.5 w-3.5" />
-                    Auto-accept edits
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => handleAccessLevelChange("full-access")}
-                    className={cn(accessLevel === "full-access" && "bg-accent")}
-                  >
-                    <ShieldCheck className="mr-2 h-3.5 w-3.5" />
-                    Full access
-                  </DropdownMenuItem>
-                </>
-              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onModeChange?.("auto")}
+                className={cn(mode === "auto" && "bg-accent")}
+              >
+                <ShieldAlert className="mr-2 h-3.5 w-3.5" />
+                Auto
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onModeChange?.("default")}
+                className={cn(mode === "default" && "bg-accent")}
+              >
+                <Shield className="mr-2 h-3.5 w-3.5" />
+                Default
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onModeChange?.("acceptEdits")}
+                className={cn(mode === "acceptEdits" && "bg-accent")}
+              >
+                <ShieldAlert className="mr-2 h-3.5 w-3.5" />
+                Accept edits
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onModeChange?.("bypassPermissions")}
+                className={cn(mode === "bypassPermissions" && "bg-accent")}
+              >
+                <ShieldCheck className="mr-2 h-3.5 w-3.5" />
+                Bypass permissions
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onModeChange?.("dontAsk")}
+                className={cn(mode === "dontAsk" && "bg-accent")}
+              >
+                <ShieldCheck className="mr-2 h-3.5 w-3.5" />
+                Don't ask
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

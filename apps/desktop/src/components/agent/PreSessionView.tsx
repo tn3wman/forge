@@ -153,53 +153,6 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
         </p>
       </div>
 
-      {isClaude && (
-        <div className="mx-4 mb-4 rounded-xl border border-border bg-muted/20 p-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Model</span>
-              <input
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="Default Claude model"
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              />
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Effort</span>
-              <select
-                value={effort}
-                onChange={(e) => setEffort(e.target.value as ClaudeEffort)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              >
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-              </select>
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Agent</span>
-              <input
-                value={agent}
-                onChange={(e) => setAgent(e.target.value)}
-                placeholder="Optional Claude agent"
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              />
-            </label>
-            <div className="space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Claude path</span>
-              <div className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-                {effectiveClaudePath || "Claude executable will be resolved from PATH at launch."}
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            <span>Permission mode: {mode}</span>
-            {workingDirectory && <span>Working directory: {workingDirectory}</span>}
-          </div>
-        </div>
-      )}
-
       {launchError && (
         <div className="mx-4 mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {launchError}
@@ -211,8 +164,11 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
         disabled={creating}
         mode={mode}
         onModeChange={setMode}
-        modeVariant={isClaude ? "claude" : "legacy"}
         slashCommands={slashCommands ?? []}
+        model={isClaude ? model : undefined}
+        onModelChange={isClaude ? setModel : undefined}
+        effort={isClaude ? effort : undefined}
+        onEffortChange={isClaude ? setEffort : undefined}
         showAgentSelector
         clis={clis ?? []}
         selectedCli={selectedCli}

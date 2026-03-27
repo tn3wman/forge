@@ -126,30 +126,6 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
 
   return (
     <div className="flex h-full flex-col">
-      {isClaude && (
-        <div className="border-b border-border bg-muted/20 px-4 py-3">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="rounded-full border border-border px-2 py-1 font-medium text-foreground">
-              Claude SDK
-            </span>
-            {tab.model && <span className="font-mono">{tab.model}</span>}
-            {tab.permissionMode && <span className="font-mono">{tab.permissionMode}</span>}
-            {tab.agent && <span>{tab.agent}</span>}
-            {tab.effort && <span>{tab.effort}</span>}
-            {tab.conversationId && (
-              <span className="max-w-48 truncate font-mono" title={tab.conversationId}>
-                {tab.conversationId}
-              </span>
-            )}
-            {tab.claudePath && (
-              <span className="max-w-72 truncate" title={tab.claudePath}>
-                {tab.claudePath}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.map((msg) => {
@@ -222,7 +198,6 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
         permissionMode={tab.permissionMode}
         agent={tab.agent}
         effort={tab.effort}
-        conversationId={tab.conversationId}
         totalCost={tab.totalCost}
       />
 
@@ -233,7 +208,6 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
         mode={tab.mode}
         onModeChange={(mode) => updateTabMode(sessionId, mode)}
         slashCommands={slashCommands ?? []}
-        modeVariant={isClaude ? "claude" : "legacy"}
         onFocusChange={(focused) => {
           inputFocusedRef.current = focused;
         }}

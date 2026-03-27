@@ -418,7 +418,12 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
     }
   })();
 
-  await enqueuePrompt(session, command.prompt);
+  // Fire-and-forget: the prompt is pushed to the queue synchronously inside
+  // enqueuePrompt, so the SDK will consume it. We must NOT await here because
+  // enqueuePrompt only resolves after the SDK finishes the entire turn — which
+  // would delay the command_result and cause a race where all SDK events arrive
+  // before the frontend has set up the session tab (wiping the messages).
+  void enqueuePrompt(session, command.prompt);
 }
 
 function handleSdkMessage(session: ClaudeSession, message: SDKMessage, capabilities: any[]) {
@@ -623,7 +628,8 @@ async function handleCommand(command: HostCommand) {
     case "send_user_message": {
       const session = sessions.get(command.sessionId);
       if (!session) throw new Error(`Session '${command.sessionId}' not found`);
-      await enqueuePrompt(session, command.prompt);
+      // Fire-and-forget: don't block on SDK turn completion (see startSession comment)
+      void enqueuePrompt(session, command.prompt);
       emitResult(command.requestId);
       break;
     }
