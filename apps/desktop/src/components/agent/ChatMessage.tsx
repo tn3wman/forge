@@ -47,7 +47,21 @@ export const ChatMessage = memo(function ChatMessage({
         )}
       >
         {isUser ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <div>
+            {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+            {message.images?.length ? (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {message.images.map((img, i) => (
+                  <img
+                    key={i}
+                    src={`data:${img.mediaType};base64,${img.data}`}
+                    alt={img.fileName ?? `Image ${i + 1}`}
+                    className="max-h-48 rounded-md border border-border/50"
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
         ) : (
           <div className="space-y-3">
             {isAssistantStreaming && (

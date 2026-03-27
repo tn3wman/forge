@@ -616,14 +616,23 @@ fn mode_to_permission_mode(mode: &AgentMode) -> &'static str {
 }
 
 impl AgentBackend for ClaudeBackend {
-    fn send_message(&mut self, message: &str) -> Result<(), String> {
-        self.call_host(
-            "send_user_message",
-            json!({
-                "sessionId": self.session_id,
-                "prompt": message,
-            }),
-        )?;
+    fn send_message(&mut self, message: &str, images: Option<&[crate::models::agent::ImageAttachment]>) -> Result<(), String> {
+        let mut payload = json!({
+            "sessionId": self.session_id,
+            "prompt": message,
+        });
+        if let Some(imgs) = images {
+            if !imgs.is_empty() {
+                payload.as_object_mut().unwrap().insert(
+                    "images".to_string(),
+                    json!(imgs.iter().map(|img| json!({
+                        "data": img.data,
+                        "mediaType": img.media_type,
+                    })).collect::<Vec<_>>()),
+                );
+            }
+        }
+        self.call_host("send_user_message", payload)?;
         Ok(())
     }
 

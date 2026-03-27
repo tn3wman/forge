@@ -11,6 +11,8 @@ import {
   ShieldAlert,
   Gauge,
   Sparkles,
+  Paperclip,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SlashCommandMenu } from "./SlashCommandMenu";
@@ -22,7 +24,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { AgentChatMode, AgentState, SlashCommandInfo, CliInfo, ClaudeEffort } from "@forge/shared";
+import type { AgentChatMode, AgentState, SlashCommandInfo, CliInfo, ClaudeEffort, ImageAttachment, ImageMediaType } from "@forge/shared";
+
+const ACCEPTED_IMAGE_TYPES = new Set<string>(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB base64 limit (~3.75MB raw)
+const MAX_IMAGES = 5;
 
 const MODE_COMMANDS: Record<string, AgentChatMode> = {
   plan: "plan",
@@ -57,7 +63,7 @@ const EFFORT_OPTIONS: { value: ClaudeEffort; label: string }[] = [
 ];
 
 interface UnifiedInputCardProps {
-  onSend: (text: string) => void;
+  onSend: (text: string, images?: ImageAttachment[]) => void;
   onAbort?: () => void;
   agentState?: AgentState;
   disabled?: boolean;
@@ -110,9 +116,13 @@ export function UnifiedInputCard({
   onClear,
 }: UnifiedInputCardProps) {
   const [text, setText] = useState("");
+  const [images, setImages] = useState<ImageAttachment[]>([]);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [slashMenuDismissed, setSlashMenuDismissed] = useState(false);
   const [confirmation, setConfirmation] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isRunning = agentState === "thinking" || agentState === "executing";
   const showSlashMenu =
@@ -145,6 +155,85 @@ export function UnifiedInputCard({
   useEffect(() => {
     adjustHeight();
   }, [text, adjustHeight]);
+
+  const processFiles = useCallback((files: FileList | File[]) => {
+    setImageError(null);
+    const fileArray = Array.from(files);
+
+    for (const file of fileArray) {
+      if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
+        setImageError(`Unsupported format: ${file.type || "unknown"}. Use PNG, JPEG, GIF, or WebP.`);
+        continue;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        // dataUrl format: "data:image/png;base64,iVBOR..."
+        const commaIndex = dataUrl.indexOf(",");
+        const base64Data = dataUrl.slice(commaIndex + 1);
+
+        if (base64Data.length > MAX_IMAGE_SIZE_BYTES) {
+          setImageError("Image too large (max 5MB). Try a smaller image.");
+          return;
+        }
+
+        setImages((prev) => {
+          if (prev.length >= MAX_IMAGES) {
+            setImageError(`Maximum ${MAX_IMAGES} images per message.`);
+            return prev;
+          }
+          return [...prev, {
+            data: base64Data,
+            mediaType: file.type as ImageMediaType,
+            fileName: file.name,
+          }];
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  }, []);
+
+  const removeImage = useCallback((index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    setImageError(null);
+  }, []);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const imageFiles: File[] = [];
+    for (const item of items) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      processFiles(imageFiles);
+    }
+  }, [processFiles]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer?.files;
+    if (files?.length) {
+      processFiles(Array.from(files).filter((f) => f.type.startsWith("image/")));
+    }
+  }, [processFiles]);
 
   const showConfirmationMsg = useCallback((msg: string) => {
     setConfirmation(msg);
@@ -180,7 +269,7 @@ export function UnifiedInputCard({
 
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    if (!trimmed && images.length === 0) return;
 
     const lower = trimmed.toLowerCase();
 
@@ -205,9 +294,11 @@ export function UnifiedInputCard({
       return;
     }
 
-    onSend(trimmed);
+    onSend(trimmed, images.length > 0 ? images : undefined);
     setText("");
-  }, [text, onSend, onAbort, onModeChange, onClear, showConfirmationMsg]);
+    setImages([]);
+    setImageError(null);
+  }, [text, images, onSend, onAbort, onModeChange, onClear, showConfirmationMsg]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -247,8 +338,23 @@ export function UnifiedInputCard({
           "relative rounded-xl border border-border bg-muted/30",
           "focus-within:ring-1 focus-within:ring-ring focus-within:border-ring",
           "transition-colors",
+          isDragging && "ring-2 ring-primary border-primary",
         )}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            if (e.target.files?.length) processFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
         <SlashCommandMenu
           filter={slashFilter}
           commands={slashCommands}
@@ -261,6 +367,7 @@ export function UnifiedInputCard({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           onFocus={() => onFocusChange?.(true)}
           onBlur={() => onFocusChange?.(false)}
           rows={2}
@@ -276,6 +383,33 @@ export function UnifiedInputCard({
             isDisabled && "opacity-50 cursor-not-allowed",
           )}
         />
+
+        {/* Image previews */}
+        {images.length > 0 && (
+          <div className="flex gap-2 px-3 pb-2 overflow-x-auto">
+            {images.map((img, i) => (
+              <div key={i} className="relative group shrink-0">
+                <img
+                  src={`data:${img.mediaType};base64,${img.data}`}
+                  alt={img.fileName ?? `Image ${i + 1}`}
+                  className="h-12 w-12 rounded-md border border-border object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImage(i)}
+                  className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Image error */}
+        {imageError && (
+          <p className="px-3 pb-2 text-xs text-destructive">{imageError}</p>
+        )}
 
         {/* Controls row */}
         <div className="flex items-center gap-0 px-3 pb-3">
@@ -426,6 +560,17 @@ export function UnifiedInputCard({
             </>
           )}
 
+          {/* Attach image button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isDisabled || images.length >= MAX_IMAGES}
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            title="Attach images"
+          >
+            <Paperclip className="h-3.5 w-3.5" />
+          </button>
+
           <div className="flex-1" />
 
           {/* Send / Abort button */}
@@ -445,10 +590,10 @@ export function UnifiedInputCard({
             <button
               type="button"
               onClick={handleSend}
-              disabled={!text.trim()}
+              disabled={!text.trim() && images.length === 0}
               className={cn(
                 "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
-                text.trim()
+                text.trim() || images.length > 0
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-muted text-muted-foreground cursor-not-allowed",
               )}

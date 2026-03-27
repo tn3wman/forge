@@ -1,4 +1,4 @@
-use crate::models::agent::{AgentMode, AgentSessionInfo, CreateAgentSessionRequest};
+use crate::models::agent::{AgentMode, AgentSessionInfo, CreateAgentSessionRequest, ImageAttachment};
 use crate::util::time_from_epoch_secs;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -133,12 +133,12 @@ impl AgentSessionManager {
         Ok(info)
     }
 
-    pub fn send_message(&self, session_id: &str, message: &str) -> Result<(), String> {
+    pub fn send_message(&self, session_id: &str, message: &str, images: Option<&[ImageAttachment]>) -> Result<(), String> {
         let mut sessions = self.sessions.lock().unwrap();
         let entry = sessions
             .get_mut(session_id)
             .ok_or_else(|| format!("Agent session '{}' not found", session_id))?;
-        entry.session.send_message(message)
+        entry.session.send_message(message, images)
     }
 
     pub fn respond_permission(

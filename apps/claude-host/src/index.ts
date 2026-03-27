@@ -32,6 +32,7 @@ type HostCommand =
       requestId: string;
       sessionId: string;
       prompt: string;
+      images?: Array<{ data: string; mediaType: string }>;
     }
   | {
       type: "respond_approval";
@@ -228,12 +229,30 @@ function emitError(requestId: string, error: unknown) {
   });
 }
 
-function buildUserMessage(prompt: string): SDKUserMessage {
+function buildUserMessage(
+  prompt: string,
+  images?: Array<{ data: string; mediaType: string }>,
+): SDKUserMessage {
+  const content =
+    images && images.length > 0
+      ? [
+          ...images.map((img) => ({
+            type: "image" as const,
+            source: {
+              type: "base64" as const,
+              media_type: img.mediaType,
+              data: img.data,
+            },
+          })),
+          { type: "text" as const, text: prompt },
+        ]
+      : prompt;
+
   return {
     type: "user",
     message: {
       role: "user",
-      content: prompt,
+      content,
     },
     parent_tool_use_id: null,
     session_id: "",
@@ -266,9 +285,13 @@ async function* promptStream(session: ClaudeSession): AsyncGenerator<SDKUserMess
   }
 }
 
-async function enqueuePrompt(session: ClaudeSession, prompt: string) {
+async function enqueuePrompt(
+  session: ClaudeSession,
+  prompt: string,
+  images?: Array<{ data: string; mediaType: string }>,
+) {
   await new Promise<void>((resolve) => {
-    session.promptQueue.push({ message: buildUserMessage(prompt), resolve });
+    session.promptQueue.push({ message: buildUserMessage(prompt, images), resolve });
     session.nextPrompt?.();
   });
 }
@@ -629,7 +652,7 @@ async function handleCommand(command: HostCommand) {
       const session = sessions.get(command.sessionId);
       if (!session) throw new Error(`Session '${command.sessionId}' not found`);
       // Fire-and-forget: don't block on SDK turn completion (see startSession comment)
-      void enqueuePrompt(session, command.prompt);
+      void enqueuePrompt(session, command.prompt, command.images);
       emitResult(command.requestId);
       break;
     }

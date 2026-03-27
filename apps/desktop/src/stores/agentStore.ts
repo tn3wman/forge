@@ -5,6 +5,7 @@ import type {
   AgentState,
   AgentStreamState,
   ClaudeEffort,
+  ImageAttachment,
   SlashCommandInfo,
 } from "@forge/shared";
 
@@ -30,6 +31,7 @@ export interface AgentMessage {
   resolved?: boolean;
   isError?: boolean;
   state?: AgentState;
+  images?: ImageAttachment[];
 }
 
 export interface AgentTab {
