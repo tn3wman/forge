@@ -1,31 +1,25 @@
 import { useState } from "react";
-import { Plus, Briefcase } from "lucide-react";
+import { Plus } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Separator } from "@/components/ui/separator";
 import { useWorkspaces } from "@/queries/useWorkspaces";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { AddWorkspaceDialog } from "./AddWorkspaceDialog";
 import { AddRepoDialog } from "@/components/repository/AddRepoDialog";
 import { cn } from "@/lib/utils";
+import { getWorkspaceColor } from "@/lib/workspaceColors";
 import type { Workspace } from "@forge/shared";
-
-const WORKSPACE_ICONS: Record<string, string> = {
-  briefcase: "Briefcase",
-  code: "Code",
-  rocket: "Rocket",
-  star: "Star",
-  heart: "Heart",
-  zap: "Zap",
-};
 
 function WorkspaceIcon({ workspace }: { workspace: Workspace }) {
   const initial = workspace.name[0]?.toUpperCase() ?? "W";
+  const color = getWorkspaceColor(workspace.color);
   return (
-    <span className="text-xs font-semibold">{initial}</span>
+    <span className="text-xs font-semibold" style={{ color: color.text }}>
+      {initial}
+    </span>
   );
 }
 
@@ -38,37 +32,53 @@ export function WorkspaceSwitcher() {
   return (
     <>
       <div className="flex flex-col items-center gap-1">
-        {workspaces?.map((ws, i) => (
-          <Tooltip key={ws.id}>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => {
-                  if (activeWorkspaceId === ws.id) {
-                    setActivePage("home");
-                  } else {
-                    setActiveWorkspaceId(ws.id);
-                  }
-                }}
+        {workspaces?.map((ws, i) => {
+          const isActive = activeWorkspaceId === ws.id;
+          const color = getWorkspaceColor(ws.color);
+
+          return (
+            <div key={ws.id} className="relative flex items-center">
+              {/* Active indicator pill */}
+              <div
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
-                  activeWorkspaceId === ws.id
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                  "absolute -left-3 w-1 rounded-full bg-white transition-all",
+                  isActive ? "h-5" : "h-0",
                 )}
-              >
-                <WorkspaceIcon workspace={ws} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {ws.name}
-              {i < 9 && (
-                <span className="ml-2 text-xs text-muted-foreground">
-                  {"\u2318"}{i + 1}
-                </span>
-              )}
-            </TooltipContent>
-          </Tooltip>
-        ))}
+              />
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => {
+                      if (isActive) {
+                        setActivePage("home");
+                      } else {
+                        setActiveWorkspaceId(ws.id);
+                      }
+                    }}
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-md transition-all",
+                      isActive
+                        ? "opacity-100"
+                        : "opacity-60 hover:opacity-90",
+                    )}
+                    style={{ backgroundColor: color.bg }}
+                  >
+                    <WorkspaceIcon workspace={ws} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {ws.name}
+                  {i < 9 && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {"\u2318"}{i + 1}
+                    </span>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          );
+        })}
 
         <Tooltip>
           <TooltipTrigger asChild>
