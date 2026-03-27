@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, Terminal, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TerminalTab as TerminalTabType } from "@/stores/terminalStore";
 
@@ -20,6 +20,11 @@ export function TerminalTab({ tab, isActive, onSelect, onClose }: TerminalTabPro
           : "border-transparent text-muted-foreground hover:text-foreground",
       )}
     >
+      {tab.type === "chat" ? (
+        <MessageSquare className="h-3 w-3 shrink-0" />
+      ) : (
+        <Terminal className="h-3 w-3 shrink-0" />
+      )}
       <span className="truncate max-w-[120px]">{tab.label}</span>
       <span
         role="button"
