@@ -28,9 +28,6 @@ pub struct CodexBackend {
     request_counter: Arc<AtomicU64>,
     /// Maps JSON-RPC server request IDs to their method + itemId for approval routing
     pending_approvals: Arc<Mutex<std::collections::HashMap<String, PendingApproval>>>,
-    turn_start_time: Arc<Mutex<Option<std::time::Instant>>>,
-    input_tokens: Arc<Mutex<u64>>,
-    output_tokens: Arc<Mutex<u64>>,
 }
 
 #[derive(Clone)]
@@ -345,9 +342,6 @@ impl CodexBackend {
             turn_id,
             request_counter,
             pending_approvals,
-            turn_start_time,
-            input_tokens,
-            output_tokens,
         })
     }
 
@@ -1096,6 +1090,60 @@ mod tests {
         assert!(matches!(&events[0], AgentEvent::ApprovalRequested {
             tool_name, detail, ..
         } if tool_name == "file_edit" && detail.contains("src/main.rs")));
+    }
+
+    #[test]
+    fn token_usage_updated_accumulates_and_returns_empty() {
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
+        let events = parse_codex_notification(
+            "thread/tokenUsage/updated",
+            &serde_json::json!({
+                "inputTokens": 1500,
+                "outputTokens": 300
+            }),
+            false,
+            None,
+            &thread_id,
+            &turn_id,
+            &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
+        );
+        assert!(events.is_empty(), "tokenUsage should not emit visible events");
+        assert_eq!(*input_tokens.lock().unwrap(), 1500);
+        assert_eq!(*output_tokens.lock().unwrap(), 300);
+    }
+
+    #[test]
+    fn thread_started_emits_session_meta_with_conversation_id() {
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
+        // Reset thread_id to None so thread/started can set it
+        *thread_id.lock().unwrap() = None;
+        let events = parse_codex_notification(
+            "thread/started",
+            &serde_json::json!({
+                "thread": {
+                    "id": "thread-abc-123"
+                }
+            }),
+            false,
+            None,
+            &thread_id,
+            &turn_id,
+            &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
+        );
+        assert_eq!(events.len(), 1);
+        assert!(matches!(&events[0], AgentEvent::SessionMeta {
+            provider, conversation_id, ..
+        } if provider.as_deref() == Some("codex")
+            && conversation_id.as_deref() == Some("thread-abc-123")
+        ));
+        // Verify thread_id was stored
+        assert_eq!(thread_id.lock().unwrap().as_deref(), Some("thread-abc-123"));
     }
 
     #[test]
