@@ -107,9 +107,11 @@ export const ChatMessage = memo(function ChatMessage({
                   </p>
                 ) : (
                   <div className="border-t border-border/70 px-3 py-2">
-                    <p className="whitespace-pre-wrap text-xs text-muted-foreground">
-                      {message.reasoning}
-                    </p>
+                    <div className="prose prose-sm prose-invert max-w-none text-xs text-muted-foreground [&>*]:text-muted-foreground [&>*]:text-xs">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                        {message.reasoning ?? ""}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 )}
               </div>
