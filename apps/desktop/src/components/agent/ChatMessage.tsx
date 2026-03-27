@@ -75,8 +75,6 @@ export const ChatMessage = memo(function ChatMessage({
               <div className="prose prose-sm prose-invert max-w-none">
                 <ReactMarkdown>{message.content}</ReactMarkdown>
               </div>
-            ) : isAssistantStreaming ? (
-              <p className="text-sm text-muted-foreground">Thinking...</p>
             ) : null}
 
             {hasReasoning && (
