@@ -7,6 +7,7 @@ import { ToolCallCard } from "./ToolCallCard";
 import { PermissionPrompt } from "./PermissionPrompt";
 import { ChatInput } from "./ChatInput";
 import { AgentStatusBar } from "./AgentStatusBar";
+import { ModeSelector } from "./ModeSelector";
 
 interface ChatViewProps {
   sessionId: string;
@@ -19,8 +20,12 @@ export function ChatView({ sessionId }: ChatViewProps) {
   const messages = useAgentStore((s) => s.messagesBySession[sessionId] ?? []);
   const appendMessage = useAgentStore((s) => s.appendMessage);
   const toggleMessageCollapsed = useAgentStore((s) => s.toggleMessageCollapsed);
+  const updateTabMode = useAgentStore((s) => s.updateTabMode);
+  const clearMessages = useAgentStore((s) => s.clearMessages);
+  const activeTabId = useAgentStore((s) => s.activeTabId);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputFocusedRef = useRef(false);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -40,6 +45,47 @@ export function ChatView({ sessionId }: ChatViewProps) {
     }
     return map;
   }, [messages]);
+
+  // Find the pending permission prompt (last awaiting_approval status message without a tool_result)
+  const pendingPermission = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.type === "status" && msg.state === "awaiting_approval" && msg.toolUseId) {
+        // Check if it already has a tool_result
+        if (!toolResultMap.has(msg.toolUseId)) {
+          return msg;
+        }
+      }
+      // Stop scanning once we hit a non-status message going backwards
+      if (msg.type === "assistant" || msg.type === "user") break;
+    }
+    return null;
+  }, [messages, toolResultMap]);
+
+  // Keyboard shortcut for permission prompts (y/n)
+  useEffect(() => {
+    if (!pendingPermission || activeTabId !== sessionId) return;
+
+    const handler = (e: KeyboardEvent) => {
+      // Don't intercept if input is focused or modifier keys are held
+      if (inputFocusedRef.current) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      const toolUseId = pendingPermission.toolUseId;
+      if (!toolUseId) return;
+
+      if (e.key === "y") {
+        e.preventDefault();
+        agentIpc.respondPermission(sessionId, toolUseId, true);
+      } else if (e.key === "n") {
+        e.preventDefault();
+        agentIpc.respondPermission(sessionId, toolUseId, false);
+      }
+    };
+
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [pendingPermission, sessionId, activeTabId]);
 
   const handleSend = useCallback(
     (text: string) => {
@@ -63,6 +109,14 @@ export function ChatView({ sessionId }: ChatViewProps) {
 
   return (
     <div className="flex h-full flex-col">
+      <div className="flex items-center gap-2 border-b px-3 py-1.5">
+        <ModeSelector
+          value={tab.mode}
+          onChange={(mode) => updateTabMode(sessionId, mode)}
+        />
+        <div className="flex-1" />
+      </div>
+
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.map((msg) => {
           // Skip tool_result messages — shown inside ToolCallCard
@@ -116,6 +170,9 @@ export function ChatView({ sessionId }: ChatViewProps) {
         onSend={handleSend}
         onAbort={handleAbort}
         agentState={tab.state}
+        onModeChange={(mode) => updateTabMode(sessionId, mode)}
+        onClear={() => clearMessages(sessionId)}
+        onFocusChange={(focused) => { inputFocusedRef.current = focused; }}
       />
     </div>
   );

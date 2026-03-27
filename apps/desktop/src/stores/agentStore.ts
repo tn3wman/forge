@@ -41,6 +41,7 @@ interface AgentStore {
   updateTabCost: (sessionId: string, cost: number) => void;
   setConversationId: (sessionId: string, conversationId: string) => void;
   setModel: (sessionId: string, model: string) => void;
+  updateTabMode: (sessionId: string, mode: AgentChatMode) => void;
   toggleMessageCollapsed: (sessionId: string, messageId: string) => void;
   clearMessages: (sessionId: string) => void;
 }
@@ -117,6 +118,13 @@ export const useAgentStore = create<AgentStore>((set) => ({
     set((s) => ({
       tabs: s.tabs.map((t) =>
         t.sessionId === sessionId ? { ...t, model } : t,
+      ),
+    })),
+
+  updateTabMode: (sessionId, mode) =>
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.sessionId === sessionId ? { ...t, mode } : t,
       ),
     })),
 
