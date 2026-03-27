@@ -26,7 +26,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
   const workingDirectory = tab?.workingDirectory ?? repos?.find((r) => r.localPath)?.localPath ?? undefined;
 
   const [selectedCli, setSelectedCli] = useState<string | null>(null);
-  const [mode, setMode] = useState<AgentChatMode>("auto");
+  const [mode, setMode] = useState<AgentChatMode>("assisted");
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [agent, setAgent] = useState("");

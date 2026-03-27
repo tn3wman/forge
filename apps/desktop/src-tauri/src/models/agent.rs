@@ -157,12 +157,9 @@ pub enum AgentEvent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum AgentMode {
-    Default,
-    Plan,
-    AcceptEdits,
-    BypassPermissions,
-    DontAsk,
-    Auto,
+    Supervised,
+    Assisted,
+    FullAccess,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

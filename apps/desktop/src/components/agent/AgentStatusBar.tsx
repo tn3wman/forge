@@ -22,12 +22,9 @@ const stateConfig: Record<AgentState, { label: string; icon: typeof Check; spin?
 };
 
 const PERMISSION_LABELS: Record<string, string> = {
-  default: "Default",
-  acceptEdits: "Accept edits",
-  bypassPermissions: "Bypass permissions",
-  dontAsk: "Don't ask",
-  auto: "Auto",
-  plan: "Plan",
+  supervised: "Supervised",
+  assisted: "Assisted",
+  fullAccess: "Full Access",
 };
 
 const EFFORT_LABELS: Record<string, string> = {

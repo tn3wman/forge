@@ -22,7 +22,7 @@ type HostCommand =
       cwd?: string | null;
       prompt: string;
       model?: string | null;
-      permissionMode?: PermissionMode | null;
+      permissionMode?: string | null;
       effort?: string | null;
       agent?: string | null;
       claudePath?: string | null;
@@ -194,7 +194,7 @@ interface PendingApproval {
 interface ClaudeSession {
   sessionId: string;
   cwd?: string | null;
-  permissionMode?: PermissionMode | null;
+  permissionMode?: string | null;
   claudePath?: string | null;
   agent?: string | null;
   effort?: string | null;
@@ -359,6 +359,15 @@ async function createCapabilitiesQuery(claudePath?: string | null) {
   }
 }
 
+function toSdkPermissionMode(mode?: string | null): PermissionMode | undefined {
+  switch (mode) {
+    case "supervised": return "default";
+    case "assisted": return "default";
+    case "fullAccess": return "bypassPermissions";
+    default: return undefined;
+  }
+}
+
 const READ_ONLY_TOOLS = new Set([
   "Read",
   "Glob",
@@ -394,11 +403,17 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
   };
 
   const canUseTool: CanUseTool = (toolName, toolInput, callbackOptions) => {
-    // Auto-approve read-only tools in plan mode
-    if (session.permissionMode === "plan" && READ_ONLY_TOOLS.has(toolName)) {
+    // Full Access: auto-approve all tools
+    if (session.permissionMode === "fullAccess") {
       return Promise.resolve({ behavior: "allow" as const });
     }
 
+    // Assisted: auto-approve read-only tools, prompt for writes
+    if (session.permissionMode === "assisted" && READ_ONLY_TOOLS.has(toolName)) {
+      return Promise.resolve({ behavior: "allow" as const });
+    }
+
+    // Supervised (default): prompt for everything
     return new Promise<PermissionResult>((resolve) => {
       const approvalId =
         typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -428,7 +443,7 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
     options: {
       cwd: command.cwd ?? undefined,
       includePartialMessages: true,
-      permissionMode: command.permissionMode ?? undefined,
+      permissionMode: toSdkPermissionMode(command.permissionMode),
       maxThinkingTokens: command.effort === "high" ? 12000 : undefined,
       pathToClaudeCodeExecutable: command.claudePath ?? undefined,
       canUseTool,
