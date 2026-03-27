@@ -7,11 +7,9 @@ interface ModeSelectorProps {
 }
 
 const modes: { value: AgentChatMode; label: string }[] = [
-  { value: "default", label: "Def" },
-  { value: "plan", label: "Plan" },
-  { value: "acceptEdits", label: "AE" },
-  { value: "auto", label: "Auto" },
-  { value: "bypassPermissions", label: "YOLO" },
+  { value: "supervised", label: "Supervised" },
+  { value: "assisted", label: "Assisted" },
+  { value: "fullAccess", label: "Full Access" },
 ];
 
 export function ModeSelector({ value, onChange }: ModeSelectorProps) {

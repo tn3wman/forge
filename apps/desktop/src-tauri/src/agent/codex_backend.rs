@@ -79,15 +79,15 @@ impl CodexBackend {
             Arc::new(Mutex::new(std::collections::HashMap::new()));
 
         let approval_mode = match mode {
-            AgentMode::BypassPermissions | AgentMode::Auto => "never",
-            AgentMode::AcceptEdits => "on-request",
-            _ => "untrusted",
+            AgentMode::FullAccess => "never",
+            AgentMode::Assisted => "on-request",
+            AgentMode::Supervised => "untrusted",
         };
 
         let sandbox_mode = match mode {
-            AgentMode::BypassPermissions => "danger-full-access",
-            AgentMode::Auto | AgentMode::AcceptEdits => "workspace-write",
-            _ => "read-only",
+            AgentMode::FullAccess => "danger-full-access",
+            AgentMode::Assisted => "workspace-write",
+            AgentMode::Supervised => "read-only",
         };
 
         // Send initialize request
