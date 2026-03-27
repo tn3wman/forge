@@ -38,13 +38,14 @@ impl ClaudeBackend {
 
         let mut cmd = Command::new(&cli_path);
         cmd.arg("-p")
+            .arg("--input-format")
+            .arg("stream-json")
             .arg("--output-format")
             .arg("stream-json")
             .arg("--verbose")
             .arg("--include-partial-messages")
             .arg("--permission-mode")
             .arg(permission_mode)
-            .arg(initial_prompt)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
@@ -63,7 +64,7 @@ impl ClaudeBackend {
             .stderr
             .take()
             .ok_or_else(|| "Failed to capture stderr".to_string())?;
-        let stdin = child.stdin.take();
+        let mut stdin = child.stdin.take();
 
         let killed = Arc::new(AtomicBool::new(false));
         let conversation_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
@@ -147,6 +148,17 @@ impl ClaudeBackend {
                     }
                 }
             });
+        }
+
+        // Send the initial prompt as a stream-json user_message
+        if let Some(ref mut writer) = stdin {
+            let msg = serde_json::json!({
+                "type": "user_message",
+                "content": initial_prompt
+            });
+            let _ = writer.write_all(msg.to_string().as_bytes());
+            let _ = writer.write_all(b"\n");
+            let _ = writer.flush();
         }
 
         Ok(Self {
@@ -289,27 +301,40 @@ impl AgentBackend for ClaudeBackend {
             .stdin
             .as_mut()
             .ok_or_else(|| "stdin not available".to_string())?;
+        let msg = serde_json::json!({
+            "type": "user_message",
+            "content": message
+        });
         stdin
-            .write_all(message.as_bytes())
+            .write_all(msg.to_string().as_bytes())
             .map_err(|e| format!("Failed to write to stdin: {e}"))?;
         stdin
             .write_all(b"\n")
-            .map_err(|e| format!("Failed to write newline to stdin: {e}"))?;
+            .map_err(|e| format!("Failed to write newline: {e}"))?;
         stdin
             .flush()
             .map_err(|e| format!("Failed to flush stdin: {e}"))?;
         Ok(())
     }
 
-    fn respond_permission(&mut self, _tool_use_id: &str, allow: bool) -> Result<(), String> {
-        let response = if allow { "y\n" } else { "n\n" };
+    fn respond_permission(&mut self, tool_use_id: &str, allow: bool) -> Result<(), String> {
         let stdin = self
             .stdin
             .as_mut()
             .ok_or_else(|| "stdin not available".to_string())?;
+        let msg = serde_json::json!({
+            "type": "permission_response",
+            "permission_response": {
+                "tool_use_id": tool_use_id,
+                "allowed": allow
+            }
+        });
         stdin
-            .write_all(response.as_bytes())
+            .write_all(msg.to_string().as_bytes())
             .map_err(|e| format!("Failed to write permission response: {e}"))?;
+        stdin
+            .write_all(b"\n")
+            .map_err(|e| format!("Failed to write newline: {e}"))?;
         stdin
             .flush()
             .map_err(|e| format!("Failed to flush stdin: {e}"))?;
