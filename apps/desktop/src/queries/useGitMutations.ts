@@ -140,6 +140,18 @@ export function useDeleteBranch() {
   });
 }
 
+export function useDeleteRemoteBranch() {
+  const queryClient = useQueryClient();
+  const token = useAuthStore((s) => s.token);
+  return useMutation({
+    mutationFn: async ({ path, remote, branch }: { path: string; remote: string; branch: string }) =>
+      gitIpc.deleteRemoteBranch(path, remote, branch, token!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["git-branches"] });
+    },
+  });
+}
+
 export function useRenameBranch() {
   const queryClient = useQueryClient();
   return useMutation({
