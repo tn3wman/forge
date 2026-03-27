@@ -162,7 +162,7 @@ impl CodexBackend {
                         // Check if this is a server request (has "id" field = needs response)
                         let is_request = json.get("id").is_some();
 
-                        let event = parse_codex_notification(
+                        let events = parse_codex_notification(
                             method,
                             &params,
                             is_request,
@@ -172,13 +172,15 @@ impl CodexBackend {
                             &pending_approvals,
                         );
 
-                        let _ = app_handle_clone.emit(
-                            "agent-event",
-                            AgentEventPayload {
-                                session_id: session_id_clone.clone(),
-                                event,
-                            },
-                        );
+                        for event in events {
+                            let _ = app_handle_clone.emit(
+                                "agent-event",
+                                AgentEventPayload {
+                                    session_id: session_id_clone.clone(),
+                                    event,
+                                },
+                            );
+                        }
                     }
                 }
 
@@ -348,7 +350,7 @@ fn parse_codex_notification(
     thread_id: &Arc<Mutex<Option<String>>>,
     turn_id: &Arc<Mutex<Option<String>>>,
     pending_approvals: &Arc<Mutex<std::collections::HashMap<String, PendingApproval>>>,
-) -> AgentEvent {
+) -> Vec<AgentEvent> {
     let current_turn_id = turn_id.lock().ok().and_then(|t| t.clone());
 
     match method {
@@ -363,9 +365,9 @@ fn parse_codex_notification(
                 }
             }
             // Don't emit a visible event for this
-            AgentEvent::Raw {
+            vec![AgentEvent::Raw {
                 data: serde_json::json!({"type": "thread_started"}),
-            }
+            }]
         }
 
         "turn/started" => {
@@ -377,9 +379,9 @@ fn parse_codex_notification(
                     *t = Some(tid.to_string());
                 }
             }
-            AgentEvent::Raw {
+            vec![AgentEvent::Raw {
                 data: serde_json::json!({"type": "turn_started"}),
-            }
+            }]
         }
 
         "turn/completed" => {
@@ -393,12 +395,12 @@ fn parse_codex_notification(
                 .unwrap_or("")
                 .to_string();
 
-            AgentEvent::Result {
+            vec![AgentEvent::Result {
                 result_text: error_msg,
                 duration_ms: 0,
                 total_cost_usd: 0.0,
                 is_error,
-            }
+            }]
         }
 
         "item/agentMessage/delta" => {
@@ -413,10 +415,10 @@ fn parse_codex_notification(
                 .unwrap_or("")
                 .to_string();
 
-            AgentEvent::AssistantMessageDelta {
+            vec![AgentEvent::AssistantMessageDelta {
                 message_id: item_id,
                 content_delta: delta,
-            }
+            }]
         }
 
         "item/started" => {
@@ -432,10 +434,10 @@ fn parse_codex_notification(
 
             match item_type {
                 "agentMessage" => {
-                    AgentEvent::AssistantMessageStart {
+                    vec![AgentEvent::AssistantMessageStart {
                         message_id: item_id,
                         turn_id: current_turn_id,
-                    }
+                    }]
                 }
                 "commandExecution" => {
                     let command = params
@@ -443,12 +445,12 @@ fn parse_codex_notification(
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string();
-                    AgentEvent::ToolUseStart {
+                    vec![AgentEvent::ToolUseStart {
                         tool_use_id: item_id,
                         name: "shell".to_string(),
                         input: serde_json::json!({"command": command}),
                         turn_id: current_turn_id,
-                    }
+                    }]
                 }
                 "fileChange" => {
                     let filename = params
@@ -456,19 +458,19 @@ fn parse_codex_notification(
                         .and_then(|v| v.as_str())
                         .unwrap_or("unknown")
                         .to_string();
-                    AgentEvent::ToolUseStart {
+                    vec![AgentEvent::ToolUseStart {
                         tool_use_id: item_id,
                         name: "file_edit".to_string(),
                         input: serde_json::json!({"filename": filename}),
                         turn_id: current_turn_id,
-                    }
+                    }]
                 }
-                "reasoning" => AgentEvent::Raw {
+                "reasoning" => vec![AgentEvent::Raw {
                     data: serde_json::json!({"type": "reasoning_started"}),
-                },
-                _ => AgentEvent::Raw {
+                }],
+                _ => vec![AgentEvent::Raw {
                     data: serde_json::json!({"type": "item_started", "item_type": item_type}),
-                },
+                }],
             }
         }
 
@@ -490,11 +492,11 @@ fn parse_codex_notification(
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string();
-                    AgentEvent::AssistantMessageComplete {
+                    vec![AgentEvent::AssistantMessageComplete {
                         message_id: item_id,
                         turn_id: current_turn_id,
                         content: if text.is_empty() { None } else { Some(text) },
-                    }
+                    }]
                 }
                 "commandExecution" => {
                     let exit_code = params
@@ -505,24 +507,24 @@ fn parse_codex_notification(
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string();
-                    AgentEvent::ToolResultComplete {
+                    vec![AgentEvent::ToolResultComplete {
                         tool_use_id: item_id,
                         content: if output.is_empty() { None } else { Some(output) },
                         is_error: exit_code.map(|c| c != 0).unwrap_or(false),
-                    }
+                    }]
                 }
-                "fileChange" => AgentEvent::ToolResultComplete {
+                "fileChange" => vec![AgentEvent::ToolResultComplete {
                     tool_use_id: item_id,
                     content: None,
                     is_error: false,
-                },
-                "reasoning" => AgentEvent::ReasoningComplete {
+                }],
+                "reasoning" => vec![AgentEvent::ReasoningComplete {
                     message_id: None,
                     turn_id: current_turn_id,
-                },
-                _ => AgentEvent::Raw {
+                }],
+                _ => vec![AgentEvent::Raw {
                     data: serde_json::json!({"type": "item_completed", "item_type": item_type}),
-                },
+                }],
             }
         }
 
@@ -538,11 +540,11 @@ fn parse_codex_notification(
                 .unwrap_or("")
                 .to_string();
 
-            AgentEvent::ToolResultDelta {
+            vec![AgentEvent::ToolResultDelta {
                 tool_use_id: item_id,
                 content_delta: delta,
                 is_error: Some(false),
-            }
+            }]
         }
 
         // Approval requests from the server
@@ -581,17 +583,17 @@ fn parse_codex_notification(
                     "permission request".to_string()
                 };
 
-                AgentEvent::Status {
+                vec![AgentEvent::Status {
                     state: crate::models::agent::AgentState::AwaitingApproval,
                     tool: Some(tool_name),
                     tool_use_id: Some(item_id),
                     message_id: None,
                     turn_id: current_turn_id,
-                }
+                }]
             } else {
-                AgentEvent::Raw {
+                vec![AgentEvent::Raw {
                     data: serde_json::json!({"type": method}),
-                }
+                }]
             }
         }
 
@@ -602,18 +604,18 @@ fn parse_codex_notification(
                 .unwrap_or("")
                 .to_string();
 
-            AgentEvent::ReasoningDelta {
+            vec![AgentEvent::ReasoningDelta {
                 content_delta: delta,
                 message_id: None,
                 turn_id: current_turn_id,
-            }
+            }]
         }
 
         "thread/tokenUsage/updated" => {
             // Could extract cost info here in the future
-            AgentEvent::Raw {
+            vec![AgentEvent::Raw {
                 data: serde_json::json!({"type": "token_usage"}),
-            }
+            }]
         }
 
         "error" => {
@@ -622,19 +624,19 @@ fn parse_codex_notification(
                 .and_then(|v| v.as_str())
                 .unwrap_or("Unknown error")
                 .to_string();
-            AgentEvent::Result {
+            vec![AgentEvent::Result {
                 result_text: message,
                 duration_ms: 0,
                 total_cost_usd: 0.0,
                 is_error: true,
-            }
+            }]
         }
 
         _ => {
             eprintln!("[forge/codex] unhandled notification: {method}");
-            AgentEvent::Raw {
+            vec![AgentEvent::Raw {
                 data: serde_json::json!({"type": method}),
-            }
+            }]
         }
     }
 }
@@ -797,8 +799,9 @@ mod tests {
             &turn_id,
             &pending_approvals,
         );
+        assert_eq!(start.len(), 1);
         assert!(matches!(
-            start,
+            &start[0],
             AgentEvent::AssistantMessageStart { message_id, turn_id }
                 if message_id == "msg-1" && turn_id.as_deref() == Some("turn-1")
         ));
@@ -818,8 +821,9 @@ mod tests {
             &turn_id,
             &pending_approvals,
         );
+        assert_eq!(complete.len(), 1);
         assert!(matches!(
-            complete,
+            &complete[0],
             AgentEvent::AssistantMessageComplete { message_id, content, .. }
                 if message_id == "msg-1" && content.as_deref() == Some("done")
         ));
@@ -829,7 +833,7 @@ mod tests {
     fn reasoning_delta_is_not_mapped_to_assistant_text() {
         let (thread_id, turn_id, pending_approvals) = test_state();
 
-        let event = parse_codex_notification(
+        let events = parse_codex_notification(
             "item/reasoning/summaryTextDelta",
             &serde_json::json!({
                 "itemId": "reasoning-1",
@@ -842,8 +846,9 @@ mod tests {
             &pending_approvals,
         );
 
+        assert_eq!(events.len(), 1);
         assert!(matches!(
-            event,
+            &events[0],
             AgentEvent::ReasoningDelta { content_delta, turn_id, .. }
                 if content_delta == "thinking" && turn_id.as_deref() == Some("turn-1")
         ));
@@ -865,8 +870,9 @@ mod tests {
             &turn_id,
             &pending_approvals,
         );
+        assert_eq!(delta.len(), 1);
         assert!(matches!(
-            delta,
+            &delta[0],
             AgentEvent::ToolResultDelta { tool_use_id, content_delta, .. }
                 if tool_use_id == "cmd-1" && content_delta == "partial"
         ));
@@ -887,12 +893,29 @@ mod tests {
             &turn_id,
             &pending_approvals,
         );
+        assert_eq!(complete.len(), 1);
         assert!(matches!(
-            complete,
+            &complete[0],
             AgentEvent::ToolResultComplete { tool_use_id, content, is_error }
                 if tool_use_id == "cmd-1"
                     && content.as_deref() == Some("partial\nfinal")
                     && !is_error
         ));
+    }
+
+    #[test]
+    fn parse_returns_vec_of_events() {
+        let (thread_id, turn_id, pending_approvals) = test_state();
+        let events = parse_codex_notification(
+            "item/agentMessage/delta",
+            &serde_json::json!({"itemId": "msg-1", "delta": "hello"}),
+            false,
+            None,
+            &thread_id,
+            &turn_id,
+            &pending_approvals,
+        );
+        assert_eq!(events.len(), 1);
+        assert!(matches!(&events[0], AgentEvent::AssistantMessageDelta { message_id, .. } if message_id == "msg-1"));
     }
 }
