@@ -11,10 +11,12 @@ import { AddWorkspaceDialog } from "./AddWorkspaceDialog";
 import { RenameWorkspaceDialog } from "./RenameWorkspaceDialog";
 import { DeleteWorkspaceDialog } from "./DeleteWorkspaceDialog";
 import { AddRepoDialog } from "@/components/repository/AddRepoDialog";
+import { RepoSetupDialog } from "@/components/repository/RepoSetupDialog";
 import { WorkspaceContextMenu } from "./WorkspaceContextMenu";
+import { useRepositories } from "@/queries/useRepositories";
 import { cn } from "@/lib/utils";
 import { getWorkspaceColor } from "@/lib/workspaceColors";
-import type { Workspace } from "@forge/shared";
+import type { Workspace, Repository } from "@forge/shared";
 
 function WorkspaceIcon({ workspace }: { workspace: Workspace }) {
   const initial = workspace.name[0]?.toUpperCase() ?? "W";
@@ -29,10 +31,25 @@ function WorkspaceIcon({ workspace }: { workspace: Workspace }) {
 export function WorkspaceSwitcher() {
   const [showAdd, setShowAdd] = useState(false);
   const [showAddRepo, setShowAddRepo] = useState(false);
+  const [showRepoSetup, setShowRepoSetup] = useState(false);
+  const [reposToSetup, setReposToSetup] = useState<Repository[]>([]);
   const [renameTarget, setRenameTarget] = useState<Workspace | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Workspace | null>(null);
   const { data: workspaces } = useWorkspaces();
   const { activeWorkspaceId, setActiveWorkspaceId, setActivePage } = useWorkspaceStore();
+  const { data: repos } = useRepositories(activeWorkspaceId);
+
+  function handleAddRepoClose(addedRepoIds: string[]) {
+    if (!repos || addedRepoIds.length === 0) return;
+    // Find newly-added repos that have no local path
+    const unlinked = repos.filter(
+      (r) => addedRepoIds.includes(r.id) && !r.localPath
+    );
+    if (unlinked.length > 0) {
+      setReposToSetup(unlinked);
+      setShowRepoSetup(true);
+    }
+  }
 
   return (
     <>
@@ -119,7 +136,8 @@ export function WorkspaceSwitcher() {
         onOpenChange={() => setDeleteTarget(null)}
         workspace={deleteTarget}
       />
-      <AddRepoDialog open={showAddRepo} onOpenChange={setShowAddRepo} />
+      <AddRepoDialog open={showAddRepo} onOpenChange={setShowAddRepo} onClose={handleAddRepoClose} />
+      <RepoSetupDialog open={showRepoSetup} onOpenChange={setShowRepoSetup} repos={reposToSetup} />
     </>
   );
 }

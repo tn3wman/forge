@@ -12,6 +12,8 @@ import { terminalIpc } from "@/ipc/terminal";
 import { UnifiedInputCard } from "./UnifiedInputCard";
 import { WorkModeSelector, type WorkMode } from "./WorkModeSelector";
 import { RepoSetupBar } from "./RepoSetupBar";
+import { AgentRepoSelector } from "./AgentRepoSelector";
+import { FullAccessConfirmDialog } from "./FullAccessConfirmDialog";
 import type { AgentChatMode, ClaudeEffort, WorktreeInfo } from "@forge/shared";
 
 interface PreSessionViewProps {
@@ -23,10 +25,16 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
   const { data: clis, isLoading: clisLoading } = useCliDiscovery();
   const { data: repos } = useRepositories(workspaceId);
   const tab = useTerminalStore((s) => s.tabs.find((t) => t.tabId === tabId));
-  const workingDirectory = tab?.workingDirectory ?? repos?.find((r) => r.localPath)?.localPath ?? undefined;
+  const reposWithPath = repos?.filter((r): r is typeof r & { localPath: string } => !!r.localPath) ?? [];
+  const [selectedRepoId, setSelectedRepoId] = useState<string | null>(null);
+
+  // Resolve working directory: tab override > selected repo > first linked repo
+  const selectedRepo = reposWithPath.find((r) => r.id === selectedRepoId) ?? reposWithPath[0];
+  const workingDirectory = tab?.workingDirectory ?? selectedRepo?.localPath ?? undefined;
 
   const [selectedCli, setSelectedCli] = useState<string | null>(null);
   const [mode, setMode] = useState<AgentChatMode>("assisted");
+  const [showFullAccessConfirm, setShowFullAccessConfirm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [agent, setAgent] = useState("");
@@ -55,6 +63,14 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
       }
     }
   }, [branches, selectedBranch]);
+
+  const handleModeChange = useCallback((newMode: AgentChatMode) => {
+    if (newMode === "fullAccess" && mode !== "fullAccess") {
+      setShowFullAccessConfirm(true);
+    } else {
+      setMode(newMode);
+    }
+  }, [mode]);
 
   const { data: slashCommands } = useSlashCommands(selectedCli);
   const selectedCliInfo = clis?.find((cli) => cli.name === selectedCli);
@@ -204,7 +220,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
           onSend={handleSend}
           disabled={creating}
           mode={mode}
-          onModeChange={setMode}
+          onModeChange={handleModeChange}
           slashCommands={slashCommands ?? []}
           model={isClaude ? model : undefined}
           onModelChange={isClaude ? setModel : undefined}
@@ -218,6 +234,14 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
           showTerminalButton
           onOpenTerminal={handleOpenTerminal}
         />
+
+        {reposWithPath.length > 1 && (
+          <AgentRepoSelector
+            repos={reposWithPath}
+            selectedRepoId={selectedRepo?.id ?? null}
+            onSelect={setSelectedRepoId}
+          />
+        )}
 
         {workingDirectory ? (
           <WorkModeSelector
@@ -242,6 +266,15 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
           />
         )}
       </div>
+
+      <FullAccessConfirmDialog
+        open={showFullAccessConfirm}
+        onConfirm={() => {
+          setMode("fullAccess");
+          setShowFullAccessConfirm(false);
+        }}
+        onCancel={() => setShowFullAccessConfirm(false)}
+      />
     </div>
   );
 }

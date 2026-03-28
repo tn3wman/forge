@@ -48,8 +48,6 @@ PRs, issues, and notifications — all without opening a browser.
 |--------------------------|---------------|--------|
 | ![Dashboard](screenshots/dashboard.png) | ![Pull requests](screenshots/pull-requests.png) | ![Issues](screenshots/issues.png) |
 
-![GitHub notifications with unread count and mark-as-read](screenshots/notifications.png)
-
 ### Git Operations
 
 Staging area with inline diffs, canvas-based commit graph, and full branch management.

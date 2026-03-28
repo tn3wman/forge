@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Lock, Star, Loader2, Check } from "lucide-react";
+import { Search, Lock, Star, Loader2, Check, ArrowRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,9 +17,10 @@ import { useAuthStore } from "@/stores/authStore";
 interface AddRepoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onClose?: (addedRepoIds: string[]) => void;
 }
 
-export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
+export function AddRepoDialog({ open, onOpenChange, onClose }: AddRepoDialogProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchRepoResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -29,6 +30,7 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data: existingRepos } = useRepositories(activeWorkspaceId);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+  const [addedRepoIds, setAddedRepoIds] = useState<string[]>([]);
 
   // Load user repos on open
   useEffect(() => {
@@ -44,6 +46,7 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
       setQuery("");
       setResults([]);
       setAddedIds(new Set());
+      setAddedRepoIds([]);
     }
   }, [open, isAuthenticated]);
 
@@ -72,7 +75,7 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
     if (!activeWorkspaceId) return;
     setAddingId(repo.githubId);
     try {
-      await addRepo.mutateAsync({
+      const newRepo = await addRepo.mutateAsync({
         workspaceId: activeWorkspaceId,
         owner: repo.owner,
         name: repo.name,
@@ -82,6 +85,7 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
         defaultBranch: repo.defaultBranch,
       });
       setAddedIds((prev) => new Set(prev).add(repo.githubId));
+      setAddedRepoIds((prev) => [...prev, newRepo.id]);
     } catch (e) {
       console.error("Failed to add repo:", e);
     } finally {
@@ -89,8 +93,12 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
     }
   }
 
+  function handleOpenChange(nextOpen: boolean) {
+    onOpenChange(nextOpen);
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add Repository</DialogTitle>
@@ -168,6 +176,35 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
             </div>
           )}
         </div>
+
+        {addedRepoIds.length > 0 && (
+          <div className="flex items-center justify-between border-t pt-3">
+            <span className="text-xs text-muted-foreground">
+              {addedRepoIds.length} {addedRepoIds.length === 1 ? "repo" : "repos"} added
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleOpenChange(false)}
+                className="text-xs"
+              >
+                Done
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  onClose?.(addedRepoIds);
+                  onOpenChange(false);
+                }}
+                className="gap-1 text-xs"
+              >
+                Set up repos
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

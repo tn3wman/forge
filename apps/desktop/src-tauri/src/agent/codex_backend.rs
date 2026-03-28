@@ -45,9 +45,10 @@ impl CodexBackend {
         app_handle: AppHandle,
     ) -> Result<Self, String> {
         let cli_path =
-            which::which("codex").map_err(|e| format!("CLI 'codex' not found: {e}"))?;
+            crate::shell_env::which("codex").map_err(|_| "CLI 'codex' not found in PATH".to_string())?;
 
         let mut cmd = Command::new(&cli_path);
+        crate::shell_env::apply_env(&mut cmd);
         cmd.arg("app-server")
             .arg("--listen")
             .arg("stdio://")

@@ -31,10 +31,11 @@ impl PtySession {
             })
             .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
-        let cli_path = which::which(cli_name)
-            .map_err(|e| format!("CLI '{}' not found: {e}", cli_name))?;
+        let cli_path = crate::shell_env::which(cli_name)
+            .map_err(|_| format!("CLI '{}' not found in PATH", cli_name))?;
 
         let mut cmd = CommandBuilder::new(&cli_path);
+        crate::shell_env::apply_env_pty(&mut cmd);
 
         // Add mode-specific flags
         match mode {

@@ -18,9 +18,16 @@ export function useAuth() {
       const token = await authIpc.getStoredToken();
       console.log("[Forge] checkAuth: token found:", !!token);
       if (token) {
-        const user = await authIpc.getUser();
-        console.log("[Forge] checkAuth: user fetched:", user.login);
-        store.setAuthenticated(user);
+        try {
+          const user = await authIpc.getUser();
+          console.log("[Forge] checkAuth: user fetched:", user.login);
+          store.setAuthenticated(user);
+        } catch (apiErr) {
+          // Token is stale or revoked — clear it and show login screen.
+          console.warn("[Forge] checkAuth: stored token rejected, clearing:", apiErr);
+          await authIpc.deleteStoredToken();
+          store.setLoading(false);
+        }
       } else {
         store.setLoading(false);
       }

@@ -32,4 +32,11 @@ coverage/
 
 # Claude
 .claude/plans/
+.claude/worktrees/
 .remember/
+
+# Tool memories
+.serena/
+
+# Draft content
+REDDIT_POST.md

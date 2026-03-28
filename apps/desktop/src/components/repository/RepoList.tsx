@@ -11,6 +11,7 @@ import { useRepositories, useRemoveRepo } from "@/queries/useRepositories";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useSetLocalPath } from "@/queries/useGitMutations";
 import { AddRepoDialog } from "./AddRepoDialog";
+import { RepoSetupDialog } from "./RepoSetupDialog";
 import type { Repository } from "@forge/shared";
 
 export function RepoItem({ repo }: { repo: Repository }) {
@@ -57,8 +58,21 @@ export function RepoItem({ repo }: { repo: Repository }) {
 
 export function RepoList() {
   const [showAdd, setShowAdd] = useState(false);
+  const [showRepoSetup, setShowRepoSetup] = useState(false);
+  const [reposToSetup, setReposToSetup] = useState<Repository[]>([]);
   const { activeWorkspaceId } = useWorkspaceStore();
   const { data: repos, isLoading } = useRepositories(activeWorkspaceId);
+
+  function handleAddRepoClose(addedRepoIds: string[]) {
+    if (!repos || addedRepoIds.length === 0) return;
+    const unlinked = repos.filter(
+      (r) => addedRepoIds.includes(r.id) && !r.localPath
+    );
+    if (unlinked.length > 0) {
+      setReposToSetup(unlinked);
+      setShowRepoSetup(true);
+    }
+  }
 
   if (!activeWorkspaceId) {
     return (
@@ -104,7 +118,8 @@ export function RepoList() {
         )}
       </div>
 
-      <AddRepoDialog open={showAdd} onOpenChange={setShowAdd} />
+      <AddRepoDialog open={showAdd} onOpenChange={setShowAdd} onClose={handleAddRepoClose} />
+      <RepoSetupDialog open={showRepoSetup} onOpenChange={setShowRepoSetup} repos={reposToSetup} />
     </div>
   );
 }

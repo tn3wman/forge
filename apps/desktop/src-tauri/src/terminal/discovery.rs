@@ -16,9 +16,11 @@ pub fn discover_clis() -> Vec<CliInfo> {
     KNOWN_CLIS
         .iter()
         .filter_map(|spec| {
-            let path = which::which(spec.binary).ok()?;
-            let version = Command::new(&path)
-                .arg("--version")
+            let path = crate::shell_env::which(spec.binary).ok()?;
+            let mut cmd = Command::new(&path);
+            cmd.arg("--version");
+            crate::shell_env::apply_env(&mut cmd);
+            let version = cmd
                 .output()
                 .ok()
                 .and_then(|out| {

@@ -6,6 +6,7 @@ mod git;
 mod github;
 mod keychain;
 mod models;
+pub(crate) mod shell_env;
 mod terminal;
 mod util;
 

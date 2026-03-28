@@ -40,6 +40,7 @@ impl ClaudeBackend {
         let host_script = resolve_host_script_path(&app_handle)?;
 
         let mut cmd = Command::new(node_path);
+        crate::shell_env::apply_env(&mut cmd);
         cmd.arg(host_script)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -191,6 +192,7 @@ impl ClaudeBackend {
         let host_script = resolve_host_script_path_from_cwd()?;
 
         let mut cmd = Command::new(node_path);
+        crate::shell_env::apply_env(&mut cmd);
         cmd.arg(host_script)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -300,7 +302,7 @@ impl ClaudeBackend {
 }
 
 fn resolve_node_path() -> Result<PathBuf, String> {
-    which::which("node").map_err(|e| format!("Node.js not found in PATH: {e}"))
+    crate::shell_env::which("node").map_err(|_| "Node.js not found in PATH".to_string())
 }
 
 fn resolve_host_script_path(app_handle: &AppHandle) -> Result<PathBuf, String> {

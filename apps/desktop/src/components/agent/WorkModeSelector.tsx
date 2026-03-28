@@ -57,10 +57,8 @@ export function WorkModeSelector({
   const currentMode = MODE_OPTIONS.find((o) => o.value === workMode) ?? MODE_OPTIONS[0];
   const ModeIcon = currentMode.icon;
 
-  // Filter available modes: only show "existing worktree" if some exist
-  const availableModes = MODE_OPTIONS.filter(
-    (o) => o.value !== "existing-worktree" || hasExistingWorktrees,
-  );
+  // All modes always shown; "existing worktree" disabled when none exist
+  const availableModes = MODE_OPTIONS;
 
   // Right-side label depends on mode
   let rightLabel: string;
@@ -94,18 +92,31 @@ export function WorkModeSelector({
           <ChevronDown className="h-3 w-3" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          {availableModes.map((option, idx) => (
-            <div key={option.value}>
-              {idx > 0 && option.value === "existing-worktree" && <DropdownMenuSeparator />}
-              <DropdownMenuItem
-                onClick={() => onWorkModeChange(option.value)}
-                className={cn(workMode === option.value && "bg-accent")}
-              >
-                <option.icon className="mr-2 h-3.5 w-3.5" />
-                {option.label}
-              </DropdownMenuItem>
-            </div>
-          ))}
+          {availableModes.map((option, idx) => {
+            const isExistingWt = option.value === "existing-worktree";
+            const isDisabled = isExistingWt && !hasExistingWorktrees;
+            return (
+              <div key={option.value}>
+                {idx > 0 && isExistingWt && <DropdownMenuSeparator />}
+                <DropdownMenuItem
+                  onClick={() => !isDisabled && onWorkModeChange(option.value)}
+                  disabled={isDisabled}
+                  className={cn(
+                    workMode === option.value && "bg-accent",
+                    isDisabled && "opacity-50",
+                  )}
+                >
+                  <option.icon className="mr-2 h-3.5 w-3.5" />
+                  {option.label}
+                  {isDisabled && (
+                    <span className="ml-1.5 text-[10px] text-muted-foreground/50">
+                      (none)
+                    </span>
+                  )}
+                </DropdownMenuItem>
+              </div>
+            );
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
 
