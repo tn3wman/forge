@@ -77,12 +77,16 @@ impl CodexBackend {
         let request_counter = Arc::new(AtomicU64::new(1));
         let pending_approvals: Arc<Mutex<std::collections::HashMap<String, PendingApproval>>> =
             Arc::new(Mutex::new(std::collections::HashMap::new()));
+        let turn_start_time: Arc<Mutex<Option<std::time::Instant>>> = Arc::new(Mutex::new(None));
+        let input_tokens: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+        let output_tokens: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
 
         let approval_mode = match mode {
             AgentMode::FullAccess => "never",
             AgentMode::Assisted => "on-request",
             AgentMode::Supervised => "untrusted",
         };
+        let unified_mode = codex_mode_to_unified(mode);
 
         let sandbox_mode = match mode {
             AgentMode::FullAccess => "danger-full-access",
@@ -115,6 +119,9 @@ impl CodexBackend {
             let thread_id = thread_id.clone();
             let turn_id = turn_id.clone();
             let pending_approvals = pending_approvals.clone();
+            let turn_start_time = turn_start_time.clone();
+            let input_tokens = input_tokens.clone();
+            let output_tokens = output_tokens.clone();
             let session_id_clone = session_id.clone();
             let app_handle_clone = app_handle.clone();
 
@@ -162,7 +169,7 @@ impl CodexBackend {
                         // Check if this is a server request (has "id" field = needs response)
                         let is_request = json.get("id").is_some();
 
-                        let event = parse_codex_notification(
+                        let events = parse_codex_notification(
                             method,
                             &params,
                             is_request,
@@ -170,15 +177,20 @@ impl CodexBackend {
                             &thread_id,
                             &turn_id,
                             &pending_approvals,
+                            &turn_start_time,
+                            &input_tokens,
+                            &output_tokens,
                         );
 
-                        let _ = app_handle_clone.emit(
-                            "agent-event",
-                            AgentEventPayload {
-                                session_id: session_id_clone.clone(),
-                                event,
-                            },
-                        );
+                        for event in events {
+                            let _ = app_handle_clone.emit(
+                                "agent-event",
+                                AgentEventPayload {
+                                    session_id: session_id_clone.clone(),
+                                    event,
+                                },
+                            );
+                        }
                     }
                 }
 
@@ -301,8 +313,23 @@ impl CodexBackend {
                 event: AgentEvent::SystemInit {
                     session_id: session_id.clone(),
                     model: Some("codex".to_string()),
-                    permission_mode: Some(approval_mode.to_string()),
+                    permission_mode: Some(unified_mode.to_string()),
                     tools: None,
+                },
+            },
+        );
+
+        let _ = app_handle.emit(
+            "agent-event",
+            AgentEventPayload {
+                session_id: session_id.clone(),
+                event: AgentEvent::SessionMeta {
+                    provider: Some("codex".to_string()),
+                    conversation_id: None,
+                    agent: None,
+                    effort: None,
+                    claude_path: None,
+                    slash_commands: None,
                 },
             },
         );
@@ -340,6 +367,16 @@ impl CodexBackend {
     }
 }
 
+/// Map our unified AgentMode to the permission mode string used in events.
+/// This matches Claude's terminology so the frontend renders consistently.
+fn codex_mode_to_unified(mode: &AgentMode) -> &'static str {
+    match mode {
+        AgentMode::Supervised => "supervised",
+        AgentMode::Assisted => "assisted",
+        AgentMode::FullAccess => "fullAccess",
+    }
+}
+
 fn parse_codex_notification(
     method: &str,
     params: &serde_json::Value,
@@ -348,12 +385,14 @@ fn parse_codex_notification(
     thread_id: &Arc<Mutex<Option<String>>>,
     turn_id: &Arc<Mutex<Option<String>>>,
     pending_approvals: &Arc<Mutex<std::collections::HashMap<String, PendingApproval>>>,
-) -> AgentEvent {
+    turn_start_time: &Arc<Mutex<Option<std::time::Instant>>>,
+    input_tokens: &Arc<Mutex<u64>>,
+    output_tokens: &Arc<Mutex<u64>>,
+) -> Vec<AgentEvent> {
     let current_turn_id = turn_id.lock().ok().and_then(|t| t.clone());
 
     match method {
         "thread/started" => {
-            // Extract thread ID from the thread object
             if let Some(tid) = params
                 .pointer("/thread/id")
                 .and_then(|v| v.as_str())
@@ -361,10 +400,16 @@ fn parse_codex_notification(
                 if let Ok(mut t) = thread_id.lock() {
                     *t = Some(tid.to_string());
                 }
-            }
-            // Don't emit a visible event for this
-            AgentEvent::Raw {
-                data: serde_json::json!({"type": "thread_started"}),
+                vec![AgentEvent::SessionMeta {
+                    provider: Some("codex".to_string()),
+                    conversation_id: Some(tid.to_string()),
+                    agent: None,
+                    effort: None,
+                    claude_path: None,
+                    slash_commands: None,
+                }]
+            } else {
+                vec![]
             }
         }
 
@@ -377,9 +422,12 @@ fn parse_codex_notification(
                     *t = Some(tid.to_string());
                 }
             }
-            AgentEvent::Raw {
-                data: serde_json::json!({"type": "turn_started"}),
+            if let Ok(mut ts) = turn_start_time.lock() {
+                *ts = Some(std::time::Instant::now());
             }
+            vec![AgentEvent::Raw {
+                data: serde_json::json!({"type": "turn_started"}),
+            }]
         }
 
         "turn/completed" => {
@@ -393,12 +441,18 @@ fn parse_codex_notification(
                 .unwrap_or("")
                 .to_string();
 
-            AgentEvent::Result {
+            let elapsed_ms = turn_start_time
+                .lock()
+                .ok()
+                .and_then(|ts| ts.map(|t| t.elapsed().as_millis() as u64))
+                .unwrap_or(0);
+
+            vec![AgentEvent::Result {
                 result_text: error_msg,
-                duration_ms: 0,
+                duration_ms: elapsed_ms,
                 total_cost_usd: 0.0,
                 is_error,
-            }
+            }]
         }
 
         "item/agentMessage/delta" => {
@@ -413,10 +467,10 @@ fn parse_codex_notification(
                 .unwrap_or("")
                 .to_string();
 
-            AgentEvent::AssistantMessageDelta {
+            vec![AgentEvent::AssistantMessageDelta {
                 message_id: item_id,
                 content_delta: delta,
-            }
+            }]
         }
 
         "item/started" => {
@@ -432,10 +486,10 @@ fn parse_codex_notification(
 
             match item_type {
                 "agentMessage" => {
-                    AgentEvent::AssistantMessageStart {
+                    vec![AgentEvent::AssistantMessageStart {
                         message_id: item_id,
                         turn_id: current_turn_id,
-                    }
+                    }]
                 }
                 "commandExecution" => {
                     let command = params
@@ -443,12 +497,12 @@ fn parse_codex_notification(
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string();
-                    AgentEvent::ToolUseStart {
+                    vec![AgentEvent::ToolUseStart {
                         tool_use_id: item_id,
                         name: "shell".to_string(),
                         input: serde_json::json!({"command": command}),
                         turn_id: current_turn_id,
-                    }
+                    }]
                 }
                 "fileChange" => {
                     let filename = params
@@ -456,19 +510,20 @@ fn parse_codex_notification(
                         .and_then(|v| v.as_str())
                         .unwrap_or("unknown")
                         .to_string();
-                    AgentEvent::ToolUseStart {
+                    vec![AgentEvent::ToolUseStart {
                         tool_use_id: item_id,
                         name: "file_edit".to_string(),
                         input: serde_json::json!({"filename": filename}),
                         turn_id: current_turn_id,
-                    }
+                    }]
                 }
-                "reasoning" => AgentEvent::Raw {
-                    data: serde_json::json!({"type": "reasoning_started"}),
-                },
-                _ => AgentEvent::Raw {
+                "reasoning" => vec![AgentEvent::ThinkingStart {
+                    message_id: item_id,
+                    turn_id: current_turn_id,
+                }],
+                _ => vec![AgentEvent::Raw {
                     data: serde_json::json!({"type": "item_started", "item_type": item_type}),
-                },
+                }],
             }
         }
 
@@ -490,11 +545,11 @@ fn parse_codex_notification(
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string();
-                    AgentEvent::AssistantMessageComplete {
+                    vec![AgentEvent::AssistantMessageComplete {
                         message_id: item_id,
                         turn_id: current_turn_id,
                         content: if text.is_empty() { None } else { Some(text) },
-                    }
+                    }]
                 }
                 "commandExecution" => {
                     let exit_code = params
@@ -505,24 +560,24 @@ fn parse_codex_notification(
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string();
-                    AgentEvent::ToolResultComplete {
+                    vec![AgentEvent::ToolResultComplete {
                         tool_use_id: item_id,
                         content: if output.is_empty() { None } else { Some(output) },
                         is_error: exit_code.map(|c| c != 0).unwrap_or(false),
-                    }
+                    }]
                 }
-                "fileChange" => AgentEvent::ToolResultComplete {
+                "fileChange" => vec![AgentEvent::ToolResultComplete {
                     tool_use_id: item_id,
                     content: None,
                     is_error: false,
-                },
-                "reasoning" => AgentEvent::ReasoningComplete {
+                }],
+                "reasoning" => vec![AgentEvent::ReasoningComplete {
                     message_id: None,
                     turn_id: current_turn_id,
-                },
-                _ => AgentEvent::Raw {
+                }],
+                _ => vec![AgentEvent::Raw {
                     data: serde_json::json!({"type": "item_completed", "item_type": item_type}),
-                },
+                }],
             }
         }
 
@@ -538,11 +593,11 @@ fn parse_codex_notification(
                 .unwrap_or("")
                 .to_string();
 
-            AgentEvent::ToolResultDelta {
+            vec![AgentEvent::ToolResultDelta {
                 tool_use_id: item_id,
                 content_delta: delta,
                 is_error: Some(false),
-            }
+            }]
         }
 
         // Approval requests from the server
@@ -556,7 +611,6 @@ fn parse_codex_notification(
                     .unwrap_or("")
                     .to_string();
 
-                // Store the pending approval so we can respond later
                 if let Some(rid) = request_id {
                     if let Ok(mut approvals) = pending_approvals.lock() {
                         approvals.insert(
@@ -569,29 +623,56 @@ fn parse_codex_notification(
                     }
                 }
 
-                let tool_name = if method.contains("commandExecution") {
+                let (tool_name, input, detail) = if method.contains("commandExecution") {
                     let cmd = params
                         .get("command")
                         .and_then(|v| v.as_str())
-                        .unwrap_or("command");
-                    format!("shell: {}", cmd)
+                        .unwrap_or("command")
+                        .to_string();
+                    (
+                        "shell".to_string(),
+                        Some(serde_json::json!({"command": cmd})),
+                        format!("shell: {}", cmd),
+                    )
                 } else if method.contains("fileChange") {
-                    "file modification".to_string()
+                    let filename = params
+                        .get("filename")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    (
+                        "file_edit".to_string(),
+                        Some(serde_json::json!({"filename": filename})),
+                        format!("file modification: {}", filename),
+                    )
                 } else {
-                    "permission request".to_string()
+                    (
+                        "permission".to_string(),
+                        None,
+                        "permission request".to_string(),
+                    )
                 };
 
-                AgentEvent::Status {
-                    state: crate::models::agent::AgentState::AwaitingApproval,
-                    tool: Some(tool_name),
-                    tool_use_id: Some(item_id),
-                    message_id: None,
-                    turn_id: current_turn_id,
-                }
+                vec![
+                    AgentEvent::ApprovalRequested {
+                        approval_id: item_id.clone(),
+                        tool_use_id: Some(item_id.clone()),
+                        tool_name: tool_name.clone(),
+                        input,
+                        detail,
+                    },
+                    AgentEvent::Status {
+                        state: crate::models::agent::AgentState::AwaitingApproval,
+                        tool: Some(tool_name),
+                        tool_use_id: Some(item_id),
+                        message_id: None,
+                        turn_id: current_turn_id,
+                    },
+                ]
             } else {
-                AgentEvent::Raw {
+                vec![AgentEvent::Raw {
                     data: serde_json::json!({"type": method}),
-                }
+                }]
             }
         }
 
@@ -602,18 +683,25 @@ fn parse_codex_notification(
                 .unwrap_or("")
                 .to_string();
 
-            AgentEvent::ReasoningDelta {
+            vec![AgentEvent::ReasoningDelta {
                 content_delta: delta,
                 message_id: None,
                 turn_id: current_turn_id,
-            }
+            }]
         }
 
         "thread/tokenUsage/updated" => {
-            // Could extract cost info here in the future
-            AgentEvent::Raw {
-                data: serde_json::json!({"type": "token_usage"}),
+            if let Some(input) = params.get("inputTokens").and_then(|v| v.as_u64()) {
+                if let Ok(mut t) = input_tokens.lock() {
+                    *t = input;
+                }
             }
+            if let Some(output) = params.get("outputTokens").and_then(|v| v.as_u64()) {
+                if let Ok(mut t) = output_tokens.lock() {
+                    *t = output;
+                }
+            }
+            vec![]
         }
 
         "error" => {
@@ -622,19 +710,19 @@ fn parse_codex_notification(
                 .and_then(|v| v.as_str())
                 .unwrap_or("Unknown error")
                 .to_string();
-            AgentEvent::Result {
+            vec![AgentEvent::Result {
                 result_text: message,
                 duration_ms: 0,
                 total_cost_usd: 0.0,
                 is_error: true,
-            }
+            }]
         }
 
         _ => {
             eprintln!("[forge/codex] unhandled notification: {method}");
-            AgentEvent::Raw {
+            vec![AgentEvent::Raw {
                 data: serde_json::json!({"type": method}),
-            }
+            }]
         }
     }
 }
@@ -771,17 +859,23 @@ mod tests {
         Arc<Mutex<Option<String>>>,
         Arc<Mutex<Option<String>>>,
         Arc<Mutex<std::collections::HashMap<String, PendingApproval>>>,
+        Arc<Mutex<Option<std::time::Instant>>>,
+        Arc<Mutex<u64>>,
+        Arc<Mutex<u64>>,
     ) {
         (
             Arc::new(Mutex::new(Some("thread-1".to_string()))),
             Arc::new(Mutex::new(Some("turn-1".to_string()))),
             Arc::new(Mutex::new(std::collections::HashMap::new())),
+            Arc::new(Mutex::new(None)),
+            Arc::new(Mutex::new(0)),
+            Arc::new(Mutex::new(0)),
         )
     }
 
     #[test]
     fn parses_agent_message_start_and_complete_without_duplicates() {
-        let (thread_id, turn_id, pending_approvals) = test_state();
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
 
         let start = parse_codex_notification(
             "item/started",
@@ -796,9 +890,13 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
+        assert_eq!(start.len(), 1);
         assert!(matches!(
-            start,
+            &start[0],
             AgentEvent::AssistantMessageStart { message_id, turn_id }
                 if message_id == "msg-1" && turn_id.as_deref() == Some("turn-1")
         ));
@@ -817,9 +915,13 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
+        assert_eq!(complete.len(), 1);
         assert!(matches!(
-            complete,
+            &complete[0],
             AgentEvent::AssistantMessageComplete { message_id, content, .. }
                 if message_id == "msg-1" && content.as_deref() == Some("done")
         ));
@@ -827,9 +929,9 @@ mod tests {
 
     #[test]
     fn reasoning_delta_is_not_mapped_to_assistant_text() {
-        let (thread_id, turn_id, pending_approvals) = test_state();
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
 
-        let event = parse_codex_notification(
+        let events = parse_codex_notification(
             "item/reasoning/summaryTextDelta",
             &serde_json::json!({
                 "itemId": "reasoning-1",
@@ -840,10 +942,14 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
 
+        assert_eq!(events.len(), 1);
         assert!(matches!(
-            event,
+            &events[0],
             AgentEvent::ReasoningDelta { content_delta, turn_id, .. }
                 if content_delta == "thinking" && turn_id.as_deref() == Some("turn-1")
         ));
@@ -851,7 +957,7 @@ mod tests {
 
     #[test]
     fn command_output_stays_in_tool_result_events() {
-        let (thread_id, turn_id, pending_approvals) = test_state();
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
 
         let delta = parse_codex_notification(
             "item/commandExecution/outputDelta",
@@ -864,9 +970,13 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
+        assert_eq!(delta.len(), 1);
         assert!(matches!(
-            delta,
+            &delta[0],
             AgentEvent::ToolResultDelta { tool_use_id, content_delta, .. }
                 if tool_use_id == "cmd-1" && content_delta == "partial"
         ));
@@ -886,13 +996,179 @@ mod tests {
             &thread_id,
             &turn_id,
             &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
         );
+        assert_eq!(complete.len(), 1);
         assert!(matches!(
-            complete,
+            &complete[0],
             AgentEvent::ToolResultComplete { tool_use_id, content, is_error }
                 if tool_use_id == "cmd-1"
                     && content.as_deref() == Some("partial\nfinal")
                     && !is_error
+        ));
+    }
+
+    #[test]
+    fn parse_returns_vec_of_events() {
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
+        let events = parse_codex_notification(
+            "item/agentMessage/delta",
+            &serde_json::json!({"itemId": "msg-1", "delta": "hello"}),
+            false,
+            None,
+            &thread_id,
+            &turn_id,
+            &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
+        );
+        assert_eq!(events.len(), 1);
+        assert!(matches!(&events[0], AgentEvent::AssistantMessageDelta { message_id, .. } if message_id == "msg-1"));
+    }
+
+    #[test]
+    fn codex_mode_mapping_uses_unified_strings() {
+        assert_eq!(codex_mode_to_unified(&AgentMode::FullAccess), "fullAccess");
+        assert_eq!(codex_mode_to_unified(&AgentMode::Assisted), "assisted");
+        assert_eq!(codex_mode_to_unified(&AgentMode::Supervised), "supervised");
+    }
+
+    #[test]
+    fn approval_request_emits_both_approval_and_status_events() {
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
+        let events = parse_codex_notification(
+            "item/commandExecution/requestApproval",
+            &serde_json::json!({
+                "itemId": "cmd-42",
+                "command": "git push"
+            }),
+            true,
+            Some(&serde_json::json!(99)),
+            &thread_id,
+            &turn_id,
+            &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
+        );
+        assert_eq!(events.len(), 2);
+        assert!(matches!(&events[0], AgentEvent::ApprovalRequested {
+            approval_id, tool_use_id, tool_name, detail, ..
+        } if approval_id == "cmd-42"
+            && tool_use_id.as_deref() == Some("cmd-42")
+            && tool_name == "shell"
+            && detail.contains("git push")
+        ));
+        assert!(matches!(&events[1], AgentEvent::Status {
+            state: crate::models::agent::AgentState::AwaitingApproval,
+            tool_use_id: Some(tid), ..
+        } if tid == "cmd-42"));
+    }
+
+    #[test]
+    fn file_change_approval_includes_filename_in_detail() {
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
+        let events = parse_codex_notification(
+            "item/fileChange/requestApproval",
+            &serde_json::json!({
+                "itemId": "file-1",
+                "filename": "src/main.rs"
+            }),
+            true,
+            Some(&serde_json::json!(100)),
+            &thread_id,
+            &turn_id,
+            &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
+        );
+        assert_eq!(events.len(), 2);
+        assert!(matches!(&events[0], AgentEvent::ApprovalRequested {
+            tool_name, detail, ..
+        } if tool_name == "file_edit" && detail.contains("src/main.rs")));
+    }
+
+    #[test]
+    fn token_usage_updated_accumulates_and_returns_empty() {
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
+        let events = parse_codex_notification(
+            "thread/tokenUsage/updated",
+            &serde_json::json!({
+                "inputTokens": 1500,
+                "outputTokens": 300
+            }),
+            false,
+            None,
+            &thread_id,
+            &turn_id,
+            &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
+        );
+        assert!(events.is_empty(), "tokenUsage should not emit visible events");
+        assert_eq!(*input_tokens.lock().unwrap(), 1500);
+        assert_eq!(*output_tokens.lock().unwrap(), 300);
+    }
+
+    #[test]
+    fn thread_started_emits_session_meta_with_conversation_id() {
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
+        // Reset thread_id to None so thread/started can set it
+        *thread_id.lock().unwrap() = None;
+        let events = parse_codex_notification(
+            "thread/started",
+            &serde_json::json!({
+                "thread": {
+                    "id": "thread-abc-123"
+                }
+            }),
+            false,
+            None,
+            &thread_id,
+            &turn_id,
+            &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
+        );
+        assert_eq!(events.len(), 1);
+        assert!(matches!(&events[0], AgentEvent::SessionMeta {
+            provider, conversation_id, ..
+        } if provider.as_deref() == Some("codex")
+            && conversation_id.as_deref() == Some("thread-abc-123")
+        ));
+        // Verify thread_id was stored
+        assert_eq!(thread_id.lock().unwrap().as_deref(), Some("thread-abc-123"));
+    }
+
+    #[test]
+    fn reasoning_item_started_emits_thinking_start() {
+        let (thread_id, turn_id, pending_approvals, turn_start_time, input_tokens, output_tokens) = test_state();
+        let events = parse_codex_notification(
+            "item/started",
+            &serde_json::json!({
+                "item": {
+                    "type": "reasoning",
+                    "id": "reason-1"
+                }
+            }),
+            false,
+            None,
+            &thread_id,
+            &turn_id,
+            &pending_approvals,
+            &turn_start_time,
+            &input_tokens,
+            &output_tokens,
+        );
+        assert_eq!(events.len(), 1);
+        assert!(matches!(&events[0], AgentEvent::ThinkingStart { message_id, turn_id }
+            if message_id == "reason-1" && turn_id.as_deref() == Some("turn-1")
         ));
     }
 }
