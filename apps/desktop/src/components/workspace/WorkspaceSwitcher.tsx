@@ -46,7 +46,7 @@ export function WorkspaceSwitcher() {
               {/* Active indicator pill */}
               <div
                 className={cn(
-                  "absolute -left-3 w-1 rounded-full bg-white transition-all",
+                  "absolute -left-2 w-1 rounded-full bg-white transition-all",
                   isActive ? "h-5" : "h-0",
                 )}
               />
@@ -67,7 +67,7 @@ export function WorkspaceSwitcher() {
                         }
                       }}
                       className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-md transition-all",
+                        "flex h-12 w-12 items-center justify-center rounded-md transition-all",
                         isActive
                           ? "opacity-100"
                           : "opacity-60 hover:opacity-90",
@@ -95,9 +95,9 @@ export function WorkspaceSwitcher() {
           <TooltipTrigger asChild>
             <button
               onClick={() => setShowAdd(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="flex h-12 w-12 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-5 w-5" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Add Workspace</TooltipContent>

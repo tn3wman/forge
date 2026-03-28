@@ -14,6 +14,8 @@ export interface BranchInfo {
   isRemote: boolean;
   upstream: string | null;
   commitOid: string;
+  commitTimestamp: number;
+  isMerged: boolean;
 }
 
 export interface FileStatus {

@@ -15,7 +15,7 @@ function IssueStatusIcon({ state }: { state: Issue["state"] }) {
 
 function LabelPill({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-medium text-accent-foreground truncate max-w-[65px]">
+    <span className="inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground whitespace-nowrap">
       {label}
     </span>
   );
@@ -33,55 +33,56 @@ export function IssueListItem({ issue, linkedPrs, onClick, onStartWork }: IssueL
 
   return (
     <div
-      className="flex items-center h-10 gap-3 px-3 hover:bg-accent/50 transition-colors border-b border-border/50 cursor-pointer"
+      className="flex items-center h-10 gap-2 px-3 hover:bg-accent/50 transition-colors border-b border-border/50 cursor-pointer"
       onClick={onClick}
     >
-      {/* Status icon */}
-      <div className="w-6 shrink-0 flex items-center justify-center">
+      {/* Left group: icon + number + title (flexible) */}
+      <div className="w-5 shrink-0 flex items-center justify-center">
         <IssueStatusIcon state={issue.state} />
       </div>
 
-      {/* Title + number */}
-      <div className="flex-1 min-w-0 flex items-center gap-2">
-        <span className="text-sm font-medium truncate">{issue.title}</span>
-        <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+      <div className="w-[50px] shrink-0">
+        <span className="text-xs text-muted-foreground font-mono tabular-nums">
           #{issue.number}
         </span>
       </div>
 
-      {/* Labels */}
-      <div className="w-[140px] shrink-0 flex items-center gap-1 overflow-hidden">
-        {issue.labels.slice(0, 2).map((label) => (
+      <div className="flex-1 min-w-0">
+        <span className="text-sm font-medium truncate block">{issue.title}</span>
+      </div>
+
+      {/* Right group: labels and PRs left-aligned in fixed columns */}
+      <div className="w-[160px] shrink-0 flex items-center gap-1">
+        {issue.labels.slice(0, 3).map((label) => (
           <LabelPill key={label} label={label} />
         ))}
-        {issue.labels.length > 2 && (
+        {issue.labels.length > 3 && (
           <span className="text-[10px] text-muted-foreground shrink-0">
-            +{issue.labels.length - 2}
+            +{issue.labels.length - 3}
           </span>
         )}
       </div>
 
-      {/* Linked PRs */}
-      <div className="w-[80px] shrink-0 flex items-center gap-1 overflow-hidden">
+      <div className="w-[120px] shrink-0 flex items-center gap-1">
         {linkedPrs && linkedPrs.length > 0 && (
           <>
-            <GitPullRequest className="h-3 w-3 text-muted-foreground shrink-0" />
             {linkedPrs.slice(0, 2).map((pr) => (
               <button
                 key={pr.prNumber}
                 className={cn(
-                  "text-[10px] font-mono hover:underline shrink-0",
+                  "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-mono transition-colors",
                   pr.prState === "merged"
-                    ? "text-purple-400"
+                    ? "border-purple-500/30 bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"
                     : pr.prState === "closed"
-                      ? "text-red-400"
-                      : "text-green-400",
+                      ? "border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                      : "border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20",
                 )}
                 onClick={(e) => {
                   e.stopPropagation();
                   navigateToPr(pr.repoFullName, pr.prNumber);
                 }}
               >
+                <GitPullRequest className="h-3 w-3" />
                 #{pr.prNumber}
               </button>
             ))}
@@ -94,23 +95,20 @@ export function IssueListItem({ issue, linkedPrs, onClick, onStartWork }: IssueL
         )}
       </div>
 
-      {/* Author */}
-      <div className="w-[100px] shrink-0 flex items-center gap-1.5 overflow-hidden">
+      <div className="w-[100px] shrink-0 flex items-center gap-1.5 justify-end overflow-hidden">
+        <span className="text-xs text-muted-foreground truncate">{issue.authorLogin}</span>
         <Avatar className="h-5 w-5 shrink-0">
           <AvatarImage src={issue.authorAvatarUrl} alt={issue.authorLogin} />
           <AvatarFallback className="text-[9px]">
             {issue.authorLogin.slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <span className="text-xs text-muted-foreground truncate">{issue.authorLogin}</span>
       </div>
 
-      {/* Updated */}
-      <div className="w-[70px] shrink-0">
+      <div className="w-[55px] shrink-0 text-right">
         <TimeAgo date={issue.updatedAt} />
       </div>
 
-      {/* Start work button */}
       <div className="w-8 shrink-0 flex items-center justify-center">
         {issue.state === "open" && onStartWork && (
           <button

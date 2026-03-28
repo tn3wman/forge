@@ -9,7 +9,7 @@ pub fn list_branches(path: &str) -> Result<Vec<BranchInfo>, String> {
         .branches(None)
         .map_err(|e| format!("Failed to list branches: {e}"))?;
 
-    let head_ref = repo.head().ok().and_then(|r| r.target());
+    let head_oid = repo.head().ok().and_then(|r| r.target());
 
     let mut result = Vec::new();
 
@@ -25,14 +25,26 @@ pub fn list_branches(path: &str) -> Result<Vec<BranchInfo>, String> {
 
         let is_remote = branch_type == BranchType::Remote;
 
-        let commit_oid = branch
-            .get()
-            .target()
+        let target_oid = branch.get().target();
+        let commit_oid = target_oid
             .map(|oid| oid.to_string())
             .unwrap_or_default();
 
+        let commit_timestamp = target_oid
+            .and_then(|oid| repo.find_commit(oid).ok())
+            .map(|c| c.time().seconds())
+            .unwrap_or(0);
+
         let is_head = !is_remote
-            && head_ref.map(|h| h.to_string()) == Some(commit_oid.clone());
+            && head_oid.map(|h| h.to_string()) == Some(commit_oid.clone());
+
+        // Check if branch is merged into HEAD
+        let is_merged = match (target_oid, head_oid) {
+            (Some(branch_oid), Some(head)) if branch_oid != head => {
+                repo.graph_descendant_of(head, branch_oid).unwrap_or(false)
+            }
+            _ => false,
+        };
 
         let upstream = branch
             .upstream()
@@ -45,6 +57,8 @@ pub fn list_branches(path: &str) -> Result<Vec<BranchInfo>, String> {
             is_remote,
             upstream,
             commit_oid,
+            commit_timestamp,
+            is_merged,
         });
     }
 
@@ -82,12 +96,16 @@ pub fn create_branch(
         .map(|oid| oid.to_string())
         .unwrap_or_default();
 
+    let commit_timestamp = target_commit.time().seconds();
+
     Ok(BranchInfo {
         name: name.to_string(),
         is_head: false,
         is_remote: false,
         upstream: None,
         commit_oid,
+        commit_timestamp,
+        is_merged: false,
     })
 }
 

@@ -12,9 +12,12 @@ export function useNotifications(showAll = false) {
   });
 }
 
-export function useUnreadCount() {
+export function useUnreadCount(repoFullNames?: string[]) {
   const { data } = useNotifications(false);
-  return data?.filter((n) => n.unread).length ?? 0;
+  if (!data) return 0;
+  if (!repoFullNames || repoFullNames.length === 0) return data.filter((n) => n.unread).length;
+  const lowerNames = new Set(repoFullNames.map((n) => n.toLowerCase()));
+  return data.filter((n) => n.unread && lowerNames.has(n.repoFullName.toLowerCase())).length;
 }
 
 export function useMarkNotificationRead() {

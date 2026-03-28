@@ -5,6 +5,7 @@ import { IssueListItem } from "@/components/github/IssueListItem";
 import { StartWorkDialog } from "@/components/github/StartWorkDialog";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useIssueLinkedPrs } from "@/hooks/useLinkedItems";
+import { useWorkspaceTint } from "@/hooks/useWorkspaceTint";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { Issue } from "@forge/shared";
@@ -45,6 +46,7 @@ export function Issues() {
   const [searchQuery, setSearchQuery] = useState("");
   const [startWorkIssue, setStartWorkIssue] = useState<Issue | null>(null);
   const { navigateToIssue } = useWorkspaceStore();
+  const tintStyle = useWorkspaceTint();
   const { data: issues = [], isLoading, error } = useIssues();
   const linkedPrMap = useIssueLinkedPrs();
 
@@ -63,43 +65,45 @@ export function Issues() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b border-border">
-        {/* Left: Title + filter pills */}
-        <div className="flex items-center gap-2 shrink-0">
-          <h2 className="text-sm font-semibold">Issues</h2>
-          {ISSUE_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setActiveFilter(f.value)}
-              className={cn(
-                "rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
-                activeFilter === f.value
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-accent text-accent-foreground hover:bg-accent/80",
-              )}
-            >
-              {f.label}
-              {filterCounts[f.value] != null && (
-                <span className="ml-1 opacity-70">{filterCounts[f.value]}</span>
-              )}
-            </button>
-          ))}
-        </div>
+      {/* Title bar with filters — aligned with macOS traffic lights */}
+      <div
+        className="relative flex shrink-0 items-center gap-2 border-b border-border px-4 h-8"
+        data-tauri-drag-region
+        style={tintStyle}
+      >
+        {ISSUE_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setActiveFilter(f.value)}
+            className={cn(
+              "rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors shrink-0",
+              activeFilter === f.value
+                ? "bg-primary text-primary-foreground"
+                : "bg-accent text-accent-foreground hover:bg-accent/80",
+            )}
+          >
+            {f.label}
+            {filterCounts[f.value] != null && (
+              <span className="ml-1 opacity-70">{filterCounts[f.value]}</span>
+            )}
+          </button>
+        ))}
 
-        {/* Center: Search */}
-        <div className="flex-1 max-w-sm mx-auto relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter issues..."
-            className="h-7 pl-8 text-xs"
-          />
+        {/* Search bar — centered in the window, clamped so it can't overlap pills */}
+        <div
+          className="fixed top-1 z-10"
+          style={{ left: "max(50vw - 112px, 400px)" }}
+        >
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Filter issues..."
+              className="h-6 pl-7 text-xs w-56 rounded-[10px]"
+            />
+          </div>
         </div>
-
-        {/* Right: spacer for visual balance */}
-        <div className="shrink-0 w-[120px]" />
       </div>
 
       <div className="flex-1 overflow-y-auto">

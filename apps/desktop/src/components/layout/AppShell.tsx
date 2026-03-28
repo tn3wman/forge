@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useKeyboardShortcuts, type Shortcut } from "@/hooks/useKeyboardShortcuts";
+import forgeIcon from "@/assets/forge-icon.png";
 import {
-  Anvil,
   GitPullRequest,
   CircleDot,
   Bell,
@@ -39,12 +39,13 @@ import { Search } from "@/pages/Search";
 import { Terminals } from "@/pages/Terminals";
 import { useTerminalStore } from "@/stores/terminalStore";
 import { useAgentEventBridge } from "@/hooks/useAgentSession";
+import { getWorkspaceColor } from "@/lib/workspaceColors";
 
 const navItems: { icon: typeof LayoutDashboard; label: string; shortcut: string; page: AppPage }[] = [
   { icon: LayoutDashboard, label: "Dashboard", shortcut: "G D", page: "dashboard" },
-  { icon: GitPullRequest, label: "Pull Requests", shortcut: "G P", page: "pull-requests" },
-  { icon: CircleDot, label: "Issues", shortcut: "G I", page: "issues" },
   { icon: Bell, label: "Notifications", shortcut: "G N", page: "notifications" },
+  { icon: CircleDot, label: "Issues", shortcut: "G I", page: "issues" },
+  { icon: GitPullRequest, label: "Pull Requests", shortcut: "G P", page: "pull-requests" },
 ];
 
 const gitNavItems: { icon: typeof LayoutDashboard; label: string; shortcut: string; page: AppPage }[] = [
@@ -104,11 +105,20 @@ export function AppShell() {
 
   const { activeWorkspaceId, activePage, setActiveWorkspaceId, setActivePage, navigateToChanges, navigateToCommitGraph, navigateToBranches } =
     useWorkspaceStore();
-  const unreadCount = useUnreadCount();
   const { data: workspaces } = useWorkspaces();
   const { data: repos } = useRepositories(activeWorkspaceId);
+  const workspaceRepoNames = repos?.map((r) => r.fullName);
+  const unreadCount = useUnreadCount(workspaceRepoNames);
 
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+
+  // Active workspace color tint
+  const activeWorkspace = workspaces?.find((ws) => ws.id === activeWorkspaceId);
+  const workspaceColorHex = activeWorkspace ? getWorkspaceColor(activeWorkspace.color).bg : null;
+  const tintStyle = workspaceColorHex
+    ? { backgroundColor: `color-mix(in srgb, ${workspaceColorHex} 6%, transparent)` }
+    : undefined;
+
   // Find first repo with a local path for git navigation
   const firstLocalPath = repos?.find((r) => r.localPath)?.localPath ?? null;
   const firstLocalPathRef = useRef(firstLocalPath);
@@ -177,39 +187,39 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen">
-      {/* Icon Sidebar — workspaces + nav */}
-      <div className="flex w-12 flex-col items-center border-r bg-sidebar py-3">
+      {/* Icon Sidebar — workspaces + nav. Wide enough to contain macOS traffic lights with equal padding */}
+      <div className="flex w-20 flex-col items-center border-r bg-sidebar pt-10 pb-4" style={tintStyle}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className="mb-4 flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Anvil className="h-5 w-5" />
+            <button className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl overflow-hidden">
+              <img src={forgeIcon} alt="Forge" className="h-12 w-12" draggable={false} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">Forge</TooltipContent>
         </Tooltip>
 
-        <Separator className="mb-3 w-6" />
+        <Separator className="mb-3 w-12" />
 
         {/* Workspace icons */}
         <WorkspaceSwitcher />
 
-        <Separator className="my-3 w-6" />
+        <Separator className="my-3 w-12" />
 
         {/* Nav items */}
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-1.5">
           {navItems.map((item) => (
             <Tooltip key={item.label}>
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setActivePage(item.page)}
                   className={cn(
-                    "relative flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                    "relative flex h-12 w-12 items-center justify-center rounded-md transition-colors",
                     activePage === item.page
                       ? "bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className="h-5 w-5" />
                   {item.page === "notifications" && unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-primary-foreground">
                       {unreadCount > 9 ? "9+" : unreadCount}
@@ -227,10 +237,10 @@ export function AppShell() {
           ))}
         </div>
 
-        <Separator className="my-3 w-6" />
+        <Separator className="my-3 w-12" />
 
         {/* Git nav items */}
-        <div className="flex flex-col items-center gap-1">
+        <div className="flex flex-col items-center gap-1.5">
           {gitNavItems.map((item) => (
             <Tooltip key={item.label}>
               <TooltipTrigger asChild>
@@ -238,14 +248,14 @@ export function AppShell() {
                   onClick={() => handleGitNav(item.page)}
                   disabled={!firstLocalPath}
                   className={cn(
-                    "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                    "flex h-12 w-12 items-center justify-center rounded-md transition-colors",
                     !firstLocalPath && "opacity-30 cursor-not-allowed",
                     activePage === item.page
                       ? "bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className="h-5 w-5" />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">
@@ -271,13 +281,14 @@ export function AppShell() {
             <button
               onClick={() => setActivePage("settings")}
               className={cn(
-                "mb-2 flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                "mb-2 flex h-12 w-12 items-center justify-center rounded-md transition-colors",
                 activePage === "settings"
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
               )}
             >
-              <SettingsIcon className="h-4 w-4" />
+              <SettingsIcon className="h-5 w-5" />
+
             </button>
           </TooltipTrigger>
           <TooltipContent side="right">
@@ -292,19 +303,17 @@ export function AppShell() {
 
       {/* Main content area */}
       <div className="flex flex-1 flex-col">
-        <div
-          className={cn(
-            "flex shrink-0 items-center border-b px-4",
-            activePage === "home" ? "h-3" : "h-10"
-          )}
-          data-tauri-drag-region
-        >
-          {activePage !== "home" && (
+        {activePage !== "home" && activePage !== "issues" && activePage !== "pull-requests" && activePage !== "dashboard" && activePage !== "notifications" && activePage !== "changes" && activePage !== "commit-graph" && activePage !== "branches" && (
+          <div
+            className="flex shrink-0 items-center border-b px-4 h-8"
+            data-tauri-drag-region
+            style={tintStyle}
+          >
             <span className="text-xs font-medium text-muted-foreground" data-tauri-drag-region>
               {PAGE_TITLES[activePage]}
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="flex-1 overflow-hidden relative">
           {activeWorkspaceId ? (

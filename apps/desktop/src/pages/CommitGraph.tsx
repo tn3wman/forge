@@ -7,6 +7,10 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { CommitGraphCanvas } from "@/components/git/CommitGraphCanvas";
 import { Button } from "@/components/ui/button";
 import { GitRepoSelector } from "@/components/git/GitRepoSelector";
+import { useWorkspaceTint } from "@/hooks/useWorkspaceTint";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { usePullRequests } from "@/queries/usePullRequests";
+import { useIssues } from "@/queries/useIssues";
 import type { GraphRow, BranchInfo } from "@forge/shared";
 
 const ROW_HEIGHT = 32;
@@ -36,7 +40,44 @@ export function CommitGraph() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
 
+  const tintStyle = useWorkspaceTint();
+  const { data: prs = [] } = usePullRequests();
+  const { data: issues = [] } = useIssues();
   const { data: currentBranch } = useCurrentBranch(selectedRepoLocalPath);
+
+  // Build GitHub login → avatar lookup, and a helper to resolve commit authors
+  const ghUsersByLogin = useMemo(() => {
+    const map = new Map<string, { login: string; avatarUrl: string }>();
+    for (const pr of prs) {
+      map.set(pr.authorLogin.toLowerCase(), { login: pr.authorLogin, avatarUrl: pr.authorAvatarUrl });
+    }
+    for (const issue of issues) {
+      map.set(issue.authorLogin.toLowerCase(), { login: issue.authorLogin, avatarUrl: issue.authorAvatarUrl });
+    }
+    return map;
+  }, [prs, issues]);
+
+  // Resolve a commit's author email to a GitHub user
+  function resolveGitHubUser(email: string): { login: string; avatarUrl: string } | undefined {
+    // Try GitHub noreply email: {id}+{username}@users.noreply.github.com
+    const noreplyMatch = email.match(/^\d+\+(.+)@users\.noreply\.github\.com$/);
+    if (noreplyMatch) {
+      const login = noreplyMatch[1].toLowerCase();
+      const user = ghUsersByLogin.get(login);
+      if (user) return user;
+      // Even without PR/Issue data, we can construct the avatar URL
+      return { login: noreplyMatch[1], avatarUrl: `https://avatars.githubusercontent.com/${noreplyMatch[1]}` };
+    }
+    // Try plain {username}@users.noreply.github.com
+    const plainNoreply = email.match(/^(.+)@users\.noreply\.github\.com$/);
+    if (plainNoreply) {
+      const login = plainNoreply[1].toLowerCase();
+      const user = ghUsersByLogin.get(login);
+      if (user) return user;
+      return { login: plainNoreply[1], avatarUrl: `https://avatars.githubusercontent.com/${plainNoreply[1]}` };
+    }
+    return undefined;
+  }
   const { data: branches = [] } = useGitBranches(selectedRepoLocalPath);
 
   const activeBranch = selectedBranch ?? currentBranch ?? undefined;
@@ -114,20 +155,22 @@ export function CommitGraph() {
   return (
     <div className="flex flex-col h-full">
       {/* Repo + Branch selector */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
+      <div
+        className="flex shrink-0 items-center gap-2 border-b border-border px-4 h-8"
+        data-tauri-drag-region
+        style={tintStyle}
+      >
         <GitRepoSelector />
         <div className="mx-1 h-4 w-px bg-border" />
         <div className="relative">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs gap-1"
+          <button
+            className="flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground hover:bg-accent/80 transition-colors"
             onClick={() => setBranchMenuOpen((prev) => !prev)}
           >
             <GitCommit className="h-3 w-3" />
             {activeBranch ?? "All branches"}
-            <ChevronDown className="h-3 w-3 ml-1" />
-          </Button>
+            <ChevronDown className="h-3 w-3" />
+          </button>
           {branchMenuOpen && (
             <div className="absolute top-full left-0 mt-1 z-50 min-w-[200px] max-h-[300px] overflow-y-auto rounded-md border border-border bg-background shadow-md">
               <button
@@ -168,7 +211,8 @@ export function CommitGraph() {
             </div>
           )}
         </div>
-        <span className="text-xs text-muted-foreground">
+        <div className="flex-1" data-tauri-drag-region />
+        <span className="text-xs text-muted-foreground shrink-0">
           {rows.length} commits
         </span>
       </div>
@@ -195,36 +239,61 @@ export function CommitGraph() {
 
           {/* Commit rows */}
           <div style={{ marginLeft: canvasWidth }}>
-            {rows.map((row, index) => {
+            {rows.map((row) => {
               const branchLabels = branchTips.get(row.commit.oid);
               return (
                 <div
                   key={row.commit.oid}
-                  className="flex items-center gap-3 px-2 hover:bg-accent/50"
+                  className="flex items-center gap-2 px-2 hover:bg-accent/50"
                   style={{ height: ROW_HEIGHT }}
                 >
+                  {/* Commit hash */}
                   <span className="font-mono text-xs text-blue-400 shrink-0 w-[60px]">
                     {row.commit.shortId}
                   </span>
 
-                  {branchLabels?.map((b) => (
-                    <span
-                      key={b.name}
-                      className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0 text-[10px] text-muted-foreground leading-4"
-                    >
-                      {b.name}
-                    </span>
-                  ))}
+                  {/* Branch badges column */}
+                  <div className="w-[160px] shrink-0 flex items-center gap-1 overflow-hidden">
+                    {branchLabels?.map((b) => (
+                      <span
+                        key={b.name}
+                        className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0 text-[10px] text-muted-foreground leading-4 whitespace-nowrap"
+                      >
+                        {b.name}
+                      </span>
+                    ))}
+                  </div>
 
+                  {/* Commit message (flexible) */}
                   <span className="text-xs text-foreground truncate min-w-0 flex-1">
                     {row.commit.message.split("\n")[0]}
                   </span>
 
-                  <span className="text-xs text-muted-foreground shrink-0 w-[100px] truncate text-right">
-                    {row.commit.author}
-                  </span>
+                  {/* Author with avatar */}
+                  <div className="w-[100px] shrink-0 flex items-center gap-1.5 justify-end overflow-hidden">
+                    {(() => {
+                      const ghUser = resolveGitHubUser(row.commit.authorEmail);
+                      const displayName = ghUser?.login ?? row.commit.author;
+                      return (
+                        <>
+                          <span className="text-xs text-muted-foreground truncate">
+                            {displayName}
+                          </span>
+                          <Avatar className="h-5 w-5 shrink-0">
+                            {ghUser?.avatarUrl && (
+                              <AvatarImage src={ghUser.avatarUrl} alt={displayName} />
+                            )}
+                            <AvatarFallback className="text-[9px] bg-accent">
+                              {displayName.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                        </>
+                      );
+                    })()}
+                  </div>
 
-                  <span className="text-xs text-muted-foreground shrink-0 w-[60px] text-right">
+                  {/* Time */}
+                  <span className="text-xs text-muted-foreground shrink-0 w-[55px] text-right">
                     {formatRelativeTime(row.commit.timestamp)}
                   </span>
                 </div>

@@ -13,6 +13,8 @@
     "windows": [
       {
         "title": "Forge",
+        "titleBarStyle": "overlay",
+        "hiddenTitle": true,
         "width": 1400,
         "height": 900,
         "minWidth": 800,

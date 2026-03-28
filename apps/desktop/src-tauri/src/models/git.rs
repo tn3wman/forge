@@ -30,6 +30,8 @@ pub struct BranchInfo {
     pub is_remote: bool,
     pub upstream: Option<String>,
     pub commit_oid: String,
+    pub commit_timestamp: i64,
+    pub is_merged: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
