@@ -718,6 +718,24 @@ fn parse_codex_notification(
             }]
         }
 
+        // Codex supplementary events — duplicates of standard protocol events already handled above.
+        // Returning empty prevents double-processing and suppresses stderr warnings.
+        "codex/event/mcp_startup_update"
+        | "codex/event/mcp_startup_complete"
+        | "codex/event/task_started"
+        | "codex/event/task_complete"
+        | "codex/event/item_started"
+        | "codex/event/item_completed"
+        | "codex/event/user_message"
+        | "codex/event/token_count"
+        | "codex/event/agent_message_content_delta"
+        | "codex/event/agent_message_delta"
+        | "codex/event/agent_message"
+        | "thread/status/changed"
+        | "account/rateLimits/updated" => {
+            vec![]
+        }
+
         _ => {
             eprintln!("[forge/codex] unhandled notification: {method}");
             vec![AgentEvent::Raw {

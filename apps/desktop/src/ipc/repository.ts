@@ -31,9 +31,9 @@ export const repoIpc = {
 
   remove: (id: string) => invoke<void>("repo_remove", { id }),
 
-  searchGithub: (token: string, query: string) =>
-    invoke<SearchRepoResult[]>("github_search_repos", { token, query }),
+  searchGithub: (query: string) =>
+    invoke<SearchRepoResult[]>("github_search_repos", { query }),
 
-  listUserRepos: (token: string) =>
-    invoke<SearchRepoResult[]>("github_list_user_repos", { token }),
+  listUserRepos: () =>
+    invoke<SearchRepoResult[]>("github_list_user_repos"),
 };

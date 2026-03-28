@@ -51,9 +51,9 @@ export function DeviceFlowDialog() {
         if (cancelledRef.current) return;
         if (result) {
           console.log("[Forge] Got token, fetching user...");
-          const user = await authIpc.getUser(result.accessToken);
+          const user = await authIpc.getUser();
           console.log("[Forge] User:", user);
-          setAuthenticated(result.accessToken, user);
+          setAuthenticated(user);
           return; // stop polling
         }
         // Schedule next poll

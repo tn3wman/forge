@@ -13,7 +13,7 @@
     "windows": [
       {
         "title": "Forge",
-        "titleBarStyle": "overlay",
+        "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "width": 1400,
         "height": 900,
@@ -25,12 +25,7 @@
       "csp": "default-src 'self'; connect-src 'self' https://api.github.com https://github.com; img-src 'self' https://avatars.githubusercontent.com data:; style-src 'self' 'unsafe-inline'"
     }
   },
-  "plugins": {
-    "updater": {
-      "endpoints": ["https://releases.forge.dev/{{target}}/{{arch}}/{{current_version}}"],
-      "pubkey": ""
-    }
-  },
+  "plugins": {},
   "bundle": {
     "active": true,
     "targets": "all",

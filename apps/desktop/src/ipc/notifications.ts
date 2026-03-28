@@ -15,10 +15,10 @@ export interface NotificationItem {
 }
 
 export const notificationsIpc = {
-  list: (token: string, all: boolean) =>
-    invoke<NotificationItem[]>("github_list_notifications", { token, all }),
-  markRead: (token: string, threadId: string) =>
-    invoke<void>("github_mark_notification_read", { token, threadId }),
-  markAllRead: (token: string) =>
-    invoke<void>("github_mark_all_notifications_read", { token }),
+  list: (all: boolean) =>
+    invoke<NotificationItem[]>("github_list_notifications", { all }),
+  markRead: (threadId: string) =>
+    invoke<void>("github_mark_notification_read", { threadId }),
+  markAllRead: () =>
+    invoke<void>("github_mark_all_notifications_read"),
 };

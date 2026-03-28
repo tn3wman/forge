@@ -11,5 +11,5 @@ export const authIpc = {
 
   deleteStoredToken: () => invoke<void>("auth_delete_stored_token"),
 
-  getUser: (token: string) => invoke<GitHubUser>("auth_get_user", { token }),
+  getUser: () => invoke<GitHubUser>("auth_get_user"),
 };

@@ -30,7 +30,7 @@ export interface StartWorkConfig {
 }
 
 export function useStartWork() {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const [step, setStep] = useState<StartWorkStep>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<StartWorkResult | null>(null);
@@ -43,7 +43,7 @@ export function useStartWork() {
 
   const execute = useCallback(
     async (config: StartWorkConfig) => {
-      if (!token) {
+      if (!isAuthenticated) {
         setError("Not authenticated");
         setStep("error");
         return;
@@ -54,7 +54,7 @@ export function useStartWork() {
       try {
         // Step 1: Fetch remote to ensure we have latest refs
         setStep("fetching");
-        await gitIpc.fetch(config.repoLocalPath, token);
+        await gitIpc.fetch(config.repoLocalPath);
 
         // Step 2: Create branch from base
         setStep("creating-branch");
@@ -79,7 +79,7 @@ export function useStartWork() {
         // Step 4: Push branch to remote
         setStep("pushing");
         try {
-          await gitIpc.push(worktree.path, token, "origin", branchName);
+          await gitIpc.push(worktree.path, "origin", branchName);
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           // If branch already exists on remote, that's OK
@@ -92,7 +92,6 @@ export function useStartWork() {
         setStep("creating-pr");
         const prBody = `Closes #${config.issueNumber}\n\n_Created via Forge Start Work._`;
         const pr = await githubIpc.createPr(
-          token,
           config.owner,
           config.repo,
           config.issueTitle,
@@ -119,7 +118,7 @@ export function useStartWork() {
         return undefined;
       }
     },
-    [token],
+    [isAuthenticated],
   );
 
   return { step, error, result, execute, reset };

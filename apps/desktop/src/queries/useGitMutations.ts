@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "../stores/authStore";
 import { gitIpc } from "../ipc/git";
 
 export function useStageFiles() {
@@ -66,10 +65,9 @@ export function useAmend() {
 
 export function useGitFetch() {
   const queryClient = useQueryClient();
-  const token = useAuthStore((s) => s.token);
   return useMutation({
     mutationFn: async ({ path, remote }: { path: string; remote?: string }) =>
-      gitIpc.fetch(path, token!, remote),
+      gitIpc.fetch(path, remote),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["git-branches"] });
       queryClient.invalidateQueries({ queryKey: ["git-log"] });
@@ -79,10 +77,9 @@ export function useGitFetch() {
 
 export function useGitPull() {
   const queryClient = useQueryClient();
-  const token = useAuthStore((s) => s.token);
   return useMutation({
     mutationFn: async ({ path, remote, branch }: { path: string; remote?: string; branch?: string }) =>
-      gitIpc.pull(path, token!, remote, branch),
+      gitIpc.pull(path, remote, branch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["git-branches"] });
       queryClient.invalidateQueries({ queryKey: ["git-log"] });
@@ -93,10 +90,9 @@ export function useGitPull() {
 
 export function useGitPush() {
   const queryClient = useQueryClient();
-  const token = useAuthStore((s) => s.token);
   return useMutation({
     mutationFn: async ({ path, remote, branch }: { path: string; remote?: string; branch?: string }) =>
-      gitIpc.push(path, token!, remote, branch),
+      gitIpc.push(path, remote, branch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["git-branches"] });
     },
@@ -142,10 +138,9 @@ export function useDeleteBranch() {
 
 export function useDeleteRemoteBranch() {
   const queryClient = useQueryClient();
-  const token = useAuthStore((s) => s.token);
   return useMutation({
     mutationFn: async ({ path, remote, branch }: { path: string; remote: string; branch: string }) =>
-      gitIpc.deleteRemoteBranch(path, remote, branch, token!),
+      gitIpc.deleteRemoteBranch(path, remote, branch),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["git-branches"] });
     },
@@ -212,10 +207,9 @@ export function useStashDrop() {
 
 export function useCloneRepo() {
   const queryClient = useQueryClient();
-  const token = useAuthStore((s) => s.token);
   return useMutation({
     mutationFn: async ({ url, localPath, repoId }: { url: string; localPath: string; repoId?: string }) =>
-      gitIpc.cloneRepo(url, localPath, token!, repoId),
+      gitIpc.cloneRepo(url, localPath, repoId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["repositories"] });
     },

@@ -1,4 +1,5 @@
 use crate::db::Database;
+use crate::keychain::TokenCache;
 use crate::models::git::{BranchInfo, DiffEntry, FileStatus, GraphRow, StashEntry, WorktreeInfo};
 
 // ── Clone ──────────────────────────────────────────────────────────────────
@@ -6,11 +7,12 @@ use crate::models::git::{BranchInfo, DiffEntry, FileStatus, GraphRow, StashEntry
 #[tauri::command]
 pub async fn git_clone_repo(
     db: tauri::State<'_, Database>,
+    cache: tauri::State<'_, TokenCache>,
     url: String,
     local_path: String,
-    token: String,
     repo_id: Option<String>,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     let lp = local_path.clone();
     tokio::task::spawn_blocking(move || crate::git::clone::clone_repo(&url, &lp, &token))
         .await
@@ -120,11 +122,12 @@ pub async fn git_delete_branch(path: String, name: String, force: Option<bool>) 
 
 #[tauri::command]
 pub async fn git_delete_remote_branch(
+    cache: tauri::State<'_, TokenCache>,
     path: String,
     remote: String,
     branch: String,
-    token: String,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     tokio::task::spawn_blocking(move || {
         crate::git::branch::delete_remote_branch(&path, &remote, &branch, &token)
     })
@@ -228,10 +231,11 @@ pub async fn git_amend(path: String, message: String) -> Result<String, String> 
 
 #[tauri::command]
 pub async fn git_fetch(
+    cache: tauri::State<'_, TokenCache>,
     path: String,
-    token: String,
     remote_name: String,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     tokio::task::spawn_blocking(move || crate::git::remote::fetch(&path, &remote_name, &token))
         .await
         .map_err(|e| format!("Task failed: {e}"))?
@@ -239,11 +243,12 @@ pub async fn git_fetch(
 
 #[tauri::command]
 pub async fn git_pull(
+    cache: tauri::State<'_, TokenCache>,
     path: String,
-    token: String,
     remote_name: String,
     branch: Option<String>,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     tokio::task::spawn_blocking(move || {
         let branch = match branch {
             Some(b) => b,
@@ -258,11 +263,12 @@ pub async fn git_pull(
 
 #[tauri::command]
 pub async fn git_push(
+    cache: tauri::State<'_, TokenCache>,
     path: String,
-    token: String,
     remote_name: String,
     branch: Option<String>,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     tokio::task::spawn_blocking(move || {
         let branch = match branch {
             Some(b) => b,

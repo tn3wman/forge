@@ -53,7 +53,7 @@ function getStepIndex(step: StartWorkStep): number {
 export function StartWorkDialog({ open, onOpenChange, issue, linkedPrs }: StartWorkDialogProps) {
   const { activeWorkspaceId } = useWorkspaceStore();
   const { data: repos } = useRepositories(activeWorkspaceId);
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   // Find the repo for this issue
   const repo = useMemo(
@@ -147,10 +147,10 @@ export function StartWorkDialog({ open, onOpenChange, issue, linkedPrs }: StartW
   const hasLinkedPr = linkedPrs && linkedPrs.length > 0;
 
   const handleSync = async () => {
-    if (!repo?.localPath || !token) return;
+    if (!repo?.localPath || !isAuthenticated) return;
     setSyncing(true);
     try {
-      await gitIpc.pull(repo.localPath, token, "origin", baseBranch);
+      await gitIpc.pull(repo.localPath, "origin", baseBranch);
       setSyncNeeded(false);
     } catch {
       // pull may fail if not ff, just continue

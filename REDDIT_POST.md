@@ -26,15 +26,15 @@ Forge is a Tauri 2 desktop app (React 19 + Rust backend) that combines:
 
 **Git client** — staging, commits, branches, stash, worktree management, a canvas-based commit graph that handles 10K+ nodes at 60fps. You know, the basics, but native and fast.
 
-![Commit graph with branch labels and lane topology](screenshots/commit-graph.png)
+[INSERT SCREENSHOT: Commit graph with branch labels and lane topology — commit-graph.png]
 
 **GitHub integration** — PRs, issues, reviews, merge (merge/squash/rebase), status checks, notifications. All via GraphQL so it's actually snappy. You can review a PR, approve it, and merge it without ever opening a browser.
 
-![Dashboard showing PRs and issues with diff stats](screenshots/dashboard.png)
+[INSERT SCREENSHOT: Dashboard showing PRs and issues with diff stats — dashboard.png]
 
 **AI agent sessions** — First-class Claude Code / Codex / Aider integration. Not a chatbot sidebar — full PTY-backed agent sessions with permission approval workflows. The agent runs in one panel, the PR it created shows up in another panel, and the diff it produced is right there in a third. One app.
 
-![Four agent sessions running simultaneously in grid layout](screenshots/agent-grid.png)
+[INSERT SCREENSHOT: Four agent sessions running simultaneously in grid layout — agent-grid.png]
 
 **Real terminals** — Native PTY via `portable-pty`, rendered with xterm.js. These aren't fake terminals. You get your shell, your aliases, your tools.
 
@@ -48,7 +48,7 @@ Forge is a Tauri 2 desktop app (React 19 + Rust backend) that combines:
 
 No more alt-tab roulette. No more copying branch names between windows. No more "wait which worktree was that PR on again?"
 
-![Changes page with staging area and inline diff viewer](screenshots/changes-diff.png)
+[INSERT SCREENSHOT: Changes page with staging area and inline diff viewer — changes-diff.png]
 
 ## Some technical choices people might care about
 
@@ -61,7 +61,7 @@ No more alt-tab roulette. No more copying branch names between windows. No more 
 - **Agent permission workflow** — When Claude wants to run a command, you get a prompt. Press `y` or `n`. No mouse required. Three permission modes: normal, plan, yolo (dangerously-skip-permissions).
 - **Plugin-aware** — Auto-discovers Claude Code plugins from `~/.claude/plugins/` and integrates their slash commands.
 
-![Branch management showing local/remote branches with merged status](screenshots/branches.png)
+[INSERT SCREENSHOT: Branch management showing local/remote branches with merged status — branches.png]
 
 ## What it's NOT
 

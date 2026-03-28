@@ -338,7 +338,7 @@ export function AppShell() {
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <Anvil className="mx-auto mb-4 h-12 w-12 text-muted-foreground/50" />
+                <img src={forgeIcon} alt="Forge" className="mx-auto mb-4 h-12 w-12 opacity-50" />
                 <h2 className="text-lg font-medium text-muted-foreground">Welcome to Forge</h2>
                 <p className="mt-1 text-sm text-muted-foreground/70">Create a workspace to get started</p>
               </div>

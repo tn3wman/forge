@@ -3,10 +3,10 @@ import { githubIpc } from "@/ipc/github";
 import { useAuthStore } from "@/stores/authStore";
 
 export function useIssueDetail(owner: string | null, repo: string | null, number: number | null) {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: ["issueDetail", owner, repo, number],
-    queryFn: () => githubIpc.getIssueDetail(token!, owner!, repo!, number!),
-    enabled: !!token && !!owner && !!repo && number != null,
+    queryFn: () => githubIpc.getIssueDetail(owner!, repo!, number!),
+    enabled: isAuthenticated && !!owner && !!repo && number != null,
   });
 }

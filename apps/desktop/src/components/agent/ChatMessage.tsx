@@ -14,6 +14,15 @@ import {
 import { cn } from "@/lib/utils";
 import type { AgentMessage } from "@/stores/agentStore";
 
+/**
+ * Escape bare ordered-list markers (e.g. "100." on a line by itself)
+ * so ReactMarkdown doesn't render short numeric answers as `<ol>`.
+ * Real list items like "1. First item" are left intact.
+ */
+function escapeBareLists(text: string): string {
+  return text.replace(/^(\d{1,9})\.\s*$/gm, "$1\\.");
+}
+
 interface ChatMessageProps {
   message: AgentMessage;
   onToggleReasoning?: () => void;
@@ -75,9 +84,9 @@ export const ChatMessage = memo(function ChatMessage({
             )}
 
             {message.content ? (
-              <div className="prose prose-sm prose-invert max-w-none">
+              <div className="prose prose-sm prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-0">
                 <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-                  {message.content}
+                  {escapeBareLists(message.content)}
                 </ReactMarkdown>
               </div>
             ) : null}
@@ -107,9 +116,9 @@ export const ChatMessage = memo(function ChatMessage({
                   </p>
                 ) : (
                   <div className="border-t border-border/70 px-3 py-2">
-                    <div className="prose prose-sm prose-invert max-w-none text-xs text-muted-foreground [&>*]:text-muted-foreground [&>*]:text-xs">
+                    <div className="prose prose-sm prose-invert max-w-none text-xs text-muted-foreground [&>*]:text-muted-foreground [&>*]:text-xs [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-0">
                       <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-                        {message.reasoning ?? ""}
+                        {escapeBareLists(message.reasoning ?? "")}
                       </ReactMarkdown>
                     </div>
                   </div>

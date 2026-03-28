@@ -62,7 +62,8 @@ pub fn auth_delete_stored_token(
 #[tauri::command]
 pub async fn auth_get_user(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
 ) -> Result<GitHubUser, String> {
+    let token = cache.require_token()?;
     gh_client::get_authenticated_user(&client, &token).await
 }

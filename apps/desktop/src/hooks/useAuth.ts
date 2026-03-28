@@ -18,9 +18,9 @@ export function useAuth() {
       const token = await authIpc.getStoredToken();
       console.log("[Forge] checkAuth: token found:", !!token);
       if (token) {
-        const user = await authIpc.getUser(token);
+        const user = await authIpc.getUser();
         console.log("[Forge] checkAuth: user fetched:", user.login);
-        store.setAuthenticated(token, user);
+        store.setAuthenticated(user);
       } else {
         store.setLoading(false);
       }

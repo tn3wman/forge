@@ -31,11 +31,17 @@ impl SessionManager {
         }
     }
 
+    const ALLOWED_CLIS: &[&str] = &["claude", "codex", "aider"];
+
     pub fn create_session(
         &self,
         request: CreateSessionRequest,
         app_handle: AppHandle,
     ) -> Result<SessionInfo, String> {
+        if !Self::ALLOWED_CLIS.contains(&request.cli_name.as_str()) {
+            return Err(format!("CLI '{}' is not permitted", request.cli_name));
+        }
+
         let id = uuid::Uuid::now_v7().to_string();
 
         let display_name = match request.cli_name.as_str() {

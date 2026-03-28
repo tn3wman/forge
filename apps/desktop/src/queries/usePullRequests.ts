@@ -6,19 +6,19 @@ import { useWorkspaceStore } from "@/stores/workspaceStore";
 import type { PullRequest } from "@forge/shared";
 
 export function usePullRequests(state?: string) {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { activeWorkspaceId } = useWorkspaceStore();
   const { data: repos } = useRepositories(activeWorkspaceId);
 
   return useQuery({
     queryKey: ["pullRequests", activeWorkspaceId, state, repos?.map((r) => r.fullName)],
     queryFn: async (): Promise<PullRequest[]> => {
-      if (!token || !repos || repos.length === 0) return [];
+      if (!repos || repos.length === 0) return [];
 
       const results = await Promise.all(
         repos.map((repo) =>
           githubIpc
-            .listPrs(token, repo.owner, repo.name, state)
+            .listPrs(repo.owner, repo.name, state)
             .then((prs) => prs.map((pr) => ({ ...pr, repoFullName: repo.fullName })))
             .catch((e) => {
               console.error(`Failed to fetch PRs for ${repo.fullName}:`, e);
@@ -32,7 +32,7 @@ export function usePullRequests(state?: string) {
         .flat()
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     },
-    enabled: !!token && !!repos && repos.length > 0,
+    enabled: isAuthenticated && !!repos && repos.length > 0,
     refetchInterval: 60_000, // Poll every 60s
   });
 }

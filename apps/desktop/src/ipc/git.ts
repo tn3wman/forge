@@ -12,8 +12,8 @@ export const gitIpc = {
     invoke<BranchInfo>("git_create_branch", { path, name, fromRef: fromRef ?? null }),
   checkoutBranch: (path: string, name: string) => invoke<void>("git_checkout_branch", { path, name }),
   deleteBranch: (path: string, name: string, force?: boolean) => invoke<void>("git_delete_branch", { path, name, force: force ?? null }),
-  deleteRemoteBranch: (path: string, remote: string, branch: string, token: string) =>
-    invoke<void>("git_delete_remote_branch", { path, remote, branch, token }),
+  deleteRemoteBranch: (path: string, remote: string, branch: string) =>
+    invoke<void>("git_delete_remote_branch", { path, remote, branch }),
   renameBranch: (path: string, oldName: string, newName: string) =>
     invoke<void>("git_rename_branch", { path, oldName, newName }),
   getCurrentBranch: (path: string) => invoke<string | null>("git_get_current_branch", { path }),
@@ -22,20 +22,20 @@ export const gitIpc = {
   stageAll: (path: string) => invoke<void>("git_stage_all", { path }),
   commit: (path: string, message: string) => invoke<string>("git_commit", { path, message }),
   amend: (path: string, message: string) => invoke<string>("git_amend", { path, message }),
-  fetch: (path: string, token: string, remote?: string) =>
-    invoke<void>("git_fetch", { path, token, remoteName: remote ?? "origin" }),
-  pull: (path: string, token: string, remote?: string, branch?: string) =>
-    invoke<void>("git_pull", { path, token, remoteName: remote ?? "origin", branch: branch ?? null }),
-  push: (path: string, token: string, remote?: string, branch?: string) =>
-    invoke<void>("git_push", { path, token, remoteName: remote ?? "origin", branch: branch ?? null }),
+  fetch: (path: string, remote?: string) =>
+    invoke<void>("git_fetch", { path, remoteName: remote ?? "origin" }),
+  pull: (path: string, remote?: string, branch?: string) =>
+    invoke<void>("git_pull", { path, remoteName: remote ?? "origin", branch: branch ?? null }),
+  push: (path: string, remote?: string, branch?: string) =>
+    invoke<void>("git_push", { path, remoteName: remote ?? "origin", branch: branch ?? null }),
   stashPush: (path: string, message?: string, includeUntracked?: boolean) =>
     invoke<string>("git_stash_push", { path, message: message ?? null, includeUntracked: includeUntracked ?? false }),
   stashList: (path: string) => invoke<StashEntry[]>("git_stash_list", { path }),
   stashPop: (path: string, index?: number) => invoke<void>("git_stash_pop", { path, index: index ?? 0 }),
   stashApply: (path: string, index?: number) => invoke<void>("git_stash_apply", { path, index: index ?? 0 }),
   stashDrop: (path: string, index: number) => invoke<void>("git_stash_drop", { path, index }),
-  cloneRepo: (url: string, localPath: string, token: string, repoId?: string) =>
-    invoke<void>("git_clone_repo", { url, localPath, token, repoId: repoId ?? null }),
+  cloneRepo: (url: string, localPath: string, repoId?: string) =>
+    invoke<void>("git_clone_repo", { url, localPath, repoId: repoId ?? null }),
   getRemoteUrl: (path: string, remote?: string) =>
     invoke<string | null>("git_get_remote_url", { path, remote: remote ?? null }),
   listWorktrees: (path: string) => invoke<WorktreeInfo[]>("git_list_worktrees", { path }),

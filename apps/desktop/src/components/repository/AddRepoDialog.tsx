@@ -26,16 +26,16 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
   const [addingId, setAddingId] = useState<number | null>(null);
   const addRepo = useAddRepo();
   const { activeWorkspaceId } = useWorkspaceStore();
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data: existingRepos } = useRepositories(activeWorkspaceId);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
 
   // Load user repos on open
   useEffect(() => {
-    if (open && token) {
+    if (open && isAuthenticated) {
       setIsSearching(true);
       repoIpc
-        .listUserRepos(token)
+        .listUserRepos()
         .then(setResults)
         .catch(console.error)
         .finally(() => setIsSearching(false));
@@ -45,16 +45,16 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
       setResults([]);
       setAddedIds(new Set());
     }
-  }, [open, token]);
+  }, [open, isAuthenticated]);
 
   // Search on query change (debounced)
   useEffect(() => {
-    if (!query.trim() || !token) return;
+    if (!query.trim() || !isAuthenticated) return;
 
     const timeout = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const res = await repoIpc.searchGithub(token, query);
+        const res = await repoIpc.searchGithub(query);
         setResults(res);
       } catch (e) {
         console.error("Search failed:", e);
@@ -64,7 +64,7 @@ export function AddRepoDialog({ open, onOpenChange }: AddRepoDialogProps) {
     }, 300);
 
     return () => clearTimeout(timeout);
-  }, [query, token]);
+  }, [query, isAuthenticated]);
 
   const existingGithubIds = new Set(existingRepos?.map((r) => r.githubId) ?? []);
 

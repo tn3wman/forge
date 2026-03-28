@@ -25,7 +25,7 @@ function parseOwnerRepo(remoteUrl: string): { owner: string; repo: string } | nu
 }
 
 export function CreatePrDialog({ open, onOpenChange, workingDirectory }: CreatePrDialogProps) {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data: currentBranch } = useCurrentBranch(workingDirectory);
   const createPr = useCreatePr();
 
@@ -62,7 +62,7 @@ export function CreatePrDialog({ open, onOpenChange, workingDirectory }: CreateP
     }
   }, [open, currentBranch]);
 
-  const canSubmit = !!ownerRepo && !!token && !!title.trim() && !!currentBranch && currentBranch !== base;
+  const canSubmit = !!ownerRepo && isAuthenticated && !!title.trim() && !!currentBranch && currentBranch !== base;
 
   const handleSubmit = async () => {
     if (!canSubmit || !ownerRepo) return;

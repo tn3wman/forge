@@ -7,32 +7,36 @@ use crate::github::queries::issue_detail;
 use crate::github::queries::issues::{self, IssueItem};
 use crate::github::queries::pr_detail;
 use crate::github::queries::pull_requests::{self, DashboardStats, PullRequestItem};
+use crate::keychain::TokenCache;
 
 #[tauri::command]
 pub async fn github_search_repos(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     query: String,
 ) -> Result<Vec<SearchRepoResult>, String> {
+    let token = cache.require_token()?;
     gh_client::search_repos(&client, &token, &query).await
 }
 
 #[tauri::command]
 pub async fn github_list_user_repos(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
 ) -> Result<Vec<SearchRepoResult>, String> {
+    let token = cache.require_token()?;
     gh_client::list_user_repos(&client, &token).await
 }
 
 #[tauri::command]
 pub async fn github_list_prs(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     state: Option<String>,
 ) -> Result<Vec<PullRequestItem>, String> {
+    let token = cache.require_token()?;
     pull_requests::list_pull_requests(
         &client,
         &token,
@@ -46,11 +50,12 @@ pub async fn github_list_prs(
 #[tauri::command]
 pub async fn github_list_issues(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     state: Option<String>,
 ) -> Result<Vec<IssueItem>, String> {
+    let token = cache.require_token()?;
     issues::list_issues(&client, &token, &owner, &repo, state.as_deref()).await
 }
 
@@ -64,9 +69,10 @@ pub struct RepoRef {
 #[tauri::command]
 pub async fn github_get_dashboard(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     repos: Vec<RepoRef>,
 ) -> Result<DashboardStats, String> {
+    let token = cache.require_token()?;
     let mut total_open_prs: i32 = 0;
     let mut total_open_issues: i32 = 0;
     let mut prs_needing_review: i32 = 0;
@@ -122,99 +128,107 @@ pub async fn github_get_dashboard(
 #[tauri::command]
 pub async fn github_get_pr_detail(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     number: i32,
 ) -> Result<pr_detail::PrDetailResult, String> {
+    let token = cache.require_token()?;
     pr_detail::get_pr_detail(&client, &token, &owner, &repo, number).await
 }
 
 #[tauri::command]
 pub async fn github_get_pr_commits(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     number: i32,
 ) -> Result<Vec<PrCommitItem>, String> {
+    let token = cache.require_token()?;
     gh_client::get_pr_commits(&client, &token, &owner, &repo, number).await
 }
 
 #[tauri::command]
 pub async fn github_get_pr_files(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     number: i32,
 ) -> Result<Vec<PrFileItem>, String> {
+    let token = cache.require_token()?;
     gh_client::get_pr_files(&client, &token, &owner, &repo, number).await
 }
 
 #[tauri::command]
 pub async fn github_get_issue_detail(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     number: i32,
 ) -> Result<issue_detail::IssueDetailResult, String> {
+    let token = cache.require_token()?;
     issue_detail::get_issue_detail(&client, &token, &owner, &repo, number).await
 }
 
 #[tauri::command]
 pub async fn github_submit_review(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     number: i32,
     event: String,
     body: String,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     reviews::submit_review(&client, &token, &owner, &repo, number, &event, &body).await
 }
 
 #[tauri::command]
 pub async fn github_add_comment(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     number: i32,
     body: String,
 ) -> Result<CommentResult, String> {
+    let token = cache.require_token()?;
     comments::add_comment(&client, &token, &owner, &repo, number, &body).await
 }
 
 #[tauri::command]
 pub async fn github_edit_comment(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     comment_id: i64,
     body: String,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     comments::edit_comment(&client, &token, &owner, &repo, comment_id, &body).await
 }
 
 #[tauri::command]
 pub async fn github_delete_comment(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     comment_id: i64,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     comments::delete_comment(&client, &token, &owner, &repo, comment_id).await
 }
 
 #[tauri::command]
 pub async fn github_merge_pr(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     number: i32,
@@ -222,6 +236,7 @@ pub async fn github_merge_pr(
     title: Option<String>,
     message: Option<String>,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     pr_actions::merge_pr(
         &client,
         &token,
@@ -238,29 +253,31 @@ pub async fn github_merge_pr(
 #[tauri::command]
 pub async fn github_close_pr(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     number: i32,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     pr_actions::close_pr(&client, &token, &owner, &repo, number).await
 }
 
 #[tauri::command]
 pub async fn github_reopen_pr(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     number: i32,
 ) -> Result<(), String> {
+    let token = cache.require_token()?;
     pr_actions::reopen_pr(&client, &token, &owner, &repo, number).await
 }
 
 #[tauri::command]
 pub async fn github_create_pr(
     client: tauri::State<'_, reqwest::Client>,
-    token: String,
+    cache: tauri::State<'_, TokenCache>,
     owner: String,
     repo: String,
     title: String,
@@ -269,6 +286,7 @@ pub async fn github_create_pr(
     base: String,
     draft: bool,
 ) -> Result<crate::github::mutations::pr_actions::CreatePrResult, String> {
+    let token = cache.require_token()?;
     crate::github::mutations::pr_actions::create_pr(
         &client, &token, &owner, &repo, &title, &body, &head, &base, draft,
     )

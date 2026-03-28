@@ -19,7 +19,7 @@ type DialogMode = "commit" | "commit-push" | "create-pr" | null;
 
 export function CommitPushButton() {
   const { tabs, activeTabId } = useTerminalStore();
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const activeTab = tabs.find((t) => t.tabId === activeTabId);
   const workingDirectory = activeTab?.workingDirectory ?? null;
 
@@ -93,7 +93,7 @@ export function CommitPushButton() {
       <div className="inline-flex items-center">
         <Button
           size="sm"
-          disabled={!hasChanges || !token || isLoading}
+          disabled={!hasChanges || !isAuthenticated || isLoading}
           onClick={() => {
             setError(null);
             setDialogMode("commit-push");
@@ -125,13 +125,13 @@ export function CommitPushButton() {
               <GitCommitHorizontal className="mr-2 h-4 w-4" />
               Commit
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={!token} onClick={handlePush}>
+            <DropdownMenuItem disabled={!isAuthenticated} onClick={handlePush}>
               <Upload className="mr-2 h-4 w-4" />
               Push
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              disabled={!token}
+              disabled={!isAuthenticated}
               onClick={() => {
                 setError(null);
                 setDialogMode("create-pr");

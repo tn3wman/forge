@@ -19,7 +19,7 @@ export interface SearchResultItem {
 }
 
 export function useSearch(query: string) {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { activeWorkspaceId } = useWorkspaceStore();
   const { data: repos } = useRepositories(activeWorkspaceId);
   const repoTuples: [string, string][] =
@@ -29,11 +29,10 @@ export function useSearch(query: string) {
     queryKey: ["search", query, repoTuples.map((r) => r.join("/"))],
     queryFn: () =>
       invoke<SearchResultItem[]>("github_search", {
-        token,
         query,
         repos: repoTuples,
       }),
-    enabled: !!token && query.length >= 2,
+    enabled: isAuthenticated && query.length >= 2,
     staleTime: 30_000,
   });
 }

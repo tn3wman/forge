@@ -14,48 +14,48 @@ export interface DashboardStats {
 }
 
 export const githubIpc = {
-  listPrs: (token: string, owner: string, repo: string, state?: string) =>
-    invoke<PullRequest[]>("github_list_prs", { token, owner, repo, state: state ?? null }),
+  listPrs: (owner: string, repo: string, state?: string) =>
+    invoke<PullRequest[]>("github_list_prs", { owner, repo, state: state ?? null }),
 
-  listIssues: (token: string, owner: string, repo: string, state?: string) =>
-    invoke<Issue[]>("github_list_issues", { token, owner, repo, state: state ?? null }),
+  listIssues: (owner: string, repo: string, state?: string) =>
+    invoke<Issue[]>("github_list_issues", { owner, repo, state: state ?? null }),
 
-  getDashboard: (token: string, repos: RepoRef[]) =>
-    invoke<DashboardStats>("github_get_dashboard", { token, repos }),
+  getDashboard: (repos: RepoRef[]) =>
+    invoke<DashboardStats>("github_get_dashboard", { repos }),
 
-  getPrDetail: (token: string, owner: string, repo: string, number: number) =>
-    invoke<PrDetail>("github_get_pr_detail", { token, owner, repo, number }),
+  getPrDetail: (owner: string, repo: string, number: number) =>
+    invoke<PrDetail>("github_get_pr_detail", { owner, repo, number }),
 
-  getPrCommits: (token: string, owner: string, repo: string, number: number) =>
-    invoke<PrCommit[]>("github_get_pr_commits", { token, owner, repo, number }),
+  getPrCommits: (owner: string, repo: string, number: number) =>
+    invoke<PrCommit[]>("github_get_pr_commits", { owner, repo, number }),
 
-  getPrFiles: (token: string, owner: string, repo: string, number: number) =>
-    invoke<PrFile[]>("github_get_pr_files", { token, owner, repo, number }),
+  getPrFiles: (owner: string, repo: string, number: number) =>
+    invoke<PrFile[]>("github_get_pr_files", { owner, repo, number }),
 
-  getIssueDetail: (token: string, owner: string, repo: string, number: number) =>
-    invoke<IssueDetail>("github_get_issue_detail", { token, owner, repo, number }),
+  getIssueDetail: (owner: string, repo: string, number: number) =>
+    invoke<IssueDetail>("github_get_issue_detail", { owner, repo, number }),
 
-  submitReview: (token: string, owner: string, repo: string, number: number, event: string, body: string) =>
-    invoke<void>("github_submit_review", { token, owner, repo, number, event, body }),
+  submitReview: (owner: string, repo: string, number: number, event: string, body: string) =>
+    invoke<void>("github_submit_review", { owner, repo, number, event, body }),
 
-  addComment: (token: string, owner: string, repo: string, number: number, body: string) =>
-    invoke<{ id: number; body: string }>("github_add_comment", { token, owner, repo, number, body }),
+  addComment: (owner: string, repo: string, number: number, body: string) =>
+    invoke<{ id: number; body: string }>("github_add_comment", { owner, repo, number, body }),
 
-  editComment: (token: string, owner: string, repo: string, commentId: number, body: string) =>
-    invoke<void>("github_edit_comment", { token, owner, repo, commentId, body }),
+  editComment: (owner: string, repo: string, commentId: number, body: string) =>
+    invoke<void>("github_edit_comment", { owner, repo, commentId, body }),
 
-  deleteComment: (token: string, owner: string, repo: string, commentId: number) =>
-    invoke<void>("github_delete_comment", { token, owner, repo, commentId }),
+  deleteComment: (owner: string, repo: string, commentId: number) =>
+    invoke<void>("github_delete_comment", { owner, repo, commentId }),
 
-  mergePr: (token: string, owner: string, repo: string, number: number, method: string, title?: string, message?: string) =>
-    invoke<void>("github_merge_pr", { token, owner, repo, number, method, title: title ?? null, message: message ?? null }),
+  mergePr: (owner: string, repo: string, number: number, method: string, title?: string, message?: string) =>
+    invoke<void>("github_merge_pr", { owner, repo, number, method, title: title ?? null, message: message ?? null }),
 
-  closePr: (token: string, owner: string, repo: string, number: number) =>
-    invoke<void>("github_close_pr", { token, owner, repo, number }),
+  closePr: (owner: string, repo: string, number: number) =>
+    invoke<void>("github_close_pr", { owner, repo, number }),
 
-  reopenPr: (token: string, owner: string, repo: string, number: number) =>
-    invoke<void>("github_reopen_pr", { token, owner, repo, number }),
+  reopenPr: (owner: string, repo: string, number: number) =>
+    invoke<void>("github_reopen_pr", { owner, repo, number }),
 
-  createPr: (token: string, owner: string, repo: string, title: string, body: string, head: string, base: string, draft: boolean) =>
-    invoke<{ number: number; htmlUrl: string }>("github_create_pr", { token, owner, repo, title, body, head, base, draft }),
+  createPr: (owner: string, repo: string, title: string, body: string, head: string, base: string, draft: boolean) =>
+    invoke<{ number: number; htmlUrl: string }>("github_create_pr", { owner, repo, title, body, head, base, draft }),
 };

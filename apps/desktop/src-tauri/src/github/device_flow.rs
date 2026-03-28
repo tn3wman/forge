@@ -76,10 +76,10 @@ pub async fn poll_for_token(client: &Client, device_code: &str) -> PollResult {
         Ok(t) => t,
         Err(e) => return PollResult::Error(format!("Failed to read response: {e}")),
     };
-    tracing::info!("poll_for_token response: {text}");
+    tracing::debug!("poll_for_token: received response ({} bytes)", text.len());
     let body: AccessTokenResponse = match serde_json::from_str(&text) {
         Ok(b) => b,
-        Err(e) => return PollResult::Error(format!("Failed to parse response: {e}, body: {text}")),
+        Err(e) => return PollResult::Error(format!("Failed to parse token response: {e}")),
     };
 
     if let Some(token) = body.access_token {

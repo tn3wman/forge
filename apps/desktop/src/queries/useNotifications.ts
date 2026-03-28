@@ -3,11 +3,11 @@ import { notificationsIpc } from "@/ipc/notifications";
 import { useAuthStore } from "@/stores/authStore";
 
 export function useNotifications(showAll = false) {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: ["notifications", showAll],
-    queryFn: () => notificationsIpc.list(token!, showAll),
-    enabled: !!token,
+    queryFn: () => notificationsIpc.list(showAll),
+    enabled: isAuthenticated,
     refetchInterval: 60_000,
   });
 }
@@ -21,10 +21,9 @@ export function useUnreadCount(repoFullNames?: string[]) {
 }
 
 export function useMarkNotificationRead() {
-  const token = useAuthStore((s) => s.token);
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (threadId: string) => notificationsIpc.markRead(token!, threadId),
+    mutationFn: (threadId: string) => notificationsIpc.markRead(threadId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
@@ -32,10 +31,9 @@ export function useMarkNotificationRead() {
 }
 
 export function useMarkAllRead() {
-  const token = useAuthStore((s) => s.token);
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => notificationsIpc.markAllRead(token!),
+    mutationFn: () => notificationsIpc.markAllRead(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },

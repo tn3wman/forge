@@ -28,7 +28,7 @@ function parseGitHubRemote(url: string): { owner: string; name: string } | null 
 }
 
 export function RepoSetupBar({ workspaceId, repos, disabled }: RepoSetupBarProps) {
-  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const setLocalPath = useSetLocalPath();
   const cloneRepo = useCloneRepo();
   const queryClient = useQueryClient();
@@ -94,24 +94,24 @@ export function RepoSetupBar({ workspaceId, repos, disabled }: RepoSetupBarProps
   }, [repos, unlinkedRepo, workspaceId, setLocalPath]);
 
   const handleSearch = useCallback(async () => {
-    if (!token || !searchQuery.trim()) return;
+    if (!isAuthenticated || !searchQuery.trim()) return;
     setSearching(true);
     setError(null);
     try {
       const results = searchQuery.trim().length <= 2
-        ? await repoIpc.listUserRepos(token)
-        : await repoIpc.searchGithub(token, searchQuery.trim());
+        ? await repoIpc.listUserRepos()
+        : await repoIpc.searchGithub(searchQuery.trim());
       setSearchResults(results);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSearching(false);
     }
-  }, [token, searchQuery]);
+  }, [isAuthenticated, searchQuery]);
 
   const handleCloneRepo = useCallback(
     async (result: SearchRepoResult) => {
-      if (!token) return;
+      if (!isAuthenticated) return;
       setError(null);
 
       const dest = await open({
@@ -156,7 +156,7 @@ export function RepoSetupBar({ workspaceId, repos, disabled }: RepoSetupBarProps
         setCloning(false);
       }
     },
-    [token, repos, workspaceId, cloneRepo, queryClient],
+    [isAuthenticated, repos, workspaceId, cloneRepo, queryClient],
   );
 
   return (
@@ -180,7 +180,7 @@ export function RepoSetupBar({ workspaceId, repos, disabled }: RepoSetupBarProps
             Select local
           </button>
 
-          {token && (
+          {isAuthenticated && (
             <Dialog open={cloneOpen} onOpenChange={setCloneOpen}>
               <DialogTrigger asChild>
                 <button

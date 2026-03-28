@@ -30,6 +30,10 @@ impl TokenCache {
     pub fn clear(&self) {
         *self.inner.lock().unwrap() = None;
     }
+
+    pub fn require_token(&self) -> Result<String, String> {
+        self.get().ok_or_else(|| "Not authenticated".to_string())
+    }
 }
 
 pub fn store_token(token: &str) -> Result<(), String> {
