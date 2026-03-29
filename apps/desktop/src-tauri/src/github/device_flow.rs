@@ -86,14 +86,14 @@ pub async fn poll_for_token(client: &Client, device_code: &str) -> PollResult {
     tracing::debug!("poll_for_token: status={status}, body ({} bytes)", text.len());
 
     if !status.is_success() && !status.is_client_error() {
-        tracing::warn!("poll_for_token: server error {status}: {text}");
+        tracing::warn!("poll_for_token: server error {status}, body_len: {}", text.len());
         return PollResult::Pending; // Server error — keep polling
     }
 
     let body: AccessTokenResponse = match serde_json::from_str(&text) {
         Ok(b) => b,
         Err(e) => {
-            tracing::warn!("poll_for_token: failed to parse response: {e}, body: {text}");
+            tracing::warn!("poll_for_token: failed to parse response: {e}, body_len: {}", text.len());
             return PollResult::Pending; // Unexpected response — keep polling
         }
     };
