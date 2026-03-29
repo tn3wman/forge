@@ -61,7 +61,8 @@ jobs:
             libsecret-1-dev \
             libssl-dev \
             pkg-config \
-            patchelf
+            patchelf \
+            xdg-utils
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
