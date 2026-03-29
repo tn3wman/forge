@@ -40,6 +40,7 @@ export function DeviceFlowDialog() {
     if (pollingRef.current) clearTimeout(pollingRef.current);
     cancelledRef.current = false;
     let pollInterval = Math.max(interval || 5, 6) * 1000; // minimum 6s to avoid slow_down
+    let errorCount = 0;
     console.log("[Forge] Starting poll with deviceCode:", deviceCode, "interval:", pollInterval);
 
     async function poll() {
@@ -49,6 +50,7 @@ export function DeviceFlowDialog() {
         const result = await authIpc.pollDeviceFlow(deviceCode);
         console.log("[Forge] Poll result:", result);
         if (cancelledRef.current) return;
+        errorCount = 0; // reset on successful poll
         if (result) {
           console.log("[Forge] Got token, fetching user...");
           const user = await authIpc.getUser();
@@ -60,15 +62,16 @@ export function DeviceFlowDialog() {
         pollingRef.current = setTimeout(poll, pollInterval);
       } catch (e) {
         console.error("[Forge] Poll error:", e);
-        // On slow_down or transient error, back off and retry
         const errStr = String(e);
-        if (errStr.includes("slow_down") || errStr.includes("rate")) {
-          pollInterval = Math.min(pollInterval * 2, 60000);
-          console.log("[Forge] Backing off, new interval:", pollInterval);
-          pollingRef.current = setTimeout(poll, pollInterval);
-        } else {
+        errorCount++;
+        // Only give up after repeated fatal errors; transient issues get retried
+        if (errStr.includes("expired") || errorCount > 5) {
           setError(errStr);
           setStep("error");
+        } else {
+          pollInterval = Math.min(pollInterval * 1.5, 60000);
+          console.log("[Forge] Transient error, retrying in", pollInterval, "ms (attempt", errorCount, ")");
+          pollingRef.current = setTimeout(poll, pollInterval);
         }
       }
     }

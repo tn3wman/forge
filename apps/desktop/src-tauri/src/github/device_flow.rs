@@ -69,17 +69,33 @@ pub async fn poll_for_token(client: &Client, device_code: &str) -> PollResult {
         .await
     {
         Ok(r) => r,
-        Err(e) => return PollResult::Error(format!("Request failed: {e}")),
+        Err(e) => {
+            tracing::warn!("poll_for_token: request failed: {e}");
+            return PollResult::Pending; // Transient network error — keep polling
+        }
     };
 
+    let status = resp.status();
     let text = match resp.text().await {
         Ok(t) => t,
-        Err(e) => return PollResult::Error(format!("Failed to read response: {e}")),
+        Err(e) => {
+            tracing::warn!("poll_for_token: failed to read response body: {e}");
+            return PollResult::Pending; // Transient — keep polling
+        }
     };
-    tracing::debug!("poll_for_token: received response ({} bytes)", text.len());
+    tracing::debug!("poll_for_token: status={status}, body ({} bytes)", text.len());
+
+    if !status.is_success() && !status.is_client_error() {
+        tracing::warn!("poll_for_token: server error {status}: {text}");
+        return PollResult::Pending; // Server error — keep polling
+    }
+
     let body: AccessTokenResponse = match serde_json::from_str(&text) {
         Ok(b) => b,
-        Err(e) => return PollResult::Error(format!("Failed to parse token response: {e}")),
+        Err(e) => {
+            tracing::warn!("poll_for_token: failed to parse response: {e}, body: {text}");
+            return PollResult::Pending; // Unexpected response — keep polling
+        }
     };
 
     if let Some(token) = body.access_token {
