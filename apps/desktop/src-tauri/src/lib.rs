@@ -15,6 +15,17 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // On Linux, WebKitGTK may try GPU-accelerated rendering via DMA-BUF/GBM which
+    // fails on systems where the GPU driver isn't accessible (e.g. NVIDIA DGX Spark).
+    // Disabling the DMA-BUF renderer forces a software fallback so the app starts
+    // regardless of GPU access permissions.
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
+    }
+
     tracing_subscriber::fmt::init();
 
     tauri::Builder::default()
