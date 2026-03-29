@@ -189,39 +189,20 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p release
 
-          # Mac Silicon
-          for f in artifacts/forge-macos-arm64/*.dmg; do
-            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Mac-Silicon.dmg"
-          done
+          echo "Downloaded artifact structure:"
+          find artifacts -type f
 
-          # Mac Intel
-          for f in artifacts/forge-macos-x64/*.dmg; do
-            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Mac-Intel.dmg"
-          done
+          # Helper: find first file matching pattern in artifact dir
+          grab() { find "artifacts/$1" -name "$2" -type f | head -1; }
 
-          # Linux AMD64
-          for f in artifacts/forge-linux-x64/*.deb; do
-            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Linux-AMD64.deb"
-          done
-          for f in artifacts/forge-linux-x64/*.AppImage; do
-            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Linux-AMD64.AppImage"
-          done
-
-          # Linux ARM64
-          for f in artifacts/forge-linux-arm64/*.deb; do
-            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Linux-ARM64.deb"
-          done
-          for f in artifacts/forge-linux-arm64/*.AppImage; do
-            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Linux-ARM64.AppImage"
-          done
-
-          # Windows
-          for f in artifacts/forge-windows-x64/*.exe; do
-            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Windows-Setup.exe"
-          done
-          for f in artifacts/forge-windows-x64/*.msi; do
-            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Windows.msi"
-          done
+          cp "$(grab forge-macos-arm64 '*.dmg')" "release/Forge-${VERSION}-Mac-Silicon.dmg"
+          cp "$(grab forge-macos-x64 '*.dmg')" "release/Forge-${VERSION}-Mac-Intel.dmg"
+          cp "$(grab forge-linux-x64 '*.deb')" "release/Forge-${VERSION}-Linux-AMD64.deb"
+          cp "$(grab forge-linux-x64 '*.AppImage')" "release/Forge-${VERSION}-Linux-AMD64.AppImage"
+          cp "$(grab forge-linux-arm64 '*.deb')" "release/Forge-${VERSION}-Linux-ARM64.deb"
+          cp "$(grab forge-linux-arm64 '*.AppImage')" "release/Forge-${VERSION}-Linux-ARM64.AppImage"
+          cp "$(grab forge-windows-x64 '*.exe')" "release/Forge-${VERSION}-Windows-Setup.exe"
+          cp "$(grab forge-windows-x64 '*.msi')" "release/Forge-${VERSION}-Windows.msi"
 
           echo "Release artifacts:"
           ls -la release/
