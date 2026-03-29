@@ -30,6 +30,10 @@ jobs:
             runner: ubuntu-latest
             target: ""
             artifact: forge-linux-x64
+          - name: Linux (ARM64)
+            runner: ubuntu-24.04-arm
+            target: ""
+            artifact: forge-linux-arm64
           - name: Windows (x64)
             runner: windows-latest
             target: ""
@@ -78,8 +82,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ steps.pnpm-cache.outputs.store }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-${{ runner.arch }}-pnpm-
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -93,10 +97,10 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ matrix.target || 'default' }}-${{ hashFiles('apps/desktop/src-tauri/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ matrix.target || 'default' }}-${{ hashFiles('apps/desktop/src-tauri/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.target || 'default' }}-
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-${{ runner.arch }}-cargo-${{ matrix.target || 'default' }}-
+            ${{ runner.os }}-${{ runner.arch }}-cargo-
 
       - name: Import Apple certificate
         if: runner.os == 'macOS'
@@ -178,9 +182,52 @@ jobs:
           path: artifacts
           merge-multiple: false
 
+      - name: Rename artifacts to friendly names
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p release
+
+          # Mac Silicon
+          for f in artifacts/forge-macos-arm64/*.dmg; do
+            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Mac-Silicon.dmg"
+          done
+
+          # Mac Intel
+          for f in artifacts/forge-macos-x64/*.dmg; do
+            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Mac-Intel.dmg"
+          done
+
+          # Linux AMD64
+          for f in artifacts/forge-linux-x64/*.deb; do
+            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Linux-AMD64.deb"
+          done
+          for f in artifacts/forge-linux-x64/*.AppImage; do
+            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Linux-AMD64.AppImage"
+          done
+
+          # Linux ARM64
+          for f in artifacts/forge-linux-arm64/*.deb; do
+            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Linux-ARM64.deb"
+          done
+          for f in artifacts/forge-linux-arm64/*.AppImage; do
+            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Linux-ARM64.AppImage"
+          done
+
+          # Windows
+          for f in artifacts/forge-windows-x64/*.exe; do
+            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Windows-Setup.exe"
+          done
+          for f in artifacts/forge-windows-x64/*.msi; do
+            [ -f "$f" ] && cp "$f" "release/Forge-${VERSION}-Windows.msi"
+          done
+
+          echo "Release artifacts:"
+          ls -la release/
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           draft: true
           generate_release_notes: true
-          files: artifacts/**/*
+          files: release/*
