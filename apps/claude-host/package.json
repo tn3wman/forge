@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json --noEmit && node esbuild.config.js",
     "dev": "node --enable-source-maps dist/index.js"
   },
   "dependencies": {
@@ -13,6 +13,7 @@
   "devDependencies": {
     "@forge/typescript-config": "workspace:*",
     "@types/node": "^24.10.13",
+    "esbuild": "^0.25.0",
     "typescript": "^5.7.0"
   }
 }

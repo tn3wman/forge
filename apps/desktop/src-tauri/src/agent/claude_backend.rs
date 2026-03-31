@@ -306,27 +306,34 @@ fn resolve_node_path() -> Result<PathBuf, String> {
 }
 
 fn resolve_host_script_path(app_handle: &AppHandle) -> Result<PathBuf, String> {
-    let cwd_candidate = resolve_host_script_path_from_cwd();
-    if let Ok(path) = cwd_candidate {
+    // In development, resolve from the workspace directory structure
+    if let Ok(path) = resolve_host_script_path_from_cwd() {
         return Ok(path);
     }
 
+    // In production (packaged app), the bundled script is in Tauri resources
     let resource_dir = app_handle
         .path()
         .resource_dir()
         .map_err(|e| format!("Failed to resolve app resources: {e}"))?;
-    let resource_candidates = [
+    let candidates = [
         resource_dir.join("claude-host").join("index.js"),
         resource_dir.join("index.js"),
-        resource_dir.join("dist").join("index.js"),
     ];
-    for candidate in resource_candidates {
+    for candidate in &candidates {
         if candidate.exists() {
-            return Ok(candidate);
+            return Ok(candidate.clone());
         }
     }
 
-    Err("Claude host script not found. Build @forge/claude-host before starting Forge.".to_string())
+    Err(format!(
+        "Claude host script not found. Checked: {}",
+        candidates
+            .iter()
+            .map(|p| p.display().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    ))
 }
 
 fn resolve_host_script_path_from_cwd() -> Result<PathBuf, String> {
