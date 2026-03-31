@@ -30,7 +30,10 @@
     "active": true,
     "targets": "all",
     "resources": [
-      "../../claude-host/dist/*"
+      {
+        "src": "../../claude-host/dist/index.js",
+        "target": "claude-host/index.js"
+      }
     ],
     "icon": [
       "icons/32x32.png",
