@@ -10,6 +10,7 @@ interface AgentStatusBarProps {
   effort?: string | null;
   conversationId?: string | null;
   totalCost: number;
+  planMode?: boolean;
 }
 
 const stateConfig: Record<AgentState, { label: string; icon: typeof Check; spin?: boolean }> = {
@@ -52,10 +53,12 @@ export function AgentStatusBar({
   agent,
   effort,
   totalCost,
+  planMode,
 }: AgentStatusBarProps) {
   const { label, icon: Icon, spin } = stateConfig[state] ?? stateConfig.idle;
 
   const details: string[] = [];
+  if (planMode) details.push("Plan");
   if (model) details.push(formatModel(model));
   if (permissionMode) details.push(PERMISSION_LABELS[permissionMode] ?? permissionMode);
   if (agent) details.push(agent);

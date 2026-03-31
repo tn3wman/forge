@@ -25,6 +25,7 @@ struct AgentMeta {
     agent: Option<String>,
     effort: Option<String>,
     claude_path: Option<String>,
+    plan_mode: Option<bool>,
 }
 
 pub struct AgentSessionManager {
@@ -60,6 +61,7 @@ impl AgentSessionManager {
             request.working_directory.as_deref(),
             &request.initial_prompt,
             request.claude.as_ref(),
+            request.plan_mode.or(request.claude.as_ref().and_then(|c| c.plan_mode)),
             app_handle,
         )?;
 
@@ -91,6 +93,7 @@ impl AgentSessionManager {
                 .claude
                 .as_ref()
                 .and_then(|claude| claude.permission_mode.clone()),
+            plan_mode: request.plan_mode.or(request.claude.as_ref().and_then(|c| c.plan_mode)),
             agent: request.claude.as_ref().and_then(|claude| claude.agent.clone()),
             effort: request.claude.as_ref().and_then(|claude| claude.effort.clone()),
             claude_path: request
@@ -125,6 +128,7 @@ impl AgentSessionManager {
                     .claude
                     .as_ref()
                     .and_then(|claude| claude.claude_path.clone()),
+                plan_mode: request.plan_mode.or(request.claude.as_ref().and_then(|c| c.plan_mode)),
             },
         };
 
@@ -212,6 +216,7 @@ impl AgentSessionManager {
                 created_at: entry.info.created_at.clone(),
                 model: entry.info.model.clone(),
                 permission_mode: entry.info.permission_mode.clone(),
+                plan_mode: entry.info.plan_mode,
                 agent: entry.info.agent.clone(),
                 effort: entry.info.effort.clone(),
                 claude_path: entry.info.claude_path.clone(),

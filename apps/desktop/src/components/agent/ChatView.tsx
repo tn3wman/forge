@@ -24,6 +24,7 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
   const toggleMessageCollapsed = useAgentStore((s) => s.toggleMessageCollapsed);
   const toggleReasoningCollapsed = useAgentStore((s) => s.toggleReasoningCollapsed);
   const updateTabState = useAgentStore((s) => s.updateTabState);
+  const updateTabMeta = useAgentStore((s) => s.updateTabMeta);
   const updateTabMode = useAgentStore((s) => s.updateTabMode);
   const clearMessages = useAgentStore((s) => s.clearMessages);
   const activeTabId = useAgentStore((s) => s.activeTabId);
@@ -141,6 +142,18 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
     [sessionId, updateTabMode],
   );
 
+  const handlePlanModeChange = useCallback(
+    (newPlanMode: boolean) => {
+      updateTabMeta(sessionId, { planMode: newPlanMode });
+      // Send /plan or /default as a message to toggle mid-session
+      const cmd = newPlanMode ? "/plan" : "/default";
+      void agentIpc.sendMessage(sessionId, cmd).catch((err) => {
+        console.error("Failed to toggle plan mode:", err);
+      });
+    },
+    [sessionId, updateTabMeta],
+  );
+
   const handleAbort = useCallback(() => {
     void agentIpc.abort(sessionId).catch((error) => {
       console.error("Failed to abort agent session:", error);
@@ -241,6 +254,7 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
         agent={tab.agent}
         effort={tab.effort}
         totalCost={tab.totalCost}
+        planMode={tab?.planMode}
       />
 
       <UnifiedInputCard
@@ -249,6 +263,8 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
         agentState={tab.state}
         mode={tab.mode}
         onModeChange={handleModeChange}
+        planMode={tab?.planMode}
+        onPlanModeChange={handlePlanModeChange}
         slashCommands={slashCommands ?? []}
         onFocusChange={(focused) => {
           inputFocusedRef.current = focused;

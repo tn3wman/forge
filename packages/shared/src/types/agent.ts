@@ -10,6 +10,7 @@ export interface ClaudeLaunchOptions {
   model?: string;
   permissionMode?: ClaudePermissionMode;
   effort?: ClaudeEffort;
+  planMode?: boolean;
   agent?: string;
   claudePath?: string;
 }
@@ -21,6 +22,7 @@ export interface CreateAgentSessionRequest {
   workspaceId: string;
   initialPrompt: string;
   claude?: ClaudeLaunchOptions;
+  planMode?: boolean;
 }
 
 export interface AgentSessionInfo {
@@ -36,6 +38,7 @@ export interface AgentSessionInfo {
   createdAt: string;
   model?: string;
   permissionMode?: string;
+  planMode?: boolean;
   agent?: string;
   effort?: ClaudeEffort;
   claudePath?: string;
@@ -92,6 +95,8 @@ export type AgentEvent =
       detail: string;
     }
   | { type: "approval_resolved"; approvalId: string; allow: boolean }
+  | { type: "plan_delta"; itemId: string; contentDelta: string }
+  | { type: "plan_updated"; steps: Array<{ step: string; status: "pending" | "inProgress" | "completed" }> }
   | { type: "status"; state: AgentState; tool?: string; toolUseId?: string; messageId?: string; turnId?: string }
   | { type: "result"; resultText: string; durationMs: number; totalCostUsd: number; isError: boolean }
   | { type: "raw"; data: unknown };

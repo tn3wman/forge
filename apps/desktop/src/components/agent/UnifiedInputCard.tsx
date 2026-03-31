@@ -11,6 +11,7 @@ import {
   Gauge,
   Sparkles,
   Paperclip,
+  ClipboardList,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,9 @@ interface UnifiedInputCardProps {
   mode?: AgentChatMode;
   onModeChange?: (mode: AgentChatMode) => void;
 
+  planMode?: boolean;
+  onPlanModeChange?: (planMode: boolean) => void;
+
   slashCommands?: SlashCommandInfo[];
 
   // Model & effort (PreSessionView only)
@@ -96,6 +100,8 @@ export function UnifiedInputCard({
   disabled,
   mode = "assisted",
   onModeChange,
+  planMode,
+  onPlanModeChange,
   slashCommands = [],
   model,
   onModelChange,
@@ -247,6 +253,14 @@ export function UnifiedInputCard({
           case "abort":
             onAbort?.();
             break;
+          case "plan":
+            onPlanModeChange?.(true);
+            showConfirmationMsg("Plan mode enabled");
+            break;
+          case "default":
+            onPlanModeChange?.(false);
+            showConfirmationMsg("Plan mode disabled");
+            break;
           default: {
             const m = MODE_COMMANDS[cmd.name];
             if (m) {
@@ -260,7 +274,7 @@ export function UnifiedInputCard({
       }
       setText("");
     },
-    [onClear, onAbort, onModeChange, onSend, showConfirmationMsg],
+    [onClear, onAbort, onModeChange, onPlanModeChange, onSend, showConfirmationMsg],
   );
 
   const handleSend = useCallback(() => {
@@ -282,6 +296,20 @@ export function UnifiedInputCard({
       return;
     }
 
+    if (lower === "/plan") {
+      onPlanModeChange?.(true);
+      setText("");
+      showConfirmationMsg("Plan mode enabled");
+      return;
+    }
+
+    if (lower === "/default") {
+      onPlanModeChange?.(false);
+      setText("");
+      showConfirmationMsg("Plan mode disabled");
+      return;
+    }
+
     const modeCmd = MODE_COMMANDS[lower.slice(1)];
     if (lower.startsWith("/") && modeCmd) {
       onModeChange?.(modeCmd);
@@ -294,7 +322,7 @@ export function UnifiedInputCard({
     setText("");
     setImages([]);
     setImageError(null);
-  }, [text, images, onSend, onAbort, onModeChange, onClear, showConfirmationMsg]);
+  }, [text, images, onSend, onAbort, onModeChange, onPlanModeChange, onClear, showConfirmationMsg]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -518,6 +546,28 @@ export function UnifiedInputCard({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Plan mode toggle */}
+          {onPlanModeChange && (
+            <>
+              <Separator />
+              <button
+                type="button"
+                onClick={() => onPlanModeChange(!planMode)}
+                disabled={isDisabled}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors disabled:opacity-50",
+                  planMode
+                    ? "text-primary font-semibold bg-primary/10"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title={planMode ? "Plan mode ON — agent will propose a plan before executing" : "Plan mode OFF"}
+              >
+                <ClipboardList className="h-3.5 w-3.5" />
+                <span className="font-medium">Plan</span>
+              </button>
+            </>
+          )}
 
           {/* Terminal button (PreSessionView only) */}
           {showTerminalButton && (

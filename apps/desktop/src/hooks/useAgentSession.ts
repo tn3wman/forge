@@ -40,12 +40,24 @@ function handleAgentEvent(payload: AgentEventPayload) {
         ...(event.model ? { model: event.model } : {}),
         ...(event.permissionMode ? { permissionMode: event.permissionMode } : {}),
       });
-      // Sync the UI mode selector when the SDK reports a mode transition
-      // (e.g., plan mode → default after ExitPlanMode approval)
+      // Sync plan mode state from SDK permission mode transitions
       if (event.permissionMode) {
         const tab = store.tabs.find((t) => t.sessionId === sessionId);
-        if (tab && tab.mode !== event.permissionMode) {
-          store.updateTabMode(sessionId, event.permissionMode as AgentChatMode);
+        if (tab) {
+          if (event.permissionMode === "plan") {
+            // SDK entered plan mode
+            store.updateTabMeta(sessionId, { planMode: true });
+          } else if (tab.planMode && event.permissionMode !== "plan") {
+            // SDK exited plan mode (plan approved, now executing)
+            // Keep planMode true in UI, permissionMode reflects execution phase
+          }
+          // Only sync UI mode selector for non-plan permission modes
+          if (event.permissionMode !== "plan" && tab.mode !== event.permissionMode) {
+            const mapped = event.permissionMode as AgentChatMode;
+            if (mapped === "supervised" || mapped === "assisted" || mapped === "fullAccess") {
+              store.updateTabMode(sessionId, mapped);
+            }
+          }
         }
       }
       store.updateTabState(sessionId, "thinking");
@@ -234,6 +246,26 @@ function handleAgentEvent(payload: AgentEventPayload) {
         }
         store.completeReasoning(sessionId);
         store.updateTabState(sessionId, "completed");
+      }
+      break;
+    }
+    case "plan_delta": {
+      // Map plan deltas to assistant message deltas so plan content is visible
+      store.appendAssistantDelta(sessionId, event.itemId, event.contentDelta ?? "");
+      store.updateTabState(sessionId, "thinking");
+      break;
+    }
+    case "plan_updated": {
+      // Format plan steps as an assistant message for display
+      const steps = (event as any).steps as Array<{ step: string; status: string }> | undefined;
+      if (steps?.length) {
+        const formatted = steps
+          .map((s) => {
+            const icon = s.status === "completed" ? "✓" : s.status === "inProgress" ? "→" : "○";
+            return `${icon} ${s.step}`;
+          })
+          .join("\n");
+        store.fillEmptyAssistant(sessionId, formatted);
       }
       break;
     }
