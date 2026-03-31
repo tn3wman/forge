@@ -23,6 +23,7 @@ type HostCommand =
       prompt: string;
       model?: string | null;
       permissionMode?: string | null;
+      underlyingPermissionMode?: string | null;
       effort?: string | null;
       agent?: string | null;
       claudePath?: string | null;
@@ -195,6 +196,7 @@ interface ClaudeSession {
   sessionId: string;
   cwd?: string | null;
   permissionMode?: string | null;
+  underlyingPermissionMode?: string | null;
   claudePath?: string | null;
   agent?: string | null;
   effort?: string | null;
@@ -361,6 +363,7 @@ async function createCapabilitiesQuery(claudePath?: string | null) {
 
 function toSdkPermissionMode(mode?: string | null): PermissionMode | undefined {
   switch (mode) {
+    case "plan": return "plan";
     case "supervised": return "default";
     case "assisted": return "default";
     case "fullAccess": return "bypassPermissions";
@@ -391,6 +394,7 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
     sessionId: command.sessionId,
     cwd: command.cwd,
     permissionMode: command.permissionMode ?? undefined,
+    underlyingPermissionMode: command.underlyingPermissionMode ?? command.permissionMode ?? undefined,
     claudePath: command.claudePath ?? undefined,
     agent: command.agent ?? undefined,
     effort: command.effort ?? undefined,
@@ -403,13 +407,14 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
   };
 
   const canUseTool: CanUseTool = (toolName, toolInput, callbackOptions) => {
+    const effectiveMode = session.underlyingPermissionMode ?? session.permissionMode;
     // Full Access: auto-approve all tools
-    if (session.permissionMode === "fullAccess") {
+    if (effectiveMode === "fullAccess") {
       return Promise.resolve({ behavior: "allow" as const });
     }
 
     // Assisted: auto-approve read-only tools, prompt for writes
-    if (session.permissionMode === "assisted" && READ_ONLY_TOOLS.has(toolName)) {
+    if (effectiveMode === "assisted" && READ_ONLY_TOOLS.has(toolName)) {
       return Promise.resolve({ behavior: "allow" as const });
     }
 

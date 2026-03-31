@@ -48,6 +48,7 @@ export interface AgentTab {
   effort?: ClaudeEffort | null;
   claudePath?: string | null;
   capabilitiesLoaded?: boolean;
+  planMode?: boolean;
   slashCommands?: SlashCommandInfo[];
   totalCost: number;
 }

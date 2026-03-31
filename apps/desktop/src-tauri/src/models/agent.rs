@@ -18,6 +18,13 @@ pub struct SlashCommandInfo {
     pub source: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanStep {
+    pub step: String,
+    pub status: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentState {
@@ -38,6 +45,7 @@ pub struct ClaudeLaunchOptions {
     pub effort: Option<String>,
     pub agent: Option<String>,
     pub claude_path: Option<String>,
+    pub plan_mode: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -149,6 +157,15 @@ pub enum AgentEvent {
         total_cost_usd: f64,
         is_error: bool,
     },
+    #[serde(rename_all = "camelCase")]
+    PlanDelta {
+        item_id: String,
+        content_delta: String,
+    },
+    #[serde(rename_all = "camelCase")]
+    PlanUpdated {
+        steps: Vec<PlanStep>,
+    },
     Raw {
         data: serde_json::Value,
     },
@@ -171,6 +188,7 @@ pub struct CreateAgentSessionRequest {
     pub workspace_id: String,
     pub initial_prompt: String,
     pub claude: Option<ClaudeLaunchOptions>,
+    pub plan_mode: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -188,6 +206,7 @@ pub struct AgentSessionInfo {
     pub created_at: String,
     pub model: Option<String>,
     pub permission_mode: Option<String>,
+    pub plan_mode: Option<bool>,
     pub agent: Option<String>,
     pub effort: Option<String>,
     pub claude_path: Option<String>,

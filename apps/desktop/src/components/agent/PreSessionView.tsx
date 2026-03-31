@@ -34,6 +34,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
 
   const [selectedCli, setSelectedCli] = useState<string | null>(null);
   const [mode, setMode] = useState<AgentChatMode>("assisted");
+  const [planMode, setPlanMode] = useState(false);
   const [showFullAccessConfirm, setShowFullAccessConfirm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
@@ -106,12 +107,14 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
           workingDirectory: effectiveWorkDir,
           workspaceId,
           initialPrompt: text,
+          planMode,
           claude: isClaude
             ? {
                 provider: "claude",
                 model: model.trim() || undefined,
                 permissionMode: mode,
                 effort,
+                planMode,
                 agent: agent.trim() || undefined,
                 claudePath: claudeExecutablePath.trim() || undefined,
               }
@@ -138,6 +141,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
           effort: session.effort ?? (isClaude ? effort : undefined),
           claudePath: session.claudePath ?? (effectiveClaudePath || undefined),
           capabilitiesLoaded: session.capabilitiesLoaded,
+          planMode,
           totalCost: 0,
         });
 
@@ -164,6 +168,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
       isClaude,
       mode,
       model,
+      planMode,
       selectedBranch,
       selectedCli,
       selectedWorktree,
@@ -221,6 +226,8 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
           disabled={creating}
           mode={mode}
           onModeChange={handleModeChange}
+          planMode={planMode}
+          onPlanModeChange={setPlanMode}
           slashCommands={slashCommands ?? []}
           model={isClaude ? model : undefined}
           onModelChange={isClaude ? setModel : undefined}

@@ -16,9 +16,11 @@ impl AgentSession {
         working_directory: Option<&str>,
         initial_prompt: &str,
         claude: Option<&ClaudeLaunchOptions>,
+        plan_mode: Option<bool>,
         app_handle: AppHandle,
     ) -> Result<Self, String> {
         let kind = backend_for_cli(cli_name);
+        let resolved_plan_mode = claude.and_then(|c| c.plan_mode).or(plan_mode).unwrap_or(false);
 
         let backend: Box<dyn AgentBackend> = match kind {
             BackendKind::ClaudeStreamJson => Box::new(ClaudeBackend::spawn(
@@ -27,6 +29,7 @@ impl AgentSession {
                 working_directory,
                 initial_prompt,
                 claude,
+                resolved_plan_mode,
                 app_handle,
             )?),
             BackendKind::CodexJson => Box::new(CodexBackend::spawn(
@@ -34,6 +37,7 @@ impl AgentSession {
                 mode,
                 working_directory,
                 initial_prompt,
+                resolved_plan_mode,
                 app_handle,
             )?),
             BackendKind::PtyFallback => {

@@ -42,6 +42,7 @@ impl CodexBackend {
         mode: &AgentMode,
         working_directory: Option<&str>,
         initial_prompt: &str,
+        plan_mode: bool,
         app_handle: AppHandle,
     ) -> Result<Self, String> {
         let cli_path =
@@ -254,15 +255,22 @@ impl CodexBackend {
 
             // Send thread/start request
             let thread_start_id = request_counter.fetch_add(1, Ordering::Relaxed);
+            let mut thread_start_params = serde_json::json!({
+                "approvalPolicy": approval_mode,
+                "cwd": working_directory,
+                "sandboxPermissions": [sandbox_mode],
+            });
+            if plan_mode {
+                thread_start_params.as_object_mut().unwrap().insert(
+                    "config".to_string(),
+                    serde_json::json!({ "plan": true }),
+                );
+            }
             let msg = serde_json::json!({
                 "jsonrpc": "2.0",
                 "id": thread_start_id,
                 "method": "thread/start",
-                "params": {
-                    "approvalPolicy": approval_mode,
-                    "cwd": working_directory,
-                    "sandboxPermissions": [sandbox_mode],
-                }
+                "params": thread_start_params,
             });
             let _ = writer.write_all(msg.to_string().as_bytes());
             let _ = writer.write_all(b"\n");
@@ -599,6 +607,41 @@ fn parse_codex_notification(
                 content_delta: delta,
                 is_error: Some(false),
             }]
+        }
+
+        "plan/delta" | "planDelta" => {
+            let delta = params
+                .get("delta")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let item_id = params
+                .get("itemId")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            vec![AgentEvent::PlanDelta {
+                item_id,
+                content_delta: delta,
+            }]
+        }
+
+        "turn/planUpdated" | "turnPlanUpdated" => {
+            let steps = params
+                .get("plan")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|s| {
+                            Some(crate::models::agent::PlanStep {
+                                step: s.get("step")?.as_str()?.to_string(),
+                                status: s.get("status")?.as_str()?.to_string(),
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            vec![AgentEvent::PlanUpdated { steps }]
         }
 
         // Approval requests from the server

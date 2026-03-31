@@ -34,6 +34,7 @@ impl ClaudeBackend {
         working_directory: Option<&str>,
         initial_prompt: &str,
         claude: Option<&ClaudeLaunchOptions>,
+        plan_mode: bool,
         app_handle: AppHandle,
     ) -> Result<Self, String> {
         let node_path = resolve_node_path()?;
@@ -168,6 +169,16 @@ impl ClaudeBackend {
             approval_lookup,
         };
 
+        let plan_mode_enabled = plan_mode;
+        let base_permission = claude
+            .and_then(|opts| opts.permission_mode.clone())
+            .or_else(|| Some(mode_to_permission_mode(mode).to_string()));
+        let effective_permission = if plan_mode_enabled {
+            Some("plan".to_string())
+        } else {
+            base_permission.clone()
+        };
+
         backend.call_host(
             "start_session",
             json!({
@@ -175,9 +186,8 @@ impl ClaudeBackend {
                 "cwd": working_directory,
                 "prompt": initial_prompt,
                 "model": claude.and_then(|opts| opts.model.clone()),
-                "permissionMode": claude
-                    .and_then(|opts| opts.permission_mode.clone())
-                    .or_else(|| Some(mode_to_permission_mode(mode).to_string())),
+                "permissionMode": effective_permission,
+                "underlyingPermissionMode": base_permission,
                 "effort": claude.and_then(|opts| opts.effort.clone()),
                 "agent": claude.and_then(|opts| opts.agent.clone()),
                 "claudePath": claude.and_then(|opts| opts.claude_path.clone()),

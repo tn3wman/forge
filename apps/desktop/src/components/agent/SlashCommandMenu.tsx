@@ -12,8 +12,8 @@ import type { SlashCommandInfo } from "@forge/shared";
 export const LOCAL_COMMANDS: SlashCommandInfo[] = [
   { name: "clear", description: "Clear chat history", category: "local" },
   { name: "abort", description: "Stop the running agent", category: "local" },
-  { name: "plan", description: "Switch to Plan mode", category: "local" },
-  { name: "default", description: "Switch to Default mode", category: "local" },
+  { name: "plan", description: "Toggle Plan mode on", category: "local" },
+  { name: "default", description: "Toggle Plan mode off", category: "local" },
   { name: "yolo", description: "Switch to BypassPermissions mode", category: "local" },
   { name: "auto", description: "Switch to Auto mode", category: "local" },
 ];
