@@ -277,6 +277,7 @@ function handleAgentEvent(payload: AgentEventPayload) {
       store.updateTabCost(sessionId, event.totalCostUsd ?? 0);
       if (event.isError) {
         store.markAssistantError(sessionId, event.resultText);
+        store.finalizeAllPending(sessionId);
         store.updateTabState(sessionId, "error");
       } else {
         // Fallback: if streaming events were lost, populate the assistant
@@ -285,6 +286,7 @@ function handleAgentEvent(payload: AgentEventPayload) {
           store.fillEmptyAssistant(sessionId, event.resultText);
         }
         store.completeReasoning(sessionId);
+        store.finalizeAllPending(sessionId);
 
         // Check if this is a plan mode completion — show plan review UI
         const planTab = store.tabs.find((t) => t.sessionId === sessionId);
@@ -365,6 +367,7 @@ function handleAgentExit(payload: AgentExitPayload) {
   if (!tab) return;
   if (tab.state === "completed" || tab.state === "error") return;
   store.completeReasoning(payload.sessionId);
+  store.finalizeAllPending(payload.sessionId);
   store.updateTabState(payload.sessionId, "completed");
 }
 

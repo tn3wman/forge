@@ -455,7 +455,8 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
       cwd: command.cwd ?? undefined,
       includePartialMessages: true,
       permissionMode: toSdkPermissionMode(command.permissionMode),
-      ...(toSdkPermissionMode(command.permissionMode) === "bypassPermissions"
+      ...(toSdkPermissionMode(command.permissionMode) === "bypassPermissions" ||
+          toSdkPermissionMode(command.underlyingPermissionMode) === "bypassPermissions"
         ? { allowDangerouslySkipPermissions: true }
         : {}),
       maxThinkingTokens: command.effort === "high" ? 12000 : undefined,

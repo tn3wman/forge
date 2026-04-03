@@ -57,6 +57,8 @@ impl SessionManager {
             &request.cli_name,
             &request.mode,
             request.working_directory.as_deref(),
+            request.permission_mode.as_deref(),
+            request.plan_mode.unwrap_or(false),
             app_handle,
         )?;
 

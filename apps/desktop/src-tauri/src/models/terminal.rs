@@ -23,6 +23,8 @@ pub struct CreateSessionRequest {
     pub mode: AgentMode,
     pub working_directory: Option<String>,
     pub workspace_id: String,
+    pub permission_mode: Option<String>,
+    pub plan_mode: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

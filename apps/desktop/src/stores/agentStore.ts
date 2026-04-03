@@ -90,6 +90,7 @@ interface AgentStore {
   updateTabMode: (sessionId: string, mode: AgentChatMode) => void;
   toggleMessageCollapsed: (sessionId: string, messageId: string) => void;
   toggleReasoningCollapsed: (sessionId: string, messageId: string) => void;
+  finalizeAllPending: (sessionId: string) => void;
   clearMessages: (sessionId: string) => void;
   clearPlanReview: (sessionId: string) => void;
 }
@@ -660,6 +661,25 @@ export const useAgentStore = create<AgentStore>((set) => ({
           ),
         },
       };
+    }),
+
+  finalizeAllPending: (sessionId) =>
+    set((s) => {
+      const messages = getMessagesForSession(s.messagesBySession, sessionId);
+      let changed = false;
+      const next = messages.map((message) => {
+        if (
+          message.streamState === "pending" ||
+          message.streamState === "streaming"
+        ) {
+          changed = true;
+          return { ...message, streamState: "completed" as const };
+        }
+        return message;
+      });
+      return changed
+        ? { messagesBySession: { ...s.messagesBySession, [sessionId]: next } }
+        : s;
     }),
 
   clearMessages: (sessionId) =>

@@ -12,6 +12,8 @@ export interface CreateSessionRequest {
   mode: AgentMode;
   workingDirectory?: string;
   workspaceId: string;
+  permissionMode?: "supervised" | "assisted" | "fullAccess";
+  planMode?: boolean;
 }
 
 export interface SessionInfo {

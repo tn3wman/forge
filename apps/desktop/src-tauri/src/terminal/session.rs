@@ -18,6 +18,8 @@ impl PtySession {
         cli_name: &str,
         mode: &AgentMode,
         working_directory: Option<&str>,
+        permission_mode: Option<&str>,
+        plan_mode: bool,
         app_handle: AppHandle,
     ) -> Result<Self, String> {
         let pty_system = native_pty_system();
@@ -37,19 +39,22 @@ impl PtySession {
         let mut cmd = CommandBuilder::new(&cli_path);
         crate::shell_env::apply_env_pty(&mut cmd);
 
-        // Add mode-specific flags
-        match mode {
-            AgentMode::Plan => {
-                if cli_name == "claude" {
-                    cmd.arg("--plan");
-                }
+        // Determine effective settings from new fields or legacy mode fallback
+        let is_full_access = permission_mode == Some("fullAccess")
+            || matches!(mode, AgentMode::DangerouslyBypassPermissions);
+        let is_plan = plan_mode || matches!(mode, AgentMode::Plan);
+
+        if cli_name == "claude" {
+            if is_full_access {
+                cmd.arg("--dangerously-skip-permissions");
             }
-            AgentMode::DangerouslyBypassPermissions => {
-                if cli_name == "claude" {
-                    cmd.arg("--dangerously-skip-permissions");
-                }
+            if is_plan {
+                cmd.arg("--plan");
             }
-            AgentMode::Normal => {}
+        } else if cli_name == "codex" {
+            if is_full_access {
+                cmd.arg("--full-auto");
+            }
         }
 
         if let Some(dir) = working_directory {
