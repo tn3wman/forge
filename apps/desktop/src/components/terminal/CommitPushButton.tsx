@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { memo, useState, useCallback } from "react";
 import { GitCommitHorizontal, ChevronDown, Upload, GitPullRequest } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,7 +8,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useTerminalStore } from "@/stores/terminalStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useGitStatus } from "@/queries/useGitStatus";
 import { useStageAll, useCommit, useGitPush } from "@/queries/useGitMutations";
@@ -17,11 +16,16 @@ import { CreatePrDialog } from "./CreatePrDialog";
 
 type DialogMode = "commit" | "commit-push" | "create-pr" | null;
 
-export function CommitPushButton() {
-  const { tabs, activeTabId } = useTerminalStore();
+interface CommitPushButtonProps {
+  workingDirectory: string | null;
+  compact?: boolean;
+}
+
+export const CommitPushButton = memo(function CommitPushButton({
+  workingDirectory,
+  compact,
+}: CommitPushButtonProps) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const activeTab = tabs.find((t) => t.tabId === activeTabId);
-  const workingDirectory = activeTab?.workingDirectory ?? null;
 
   const { data: status } = useGitStatus(workingDirectory);
   const stageAll = useStageAll();
@@ -98,17 +102,18 @@ export function CommitPushButton() {
             setError(null);
             setDialogMode("commit-push");
           }}
-          className="h-6 rounded-r-none px-2 text-xs"
+          className={compact ? "h-5 rounded-r-none px-1 text-xs" : "h-6 rounded-r-none px-2 text-xs"}
+          title="Commit & push"
         >
-          <GitCommitHorizontal className="mr-1 h-3 w-3" />
-          Commit & push
+          <GitCommitHorizontal className={compact ? "h-3 w-3" : "mr-1 h-3 w-3"} />
+          {!compact && "Commit & push"}
         </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               size="sm"
               disabled={isLoading}
-              className="h-6 rounded-l-none border-l border-primary-foreground/20 px-1"
+              className={compact ? "h-5 rounded-l-none border-l border-primary-foreground/20 px-0.5" : "h-6 rounded-l-none border-l border-primary-foreground/20 px-1"}
               aria-label="More commit options"
             >
               <ChevronDown className="h-3 w-3" />
@@ -169,4 +174,4 @@ export function CommitPushButton() {
       />
     </>
   );
-}
+});
