@@ -22,14 +22,16 @@ impl PtySession {
         plan_mode: bool,
         model: Option<&str>,
         _effort: Option<&str>,
+        initial_cols: Option<u16>,
+        initial_rows: Option<u16>,
         app_handle: AppHandle,
     ) -> Result<Self, String> {
         let pty_system = native_pty_system();
 
         let pty = pty_system
             .openpty(PtySize {
-                rows: 24,
-                cols: 80,
+                rows: initial_rows.unwrap_or(24),
+                cols: initial_cols.unwrap_or(80),
                 pixel_width: 0,
                 pixel_height: 0,
             })

@@ -35,9 +35,11 @@ pub fn apply_env(cmd: &mut Command) {
     cmd.env("PATH", get_path());
 }
 
-/// Set PATH on a `portable_pty::CommandBuilder` before spawning.
+/// Set PATH and terminal capability env vars on a `portable_pty::CommandBuilder`.
 pub fn apply_env_pty(cmd: &mut portable_pty::CommandBuilder) {
     cmd.env("PATH", get_path());
+    cmd.env("TERM", "xterm-256color");
+    cmd.env("COLORTERM", "truecolor");
 }
 
 // ---------------------------------------------------------------------------

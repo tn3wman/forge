@@ -61,6 +61,8 @@ impl SessionManager {
             request.plan_mode.unwrap_or(false),
             request.model.as_deref(),
             request.effort.as_deref(),
+            request.initial_cols,
+            request.initial_rows,
             app_handle,
         )?;
 

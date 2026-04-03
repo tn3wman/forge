@@ -27,6 +27,8 @@ pub struct CreateSessionRequest {
     pub plan_mode: Option<bool>,
     pub model: Option<String>,
     pub effort: Option<String>,
+    pub initial_cols: Option<u16>,
+    pub initial_rows: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

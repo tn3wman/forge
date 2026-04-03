@@ -76,3 +76,8 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+/* xterm terminal padding — prevents text from touching container edges */
+.xterm {
+  padding: 4px;
+}
