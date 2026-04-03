@@ -14,6 +14,8 @@ export interface CreateSessionRequest {
   workspaceId: string;
   permissionMode?: "supervised" | "assisted" | "fullAccess";
   planMode?: boolean;
+  model?: string;
+  effort?: "low" | "medium" | "high";
 }
 
 export interface SessionInfo {

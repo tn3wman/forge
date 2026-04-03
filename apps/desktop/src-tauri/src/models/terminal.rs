@@ -26,6 +26,7 @@ pub struct CreateSessionRequest {
     pub permission_mode: Option<String>,
     pub plan_mode: Option<bool>,
     pub model: Option<String>,
+    pub effort: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
