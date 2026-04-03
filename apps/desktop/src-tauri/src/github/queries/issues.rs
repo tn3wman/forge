@@ -19,6 +19,7 @@ query($owner: String!, $repo: String!, $states: [IssueState!]) {
         assignees(first: 10) { nodes { login } }
         locked
         activeLockReason
+        comments { totalCount }
         createdAt
         updatedAt
         closedAt
@@ -42,6 +43,7 @@ pub struct IssueItem {
     pub assignees: Vec<String>,
     pub locked: bool,
     pub active_lock_reason: Option<String>,
+    pub comments_count: i32,
     pub created_at: String,
     pub updated_at: String,
     pub closed_at: Option<String>,
@@ -120,6 +122,7 @@ pub async fn list_issues(
             assignees,
             locked: node["locked"].as_bool().unwrap_or(false),
             active_lock_reason: node["activeLockReason"].as_str().map(|s| s.to_string()),
+            comments_count: node["comments"]["totalCount"].as_i64().unwrap_or(0) as i32,
             created_at: node["createdAt"]
                 .as_str()
                 .unwrap_or_default()

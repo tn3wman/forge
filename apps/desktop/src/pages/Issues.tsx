@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { CircleDot, Loader2, Search, Plus } from "lucide-react";
+import { CircleDot, Loader2, Search, Plus, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useIssues } from "@/queries/useIssues";
 import { useRepositories } from "@/queries/useRepositories";
 import { IssueListItem } from "@/components/github/IssueListItem";
@@ -10,6 +10,7 @@ import { useIssueLinkedPrs } from "@/hooks/useLinkedItems";
 import { useWorkspaceTint } from "@/hooks/useWorkspaceTint";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { Issue } from "@forge/shared";
 
@@ -18,6 +19,34 @@ const ISSUE_FILTERS = [
   { value: "open", label: "Open" },
   { value: "closed", label: "Closed" },
 ] as const;
+
+type SortField = "updated" | "created" | "comments" | "title";
+type SortDirection = "asc" | "desc";
+
+const SORT_OPTIONS: { value: SortField; label: string }[] = [
+  { value: "updated", label: "Updated" },
+  { value: "created", label: "Created" },
+  { value: "comments", label: "Comments" },
+  { value: "title", label: "Title" },
+];
+
+const PAGE_SIZE = 50;
+
+function sortIssues(issues: Issue[], field: SortField, direction: SortDirection): Issue[] {
+  const dir = direction === "asc" ? 1 : -1;
+  return [...issues].sort((a, b) => {
+    switch (field) {
+      case "updated":
+        return dir * (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+      case "created":
+        return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      case "comments":
+        return dir * (a.commentsCount - b.commentsCount);
+      case "title":
+        return dir * a.title.localeCompare(b.title);
+    }
+  });
+}
 
 function filterIssues(issues: Issue[], filter: string, query: string): Issue[] {
   let filtered = issues;
@@ -47,6 +76,9 @@ function filterIssues(issues: Issue[], filter: string, query: string): Issue[] {
 export function Issues() {
   const [activeFilter, setActiveFilter] = useState("open");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState<SortField>("updated");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [currentPage, setCurrentPage] = useState(1);
   const [startWorkIssue, setStartWorkIssue] = useState<Issue | null>(null);
   const { navigateToIssue, activeWorkspaceId, setActivePage } = useWorkspaceStore();
   const tintStyle = useWorkspaceTint();
@@ -91,10 +123,21 @@ export function Issues() {
     return () => window.removeEventListener("keydown", handler);
   }, [repos]);
 
-  const filteredIssues = useMemo(
-    () => filterIssues(issues, activeFilter, searchQuery),
-    [issues, activeFilter, searchQuery],
+  const filteredAndSorted = useMemo(
+    () => sortIssues(filterIssues(issues, activeFilter, searchQuery), sortField, sortDirection),
+    [issues, activeFilter, searchQuery, sortField, sortDirection],
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredAndSorted.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedIssues = filteredAndSorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const rangeStart = filteredAndSorted.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * PAGE_SIZE, filteredAndSorted.length);
+
+  // Reset to page 1 when filter, search, or sort changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter, searchQuery, sortField, sortDirection]);
 
   return (
     <div className="flex flex-col h-full">
@@ -138,7 +181,35 @@ export function Issues() {
           </div>
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+                <ArrowUpDown className="h-3 w-3 mr-1" />
+                {SORT_OPTIONS.find((s) => s.value === sortField)?.label}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {SORT_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  onClick={() => setSortField(opt.value)}
+                  className={cn("text-xs", sortField === opt.value && "font-semibold")}
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0"
+            onClick={() => setSortDirection((d) => (d === "asc" ? "desc" : "asc"))}
+            title={sortDirection === "asc" ? "Ascending" : "Descending"}
+          >
+            {sortDirection === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+          </Button>
           <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={handleOpenNewIssue}>
             <Plus className="h-3 w-3 mr-1" />
             New Issue
@@ -160,14 +231,14 @@ export function Issues() {
           </div>
         )}
 
-        {!isLoading && !error && filteredIssues.length === 0 && (
+        {!isLoading && !error && filteredAndSorted.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <CircleDot className="h-8 w-8 mb-2 opacity-40" />
             <span className="text-sm">No issues found</span>
           </div>
         )}
 
-        {filteredIssues.map((issue) => (
+        {paginatedIssues.map((issue) => (
           <IssueListItem
             key={issue.id}
             issue={issue}
@@ -177,6 +248,38 @@ export function Issues() {
           />
         ))}
       </div>
+
+      {/* Pagination bar */}
+      {filteredAndSorted.length > PAGE_SIZE && (
+        <div className="flex shrink-0 items-center justify-between border-t border-border px-4 h-8 text-xs text-muted-foreground">
+          <span>
+            {rangeStart}–{rangeEnd} of {filteredAndSorted.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              disabled={safePage <= 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              <ChevronLeft className="h-3 w-3" />
+            </Button>
+            <span>
+              Page {safePage} of {totalPages}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              disabled={safePage >= totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              <ChevronRight className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {startWorkIssue && (
         <StartWorkDialog
