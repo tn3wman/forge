@@ -359,6 +359,11 @@ function handleAgentEvent(payload: AgentEventPayload) {
     case "status": {
       updateStateIfChanged(store, sessionId, event.state);
       if (event.state === "awaiting_approval") {
+        // Skip if this approval is already handled by PlanReviewCard
+        const statusTab = store.tabs.find((t) => t.sessionId === sessionId);
+        if (statusTab?.planReview?.exitPlanToolUseId === event.toolUseId) {
+          break;
+        }
         const messages = store.messagesBySession[sessionId];
         if (!hasPendingApproval(messages, event.toolUseId)) {
           store.appendMessage(sessionId, {
