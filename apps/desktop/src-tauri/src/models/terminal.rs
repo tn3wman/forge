@@ -25,6 +25,7 @@ pub struct CreateSessionRequest {
     pub workspace_id: String,
     pub permission_mode: Option<String>,
     pub plan_mode: Option<bool>,
+    pub model: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

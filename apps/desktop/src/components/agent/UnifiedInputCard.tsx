@@ -70,6 +70,7 @@ interface UnifiedInputCardProps {
 
   planMode?: boolean;
   onPlanModeChange?: (planMode: boolean) => void;
+  planReviewActive?: boolean;
 
   slashCommands?: SlashCommandInfo[];
 
@@ -102,6 +103,7 @@ export function UnifiedInputCard({
   onModeChange,
   planMode,
   onPlanModeChange,
+  planReviewActive,
   slashCommands = [],
   model,
   onModelChange,
@@ -346,7 +348,7 @@ export function UnifiedInputCard({
     [handleSend, isRunning, onAbort, showSlashMenu],
   );
 
-  const isDisabled = disabled || (showAgentSelector && !selectedCli);
+  const isDisabled = disabled || planReviewActive || (showAgentSelector && !selectedCli);
 
   return (
     <div className="shrink-0 px-4 pb-1">
@@ -397,9 +399,11 @@ export function UnifiedInputCard({
           rows={2}
           disabled={isDisabled}
           placeholder={
-            isRunning
-              ? "Agent is working..."
-              : "Ask for follow-up changes or attach images"
+            planReviewActive
+              ? "Use the plan review buttons above..."
+              : isRunning
+                ? "Agent is working..."
+                : "Ask for follow-up changes or attach images"
           }
           className={cn(
             "w-full resize-none bg-transparent px-4 pt-3 pb-2 text-sm",

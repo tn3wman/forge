@@ -144,6 +144,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
           effort: session.effort ?? (isClaude ? effort : undefined),
           claudePath: session.claudePath ?? (effectiveClaudePath || undefined),
           capabilitiesLoaded: session.capabilitiesLoaded,
+          workingDirectory: effectiveWorkDir,
           planMode,
           totalCost: 0,
         });

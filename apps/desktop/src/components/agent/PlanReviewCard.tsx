@@ -30,14 +30,19 @@ export const PlanReviewCard = memo(function PlanReviewCard({
   const appendMessage = useAgentStore((s) => s.appendMessage);
   const createPendingAssistant = useAgentStore((s) => s.createPendingAssistant);
 
-  const handleApprove = useCallback(() => {
+  const handleApprove = useCallback(async () => {
+    // Immediate UI updates for responsiveness
     clearPlanReview(sessionId);
     updateTabMeta(sessionId, { planMode: false });
     updateTabState(sessionId, "thinking");
-    // Switch permission mode back to the underlying mode and send execution prompt
-    void agentIpc.updatePermissionMode(sessionId, underlyingMode).catch((err) => {
+
+    // Wait for mode switch before sending message
+    try {
+      await agentIpc.updatePermissionMode(sessionId, underlyingMode);
+    } catch (err) {
       console.error("Failed to update permission mode:", err);
-    });
+    }
+
     const now = Date.now();
     appendMessage(sessionId, {
       id: `user-${now}`,

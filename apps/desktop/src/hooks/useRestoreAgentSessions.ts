@@ -42,6 +42,7 @@ function restoreSessionToStores(session: PersistedSession) {
     agent: session.agent,
     effort: session.effort as any,
     claudePath: session.claudePath,
+    workingDirectory: session.workingDirectory ?? undefined,
     planMode: session.planMode,
     totalCost: session.totalCost,
   });

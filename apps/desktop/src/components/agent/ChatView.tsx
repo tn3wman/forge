@@ -121,7 +121,7 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
             const newSession = await agentIpc.createSession({
               cliName: tab.cliName,
               mode: tab.mode,
-              workingDirectory: undefined, // Will use default
+              workingDirectory: tab.workingDirectory,
               workspaceId: "", // Will be filled by backend
               initialPrompt: text,
               planMode: tab.planMode,
@@ -166,6 +166,7 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
               agent: newSession.agent ?? tab.agent,
               effort: newSession.effort ?? tab.effort,
               claudePath: newSession.claudePath ?? tab.claudePath,
+              workingDirectory: tab.workingDirectory,
               planMode: tab.planMode,
               totalCost: 0,
             });
@@ -194,6 +195,7 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
                 effort: newSession.effort ?? tab.effort ?? undefined,
                 claudePath: newSession.claudePath ?? tab.claudePath ?? undefined,
                 planMode: tab.planMode,
+                workingDirectory: tab.workingDirectory,
                 conversationId: newSession.conversationId,
                 createdAt: newSession.createdAt,
               },
@@ -377,6 +379,7 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
         onSend={handleSend}
         onAbort={handleAbort}
         agentState={tab.state}
+        planReviewActive={!!tab.planReview}
         mode={tab.mode}
         onModeChange={handleModeChange}
         planMode={tab?.planMode}

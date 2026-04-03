@@ -48,6 +48,7 @@ export interface AgentTab {
   effort?: ClaudeEffort | null;
   claudePath?: string | null;
   capabilitiesLoaded?: boolean;
+  workingDirectory?: string;
   planMode?: boolean;
   planReview?: {
     filePath: string;
