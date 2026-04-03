@@ -169,7 +169,11 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
 
         <div className="flex-1" />
 
-        <CommitPushButton />
+        {layoutMode === "tabs" && (
+          <CommitPushButton
+            workingDirectory={tabs.find((t) => t.tabId === activeTabId)?.workingDirectory ?? null}
+          />
+        )}
 
         <button
           onClick={onNewTerminal}
@@ -233,7 +237,7 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
             >
               {/* Cell header — only in grid/columns modes */}
               {showCellChrome && (
-                <div className="flex h-7 shrink-0 items-center gap-2 border-b bg-sidebar/50 px-2">
+                <div className="flex h-7 shrink-0 items-center gap-1 border-b bg-sidebar/50 px-2">
                   <span className="flex-1 truncate text-xs font-medium text-muted-foreground">
                     {tab.label}
                   </span>
@@ -245,6 +249,7 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
                       {tab.mode === "Plan" ? "plan" : "yolo"}
                     </span>
                   )}
+                  <CommitPushButton workingDirectory={tab.workingDirectory ?? null} compact />
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
