@@ -121,11 +121,95 @@ export function useCreatePr() {
   });
 }
 
+export function useCloseIssue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; number: number }) =>
+      githubIpc.closeIssue(args.owner, args.repo, args.number),
+    onSuccess: (_data, args) => {
+      queryClient.invalidateQueries({ queryKey: ["issueDetail", args.owner, args.repo, args.number] });
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+    },
+  });
+}
+
+export function useReopenIssue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; number: number }) =>
+      githubIpc.reopenIssue(args.owner, args.repo, args.number),
+    onSuccess: (_data, args) => {
+      queryClient.invalidateQueries({ queryKey: ["issueDetail", args.owner, args.repo, args.number] });
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+    },
+  });
+}
+
+export function useUpdateIssue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; number: number; title?: string; body?: string }) =>
+      githubIpc.updateIssue(args.owner, args.repo, args.number, args.title, args.body),
+    onSuccess: (_data, args) => {
+      queryClient.invalidateQueries({ queryKey: ["issueDetail", args.owner, args.repo, args.number] });
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+    },
+  });
+}
+
+export function useLockIssue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; number: number; lockReason?: string }) =>
+      githubIpc.lockIssue(args.owner, args.repo, args.number, args.lockReason),
+    onSuccess: (_data, args) => {
+      queryClient.invalidateQueries({ queryKey: ["issueDetail", args.owner, args.repo, args.number] });
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+    },
+  });
+}
+
+export function useUnlockIssue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; number: number }) =>
+      githubIpc.unlockIssue(args.owner, args.repo, args.number),
+    onSuccess: (_data, args) => {
+      queryClient.invalidateQueries({ queryKey: ["issueDetail", args.owner, args.repo, args.number] });
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+    },
+  });
+}
+
+export function useSetIssueLabels() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; number: number; labels: string[] }) =>
+      githubIpc.setIssueLabels(args.owner, args.repo, args.number, args.labels),
+    onSuccess: (_data, args) => {
+      queryClient.invalidateQueries({ queryKey: ["issueDetail", args.owner, args.repo, args.number] });
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+    },
+  });
+}
+
+export function useSetIssueAssignees() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; number: number; assignees: string[] }) =>
+      githubIpc.setIssueAssignees(args.owner, args.repo, args.number, args.assignees),
+    onSuccess: (_data, args) => {
+      queryClient.invalidateQueries({ queryKey: ["issueDetail", args.owner, args.repo, args.number] });
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+    },
+  });
+}
+
 export function useCreateIssue() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (args: { owner: string; repo: string; title: string; body: string; labels: string[] }) =>
-      githubIpc.createIssue(args.owner, args.repo, args.title, args.body, args.labels),
+    mutationFn: (args: { owner: string; repo: string; title: string; body: string; labels: string[]; assignees: string[] }) =>
+      githubIpc.createIssue(args.owner, args.repo, args.title, args.body, args.labels, args.assignees),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["issues"] });
     },

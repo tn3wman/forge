@@ -16,6 +16,8 @@ query($owner: String!, $repo: String!, $number: Int!) {
       body
       labels(first: 10) { nodes { name } }
       assignees(first: 10) { nodes { login } }
+      locked
+      activeLockReason
       createdAt
       updatedAt
       closedAt
@@ -72,6 +74,8 @@ pub struct IssueDetailResult {
     pub body: String,
     pub labels: Vec<String>,
     pub assignees: Vec<String>,
+    pub locked: bool,
+    pub active_lock_reason: Option<String>,
     pub created_at: String,
     pub updated_at: String,
     pub closed_at: Option<String>,
@@ -162,6 +166,8 @@ pub async fn get_issue_detail(
         body: issue["body"].as_str().unwrap_or_default().to_string(),
         labels,
         assignees,
+        locked: issue["locked"].as_bool().unwrap_or(false),
+        active_lock_reason: issue["activeLockReason"].as_str().map(|s| s.to_string()),
         created_at: issue["createdAt"]
             .as_str()
             .unwrap_or_default()

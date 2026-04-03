@@ -46,10 +46,18 @@ export interface Issue {
   body: string;
   labels: string[];
   assignees: string[];
+  locked: boolean;
+  activeLockReason: string | null;
   createdAt: string;
   updatedAt: string;
   closedAt: string | null;
   repoFullName?: string;
+}
+
+export interface RepoLabel {
+  name: string;
+  color: string;
+  description: string | null;
 }
 
 export interface Notification {

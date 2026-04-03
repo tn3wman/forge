@@ -1,13 +1,16 @@
 import { useState, useMemo, useEffect } from "react";
-import { CircleDot, Loader2, Plus, Search } from "lucide-react";
+import { CircleDot, Loader2, Search, Plus } from "lucide-react";
 import { useIssues } from "@/queries/useIssues";
+import { useRepositories } from "@/queries/useRepositories";
+import { useCreateIssue } from "@/queries/useMutations";
 import { IssueListItem } from "@/components/github/IssueListItem";
 import { StartWorkDialog } from "@/components/github/StartWorkDialog";
-import { CreateIssueDialog } from "@/components/github/CreateIssueDialog";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useIssueLinkedPrs } from "@/hooks/useLinkedItems";
 import { useWorkspaceTint } from "@/hooks/useWorkspaceTint";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { Issue } from "@forge/shared";
 
@@ -46,11 +49,38 @@ export function Issues() {
   const [activeFilter, setActiveFilter] = useState("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [startWorkIssue, setStartWorkIssue] = useState<Issue | null>(null);
-  const [showCreateIssue, setShowCreateIssue] = useState(false);
-  const { navigateToIssue } = useWorkspaceStore();
+  const [showNewIssue, setShowNewIssue] = useState(false);
+  const [newIssueRepo, setNewIssueRepo] = useState("");
+  const [newIssueTitle, setNewIssueTitle] = useState("");
+  const [newIssueBody, setNewIssueBody] = useState("");
+  const { navigateToIssue, activeWorkspaceId } = useWorkspaceStore();
   const tintStyle = useWorkspaceTint();
   const { data: issues = [], isLoading, error } = useIssues();
+  const { data: repos } = useRepositories(activeWorkspaceId);
   const linkedPrMap = useIssueLinkedPrs();
+  const createIssue = useCreateIssue();
+
+  const handleOpenNewIssue = () => {
+    const firstRepo = repos?.[0]?.fullName ?? "";
+    setNewIssueRepo(firstRepo);
+    setNewIssueTitle("");
+    setNewIssueBody("");
+    setShowNewIssue(true);
+  };
+
+  const handleCreateIssue = () => {
+    if (!newIssueRepo || !newIssueTitle.trim()) return;
+    const [owner, repo] = newIssueRepo.split("/");
+    createIssue.mutate(
+      { owner, repo, title: newIssueTitle.trim(), body: newIssueBody, labels: [], assignees: [] },
+      {
+        onSuccess: (result) => {
+          setShowNewIssue(false);
+          navigateToIssue(newIssueRepo, result.number);
+        },
+      },
+    );
+  };
 
   const filterCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -60,6 +90,7 @@ export function Issues() {
     return counts;
   }, [issues]);
 
+  // Keyboard shortcut: "c" to create new issue (when not in an input)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (
@@ -71,12 +102,12 @@ export function Issues() {
         !(e.target instanceof HTMLTextAreaElement) &&
         !(e.target instanceof HTMLSelectElement)
       ) {
-        setShowCreateIssue(true);
+        handleOpenNewIssue();
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [repos]);
 
   const filteredIssues = useMemo(
     () => filterIssues(issues, activeFilter, searchQuery),
@@ -109,14 +140,6 @@ export function Issues() {
           </button>
         ))}
 
-        <button
-          onClick={() => setShowCreateIssue(true)}
-          className="ml-auto flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
-        >
-          <Plus className="h-3 w-3" />
-          New
-        </button>
-
         {/* Search bar — centered in the window, clamped so it can't overlap pills */}
         <div
           className="fixed top-1 z-10"
@@ -131,6 +154,13 @@ export function Issues() {
               className="h-6 pl-7 text-xs w-56 rounded-[10px]"
             />
           </div>
+        </div>
+
+        <div className="ml-auto">
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={handleOpenNewIssue}>
+            <Plus className="h-3 w-3 mr-1" />
+            New Issue
+          </Button>
         </div>
       </div>
 
@@ -175,10 +205,60 @@ export function Issues() {
         />
       )}
 
-      <CreateIssueDialog
-        open={showCreateIssue}
-        onOpenChange={setShowCreateIssue}
-      />
+      <Dialog open={showNewIssue} onOpenChange={setShowNewIssue}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New Issue</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {repos && repos.length > 1 && (
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Repository</label>
+                <select
+                  className="w-full rounded border border-border bg-transparent px-2 py-1.5 text-sm outline-none focus:border-ring"
+                  value={newIssueRepo}
+                  onChange={(e) => setNewIssueRepo(e.target.value)}
+                >
+                  {repos.map((r) => (
+                    <option key={r.id} value={r.fullName}>{r.fullName}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Title</label>
+              <Input
+                value={newIssueTitle}
+                onChange={(e) => setNewIssueTitle(e.target.value)}
+                placeholder="Issue title"
+                className="text-sm"
+                onKeyDown={(e) => { if (e.key === "Enter" && newIssueTitle.trim()) handleCreateIssue(); }}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Description</label>
+              <textarea
+                className="w-full min-h-[120px] rounded border border-border bg-transparent px-3 py-2 text-sm outline-none focus:border-ring resize-y font-mono"
+                value={newIssueBody}
+                onChange={(e) => setNewIssueBody(e.target.value)}
+                placeholder="Describe the issue (supports Markdown)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setShowNewIssue(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleCreateIssue}
+              disabled={!newIssueTitle.trim() || !newIssueRepo || createIssue.isPending}
+            >
+              {createIssue.isPending ? "Creating..." : "Create issue"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
