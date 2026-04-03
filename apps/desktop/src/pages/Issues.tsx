@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
-import { CircleDot, Loader2, Search } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { CircleDot, Loader2, Plus, Search } from "lucide-react";
 import { useIssues } from "@/queries/useIssues";
 import { IssueListItem } from "@/components/github/IssueListItem";
 import { StartWorkDialog } from "@/components/github/StartWorkDialog";
+import { CreateIssueDialog } from "@/components/github/CreateIssueDialog";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useIssueLinkedPrs } from "@/hooks/useLinkedItems";
 import { useWorkspaceTint } from "@/hooks/useWorkspaceTint";
@@ -45,6 +46,7 @@ export function Issues() {
   const [activeFilter, setActiveFilter] = useState("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [startWorkIssue, setStartWorkIssue] = useState<Issue | null>(null);
+  const [showCreateIssue, setShowCreateIssue] = useState(false);
   const { navigateToIssue } = useWorkspaceStore();
   const tintStyle = useWorkspaceTint();
   const { data: issues = [], isLoading, error } = useIssues();
@@ -57,6 +59,24 @@ export function Issues() {
     }
     return counts;
   }, [issues]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (
+        e.key === "c" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement) &&
+        !(e.target instanceof HTMLSelectElement)
+      ) {
+        setShowCreateIssue(true);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const filteredIssues = useMemo(
     () => filterIssues(issues, activeFilter, searchQuery),
@@ -88,6 +108,14 @@ export function Issues() {
             )}
           </button>
         ))}
+
+        <button
+          onClick={() => setShowCreateIssue(true)}
+          className="ml-auto flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
+        >
+          <Plus className="h-3 w-3" />
+          New
+        </button>
 
         {/* Search bar — centered in the window, clamped so it can't overlap pills */}
         <div
@@ -146,6 +174,11 @@ export function Issues() {
           linkedPrs={linkedPrMap.get(`${startWorkIssue.repoFullName}#${startWorkIssue.number}`)}
         />
       )}
+
+      <CreateIssueDialog
+        open={showCreateIssue}
+        onOpenChange={setShowCreateIssue}
+      />
     </div>
   );
 }

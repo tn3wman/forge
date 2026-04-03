@@ -120,3 +120,14 @@ export function useCreatePr() {
     },
   });
 }
+
+export function useCreateIssue() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; title: string; body: string; labels: string[] }) =>
+      githubIpc.createIssue(args.owner, args.repo, args.title, args.body, args.labels),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["issues"] });
+    },
+  });
+}

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { PullRequest, Issue, PrDetail, PrCommit, PrFile, IssueDetail } from "@forge/shared";
+import type { PullRequest, Issue, PrDetail, PrCommit, PrFile, IssueDetail, CreateIssueResult } from "@forge/shared";
 
 export interface RepoRef {
   owner: string;
@@ -64,4 +64,7 @@ export const githubIpc = {
 
   convertPrToDraft: (owner: string, repo: string, number: number) =>
     invoke<void>("github_convert_pr_to_draft", { owner, repo, number }),
+
+  createIssue: (owner: string, repo: string, title: string, body: string, labels: string[]) =>
+    invoke<CreateIssueResult>("github_create_issue", { owner, repo, title, body, labels }),
 };
