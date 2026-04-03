@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { PullRequest, Issue, PrDetail, PrCommit, PrFile, IssueDetail } from "@forge/shared";
+import type { PullRequest, Issue, PrDetail, PrCommit, PrFile, IssueDetail, RepoLabel } from "@forge/shared";
 
 export interface RepoRef {
   owner: string;
@@ -64,4 +64,34 @@ export const githubIpc = {
 
   convertPrToDraft: (owner: string, repo: string, number: number) =>
     invoke<void>("github_convert_pr_to_draft", { owner, repo, number }),
+
+  closeIssue: (owner: string, repo: string, number: number) =>
+    invoke<void>("github_close_issue", { owner, repo, number }),
+
+  reopenIssue: (owner: string, repo: string, number: number) =>
+    invoke<void>("github_reopen_issue", { owner, repo, number }),
+
+  updateIssue: (owner: string, repo: string, number: number, title?: string, body?: string) =>
+    invoke<void>("github_update_issue", { owner, repo, number, title: title ?? null, body: body ?? null }),
+
+  lockIssue: (owner: string, repo: string, number: number, lockReason?: string) =>
+    invoke<void>("github_lock_issue", { owner, repo, number, lockReason: lockReason ?? null }),
+
+  unlockIssue: (owner: string, repo: string, number: number) =>
+    invoke<void>("github_unlock_issue", { owner, repo, number }),
+
+  setIssueLabels: (owner: string, repo: string, number: number, labels: string[]) =>
+    invoke<void>("github_set_issue_labels", { owner, repo, number, labels }),
+
+  setIssueAssignees: (owner: string, repo: string, number: number, assignees: string[]) =>
+    invoke<void>("github_set_issue_assignees", { owner, repo, number, assignees }),
+
+  createIssue: (owner: string, repo: string, title: string, body: string, labels: string[], assignees: string[]) =>
+    invoke<{ number: number; htmlUrl: string }>("github_create_issue", { owner, repo, title, body, labels, assignees }),
+
+  listRepoLabels: (owner: string, repo: string) =>
+    invoke<RepoLabel[]>("github_list_repo_labels", { owner, repo }),
+
+  listRepoAssignees: (owner: string, repo: string) =>
+    invoke<string[]>("github_list_repo_assignees", { owner, repo }),
 };

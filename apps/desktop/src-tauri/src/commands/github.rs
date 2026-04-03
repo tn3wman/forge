@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use crate::github::client::{self as gh_client, PrCommitItem, PrFileItem, SearchRepoResult};
-use crate::github::mutations::{comments, pr_actions, reviews};
+use crate::github::mutations::{comments, issue_actions, pr_actions, reviews};
 use crate::github::mutations::comments::CommentResult;
 use crate::github::queries::issue_detail;
 use crate::github::queries::issues::{self, IssueItem};
@@ -317,4 +317,140 @@ pub async fn github_convert_pr_to_draft(
     let token = cache.require_token()?;
     let detail = pr_detail::get_pr_detail(&client, &token, &owner, &repo, number).await?;
     pr_actions::convert_to_draft(&client, &token, &detail.id).await
+}
+
+#[tauri::command]
+pub async fn github_close_issue(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    number: i32,
+) -> Result<(), String> {
+    let token = cache.require_token()?;
+    issue_actions::close_issue(&client, &token, &owner, &repo, number).await
+}
+
+#[tauri::command]
+pub async fn github_reopen_issue(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    number: i32,
+) -> Result<(), String> {
+    let token = cache.require_token()?;
+    issue_actions::reopen_issue(&client, &token, &owner, &repo, number).await
+}
+
+#[tauri::command]
+pub async fn github_update_issue(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    number: i32,
+    title: Option<String>,
+    body: Option<String>,
+) -> Result<(), String> {
+    let token = cache.require_token()?;
+    issue_actions::update_issue(
+        &client,
+        &token,
+        &owner,
+        &repo,
+        number,
+        title.as_deref(),
+        body.as_deref(),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn github_lock_issue(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    number: i32,
+    lock_reason: Option<String>,
+) -> Result<(), String> {
+    let token = cache.require_token()?;
+    issue_actions::lock_issue(&client, &token, &owner, &repo, number, lock_reason.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn github_unlock_issue(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    number: i32,
+) -> Result<(), String> {
+    let token = cache.require_token()?;
+    issue_actions::unlock_issue(&client, &token, &owner, &repo, number).await
+}
+
+#[tauri::command]
+pub async fn github_set_issue_labels(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    number: i32,
+    labels: Vec<String>,
+) -> Result<(), String> {
+    let token = cache.require_token()?;
+    issue_actions::set_issue_labels(&client, &token, &owner, &repo, number, &labels).await
+}
+
+#[tauri::command]
+pub async fn github_set_issue_assignees(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    number: i32,
+    assignees: Vec<String>,
+) -> Result<(), String> {
+    let token = cache.require_token()?;
+    issue_actions::set_issue_assignees(&client, &token, &owner, &repo, number, &assignees).await
+}
+
+#[tauri::command]
+pub async fn github_create_issue(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    title: String,
+    body: String,
+    labels: Vec<String>,
+    assignees: Vec<String>,
+) -> Result<issue_actions::CreateIssueResult, String> {
+    let token = cache.require_token()?;
+    issue_actions::create_issue(&client, &token, &owner, &repo, &title, &body, &labels, &assignees)
+        .await
+}
+
+#[tauri::command]
+pub async fn github_list_repo_labels(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+) -> Result<Vec<issue_actions::RepoLabel>, String> {
+    let token = cache.require_token()?;
+    issue_actions::list_repo_labels(&client, &token, &owner, &repo).await
+}
+
+#[tauri::command]
+pub async fn github_list_repo_assignees(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+) -> Result<Vec<String>, String> {
+    let token = cache.require_token()?;
+    issue_actions::list_repo_assignees(&client, &token, &owner, &repo).await
 }
