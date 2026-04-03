@@ -20,6 +20,8 @@ impl PtySession {
         working_directory: Option<&str>,
         permission_mode: Option<&str>,
         plan_mode: bool,
+        model: Option<&str>,
+        _effort: Option<&str>,
         app_handle: AppHandle,
     ) -> Result<Self, String> {
         let pty_system = native_pty_system();
@@ -51,9 +53,22 @@ impl PtySession {
             if is_plan {
                 cmd.arg("--plan");
             }
+            if let Some(m) = model {
+                cmd.arg("--model");
+                cmd.arg(m);
+            }
         } else if cli_name == "codex" {
             if is_full_access {
                 cmd.arg("--full-auto");
+            }
+            if let Some(m) = model {
+                cmd.arg("--model");
+                cmd.arg(m);
+            }
+        } else if cli_name == "aider" {
+            if let Some(m) = model {
+                cmd.arg("--model");
+                cmd.arg(m);
             }
         }
 

@@ -229,7 +229,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
     setCreating(true);
     try {
       const cliName = selectedCli ?? "bash";
-      const isCli = cliName === "claude" || cliName === "codex";
+      const isCli = cliName === "claude" || cliName === "codex" || cliName === "aider";
       const session = await terminalIpc.createSession({
         cliName,
         mode: "Normal",
@@ -237,6 +237,8 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
         workingDirectory,
         permissionMode: isCli ? mode : undefined,
         planMode: isCli ? planMode : undefined,
+        model: isCli && model ? model : undefined,
+        effort: isCli && effort ? effort : undefined,
       });
 
       useTerminalStore.getState().activateTab(tabId, session.id, {
@@ -249,7 +251,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
       console.error("Failed to create terminal session:", err);
       setCreating(false);
     }
-  }, [selectedCli, workspaceId, workingDirectory, tabId, creating, mode, planMode]);
+  }, [selectedCli, workspaceId, workingDirectory, tabId, creating, mode, planMode, model, effort]);
 
   return (
     <div className="flex h-full flex-col">
