@@ -36,13 +36,17 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
   const workingDirectory = tab?.workingDirectory ?? selectedRepo?.localPath ?? undefined;
 
   const [selectedCli, setSelectedCli] = useState<string | null>(null);
-  const [mode, setMode] = useState<AgentChatMode>("assisted");
-  const [planMode, setPlanMode] = useState(false);
+  const defaultPermissionMode = useSettingsStore((s) => s.defaultPermissionMode);
+  const defaultPlanMode = useSettingsStore((s) => s.defaultPlanMode);
+  const defaultModel = useSettingsStore((s) => s.defaultModel);
+  const defaultEffort = useSettingsStore((s) => s.defaultEffort);
+  const [mode, setMode] = useState<AgentChatMode>(defaultPermissionMode);
+  const [planMode, setPlanMode] = useState(defaultPlanMode);
   const [showFullAccessConfirm, setShowFullAccessConfirm] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState(defaultModel);
   const [agent, setAgent] = useState("");
-  const [effort, setEffort] = useState<ClaudeEffort>("medium");
+  const [effort, setEffort] = useState<ClaudeEffort>(defaultEffort);
   const [launchError, setLaunchError] = useState<string | null>(null);
   const claudeExecutablePath = useSettingsStore((s) => s.claudeExecutablePath);
 
