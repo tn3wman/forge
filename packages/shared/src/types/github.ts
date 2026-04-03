@@ -48,6 +48,7 @@ export interface Issue {
   assignees: string[];
   locked: boolean;
   activeLockReason: string | null;
+  commentsCount: number;
   createdAt: string;
   updatedAt: string;
   closedAt: string | null;

@@ -27,9 +27,7 @@ export function useIssues(state?: string) {
         ),
       );
 
-      return results
-        .flat()
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+      return results.flat();
     },
     enabled: isAuthenticated && !!repos && repos.length > 0,
     refetchInterval: 60_000,
