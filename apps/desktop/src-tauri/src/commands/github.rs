@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use crate::github::client::{self as gh_client, PrCommitItem, PrFileItem, SearchRepoResult};
-use crate::github::mutations::{comments, pr_actions, reviews};
+use crate::github::mutations::{comments, issues, pr_actions, reviews};
 use crate::github::mutations::comments::CommentResult;
 use crate::github::queries::issue_detail;
 use crate::github::queries::issues::{self, IssueItem};
@@ -317,4 +317,18 @@ pub async fn github_convert_pr_to_draft(
     let token = cache.require_token()?;
     let detail = pr_detail::get_pr_detail(&client, &token, &owner, &repo, number).await?;
     pr_actions::convert_to_draft(&client, &token, &detail.id).await
+}
+
+#[tauri::command]
+pub async fn github_create_issue(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    title: String,
+    body: String,
+    labels: Vec<String>,
+) -> Result<issues::CreateIssueResult, String> {
+    let token = cache.require_token()?;
+    issues::create_issue(&client, &token, &owner, &repo, &title, &body, &labels).await
 }
