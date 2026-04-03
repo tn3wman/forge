@@ -3,6 +3,8 @@ import type { AgentMode } from "@forge/shared";
 
 export type TerminalLayoutMode = "tabs" | "grid" | "horizontal-scroll";
 
+export type TabPurpose = { type: "create-issue"; repoFullName: string };
+
 export interface TerminalTab {
   tabId: string;                // client-generated UUID, primary key
   sessionId: string | null;     // null during pre-session
@@ -14,6 +16,7 @@ export interface TerminalTab {
   type: "terminal" | "chat";
   status: "pre-session" | "active";
   workingDirectory?: string;    // optional override for the working directory
+  purpose?: TabPurpose;         // optional metadata for purpose-driven tabs (e.g. create-issue)
 }
 
 /** Deterministic string hash → hue (0-360) so the same label always gets the same color. */
@@ -36,7 +39,7 @@ interface TerminalStore {
   activeTabId: string | null;   // references tabId
   setLayoutMode: (mode: TerminalLayoutMode) => void;
   addTab: (tab: TerminalTab) => void;
-  addPreSessionTab: (workspaceId: string, config?: { label?: string; workingDirectory?: string }) => string;
+  addPreSessionTab: (workspaceId: string, config?: { label?: string; workingDirectory?: string; purpose?: TabPurpose }) => string;
   activateTab: (tabId: string, sessionId: string, updates: Partial<TerminalTab>) => void;
   updateTabConfig: (tabId: string, updates: Partial<Pick<TerminalTab, "cliName" | "mode" | "type">>) => void;
   removeTab: (tabId: string) => void;
@@ -70,6 +73,7 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
           type: "chat",
           status: "pre-session",
           workingDirectory: config?.workingDirectory,
+          purpose: config?.purpose,
         },
       ],
       activeTabId: tabId,
