@@ -288,6 +288,21 @@ pub async fn git_push(
     .map_err(|e| format!("Task failed: {e}"))?
 }
 
+#[tauri::command]
+pub async fn git_sync_branch(
+    cache: tauri::State<'_, TokenCache>,
+    path: String,
+    remote_name: String,
+    branch: String,
+) -> Result<(), String> {
+    let token = cache.require_token()?;
+    tokio::task::spawn_blocking(move || {
+        crate::git::remote::sync_branch(&path, &remote_name, &branch, &token)
+    })
+    .await
+    .map_err(|e| format!("Task failed: {e}"))?
+}
+
 // ── Stash ───────────────────────────────────────────────────────────────────
 
 #[tauri::command]

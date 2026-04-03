@@ -100,6 +100,67 @@ pub fn pull(
     Ok(())
 }
 
+/// Fast-forward a specific branch ref to match its remote tracking branch,
+/// without touching HEAD or the working tree.
+pub fn sync_branch(
+    path: &str,
+    remote_name: &str,
+    branch: &str,
+    token: &str,
+) -> Result<(), String> {
+    // Fetch first to update remote refs
+    fetch(path, remote_name, token)?;
+
+    let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
+
+    // Resolve remote tracking branch
+    let remote_ref_name = format!("{remote_name}/{branch}");
+    let remote_ref = repo
+        .resolve_reference_from_short_name(&remote_ref_name)
+        .map_err(|e| format!("Failed to resolve remote ref '{remote_ref_name}': {e}"))?;
+
+    let remote_commit = remote_ref
+        .peel_to_commit()
+        .map_err(|e| format!("Failed to peel remote ref to commit: {e}"))?;
+
+    // Resolve local branch ref
+    let local_refname = format!("refs/heads/{branch}");
+    let local_ref = repo
+        .find_reference(&local_refname)
+        .map_err(|e| format!("Failed to find local ref '{local_refname}': {e}"))?;
+
+    let local_commit = local_ref
+        .peel_to_commit()
+        .map_err(|e| format!("Failed to peel local ref to commit: {e}"))?;
+
+    if local_commit.id() == remote_commit.id() {
+        return Ok(()); // Already up to date
+    }
+
+    let (ahead, behind) = repo
+        .graph_ahead_behind(local_commit.id(), remote_commit.id())
+        .map_err(|e| format!("Failed to compute ahead/behind: {e}"))?;
+
+    if ahead > 0 && behind > 0 {
+        return Err("Branch has diverged from remote — manual merge required".to_string());
+    }
+
+    if behind == 0 {
+        return Ok(()); // Local is ahead or equal, nothing to sync
+    }
+
+    // Fast-forward: update the local branch ref to match remote
+    repo.reference(
+        &local_refname,
+        remote_commit.id(),
+        true,
+        &format!("sync_branch: fast-forward {branch}"),
+    )
+    .map_err(|e| format!("Failed to update ref: {e}"))?;
+
+    Ok(())
+}
+
 pub fn push(
     path: &str,
     remote_name: &str,

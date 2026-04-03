@@ -111,6 +111,7 @@ pub fn run() {
             commands::git::git_fetch,
             commands::git::git_pull,
             commands::git::git_push,
+            commands::git::git_sync_branch,
             commands::git::git_stash_push,
             commands::git::git_stash_list,
             commands::git::git_stash_pop,
