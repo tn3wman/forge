@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { load } from "@tauri-apps/plugin-store";
+import type { AgentChatMode, ClaudeEffort } from "@forge/shared";
 
 export interface AppSettings {
   githubPollInterval: number;
@@ -7,6 +8,10 @@ export interface AppSettings {
   showNotificationBadge: boolean;
   autoFetchOnSwitch: boolean;
   claudeExecutablePath: string;
+  defaultModel: string;
+  defaultEffort: ClaudeEffort;
+  defaultPermissionMode: AgentChatMode;
+  defaultPlanMode: boolean;
 }
 
 const DEFAULTS: AppSettings = {
@@ -15,6 +20,10 @@ const DEFAULTS: AppSettings = {
   showNotificationBadge: true,
   autoFetchOnSwitch: true,
   claudeExecutablePath: "",
+  defaultModel: "",
+  defaultEffort: "medium",
+  defaultPermissionMode: "assisted",
+  defaultPlanMode: false,
 };
 
 interface SettingsStore extends AppSettings {

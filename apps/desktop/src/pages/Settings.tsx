@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { User, Bell, GitBranch, FolderGit2, Settings as SettingsIcon, Bot } from "lucide-react";
+import { User, Bell, GitBranch, FolderGit2, Settings as SettingsIcon, Bot, Wand2 } from "lucide-react";
 import { check } from "@tauri-apps/plugin-updater";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -38,6 +38,10 @@ export function Settings() {
     showNotificationBadge,
     autoFetchOnSwitch,
     claudeExecutablePath,
+    defaultModel,
+    defaultEffort,
+    defaultPermissionMode,
+    defaultPlanMode,
   } = useSettingsStore();
 
   const user = useAuthStore((s) => s.user);
@@ -236,6 +240,72 @@ export function Settings() {
             <p className="text-xs text-muted-foreground">
               Forge uses the official Claude Agent SDK host and still requires Claude Code to be installed and authenticated locally.
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Agent Defaults */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Wand2 className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>Agent Defaults</CardTitle>
+            </div>
+            <CardDescription>
+              Default settings applied when launching a new agent session
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="default-model">Model</Label>
+              <select
+                id="default-model"
+                value={defaultModel}
+                onChange={(e) => updateSetting("defaultModel", e.target.value)}
+                className="rounded-md border bg-background px-2 py-1 text-sm"
+              >
+                <option value="">Default</option>
+                <option value="claude-opus-4-6">Opus 4.6</option>
+                <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+                <option value="claude-haiku-4-5">Haiku 4.5</option>
+              </select>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="default-effort">Effort</Label>
+              <select
+                id="default-effort"
+                value={defaultEffort}
+                onChange={(e) => updateSetting("defaultEffort", e.target.value as "low" | "medium" | "high")}
+                className="rounded-md border bg-background px-2 py-1 text-sm"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="default-permission-mode">Permission mode</Label>
+              <select
+                id="default-permission-mode"
+                value={defaultPermissionMode}
+                onChange={(e) => updateSetting("defaultPermissionMode", e.target.value as "supervised" | "assisted" | "fullAccess")}
+                className="rounded-md border bg-background px-2 py-1 text-sm"
+              >
+                <option value="supervised">Supervised</option>
+                <option value="assisted">Assisted</option>
+                <option value="fullAccess">Full Access</option>
+              </select>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="default-plan-mode">Plan mode</Label>
+              <Switch
+                id="default-plan-mode"
+                checked={defaultPlanMode}
+                onCheckedChange={(checked) => updateSetting("defaultPlanMode", checked)}
+              />
+            </div>
           </CardContent>
         </Card>
 
