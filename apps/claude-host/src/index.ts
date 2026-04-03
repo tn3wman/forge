@@ -413,7 +413,10 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
   };
 
   const canUseTool: CanUseTool = (toolName, toolInput, callbackOptions) => {
-    const effectiveMode = session.underlyingPermissionMode ?? session.permissionMode;
+    // Plan mode is always dominant — never fall through to a more permissive underlying mode
+    const effectiveMode = session.permissionMode === "plan"
+      ? "plan"
+      : (session.underlyingPermissionMode ?? session.permissionMode);
     // Full Access: auto-approve all tools
     if (effectiveMode === "fullAccess") {
       return Promise.resolve({ behavior: "allow" as const });

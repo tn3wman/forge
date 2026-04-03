@@ -90,10 +90,14 @@ impl CodexBackend {
         };
         let unified_mode = codex_mode_to_unified(mode);
 
+        // Supervised uses workspace-write (not read-only) because the approval
+        // policy "untrusted" already gates every action through user approval.
+        // read-only would block writes entirely, even after approval.
+        // Plan mode overrides to read-only below via the thread/start config.
         let sandbox_mode = match mode {
             AgentMode::FullAccess => "danger-full-access",
             AgentMode::Assisted => "workspace-write",
-            AgentMode::Supervised => "read-only",
+            AgentMode::Supervised => "workspace-write",
         };
 
         // Send initialize request
@@ -255,10 +259,11 @@ impl CodexBackend {
 
             // Send thread/start request
             let thread_start_id = request_counter.fetch_add(1, Ordering::Relaxed);
+            let effective_sandbox = if plan_mode { "read-only" } else { sandbox_mode };
             let mut thread_start_params = serde_json::json!({
                 "approvalPolicy": approval_mode,
                 "cwd": working_directory,
-                "sandboxPermissions": [sandbox_mode],
+                "sandboxPermissions": [effective_sandbox],
             });
             if plan_mode {
                 thread_start_params.as_object_mut().unwrap().insert(

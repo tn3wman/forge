@@ -117,12 +117,17 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
           const liveSessions = await agentIpc.listSessions();
           const isAlive = liveSessions.some((s) => s.id === sessionId);
           if (!isAlive) {
+            // Look up terminal tab first so we can pass workspace/cwd to the new session
+            const agentStore = useAgentStore.getState();
+            const termStore = useTerminalStore.getState();
+            const termTab = termStore.tabs.find((t) => t.sessionId === sessionId);
+
             // Resume: create a new backend session with same config
             const newSession = await agentIpc.createSession({
               cliName: tab.cliName,
               mode: tab.mode,
-              workingDirectory: tab.workingDirectory,
-              workspaceId: "", // Will be filled by backend
+              workingDirectory: termTab?.workingDirectory ?? tab.workingDirectory,
+              workspaceId: termTab?.workspaceId ?? "",
               initialPrompt: text,
               planMode: tab.planMode,
               claude: tab.cliName === "claude" ? {
@@ -135,13 +140,6 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
                 claudePath: tab.claudePath ?? undefined,
               } : undefined,
             });
-
-            // Update stores to point to the new session
-            const agentStore = useAgentStore.getState();
-            const termStore = useTerminalStore.getState();
-
-            // Find and update the terminal tab
-            const termTab = termStore.tabs.find((t) => t.sessionId === sessionId);
             if (termTab) {
               termStore.activateTab(termTab.tabId, newSession.id, {
                 label: newSession.displayName,
