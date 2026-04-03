@@ -292,3 +292,29 @@ pub async fn github_create_pr(
     )
     .await
 }
+
+#[tauri::command]
+pub async fn github_mark_pr_ready(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    number: i32,
+) -> Result<(), String> {
+    let token = cache.require_token()?;
+    let detail = pr_detail::get_pr_detail(&client, &token, &owner, &repo, number).await?;
+    pr_actions::mark_ready_for_review(&client, &token, &detail.id).await
+}
+
+#[tauri::command]
+pub async fn github_convert_pr_to_draft(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    owner: String,
+    repo: String,
+    number: i32,
+) -> Result<(), String> {
+    let token = cache.require_token()?;
+    let detail = pr_detail::get_pr_detail(&client, &token, &owner, &repo, number).await?;
+    pr_actions::convert_to_draft(&client, &token, &detail.id).await
+}

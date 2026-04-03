@@ -91,6 +91,8 @@ pub fn run() {
             commands::github::github_close_pr,
             commands::github::github_reopen_pr,
             commands::github::github_create_pr,
+            commands::github::github_mark_pr_ready,
+            commands::github::github_convert_pr_to_draft,
             commands::git::git_get_status,
             commands::git::git_get_log,
             commands::git::git_get_diff,

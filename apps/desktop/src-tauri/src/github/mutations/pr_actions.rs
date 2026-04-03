@@ -1,5 +1,7 @@
 use reqwest::Client;
 
+use crate::github::graphql::execute_graphql;
+
 const GITHUB_API_BASE: &str = "https://api.github.com";
 
 pub async fn merge_pr(
@@ -94,6 +96,40 @@ pub async fn reopen_pr(
         return Err(format!("GitHub API error {status}: {text}"));
     }
 
+    Ok(())
+}
+
+pub async fn mark_ready_for_review(
+    client: &Client,
+    token: &str,
+    pr_node_id: &str,
+) -> Result<(), String> {
+    let query = r#"
+        mutation($pullRequestId: ID!) {
+            markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) {
+                pullRequest { isDraft }
+            }
+        }
+    "#;
+    let variables = serde_json::json!({ "pullRequestId": pr_node_id });
+    execute_graphql(client, token, query, variables).await?;
+    Ok(())
+}
+
+pub async fn convert_to_draft(
+    client: &Client,
+    token: &str,
+    pr_node_id: &str,
+) -> Result<(), String> {
+    let query = r#"
+        mutation($pullRequestId: ID!) {
+            convertPullRequestToDraft(input: { pullRequestId: $pullRequestId }) {
+                pullRequest { isDraft }
+            }
+        }
+    "#;
+    let variables = serde_json::json!({ "pullRequestId": pr_node_id });
+    execute_graphql(client, token, query, variables).await?;
     Ok(())
 }
 

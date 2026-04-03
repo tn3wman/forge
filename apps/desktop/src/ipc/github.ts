@@ -58,4 +58,10 @@ export const githubIpc = {
 
   createPr: (owner: string, repo: string, title: string, body: string, head: string, base: string, draft: boolean) =>
     invoke<{ number: number; htmlUrl: string }>("github_create_pr", { owner, repo, title, body, head, base, draft }),
+
+  markPrReady: (owner: string, repo: string, number: number) =>
+    invoke<void>("github_mark_pr_ready", { owner, repo, number }),
+
+  convertPrToDraft: (owner: string, repo: string, number: number) =>
+    invoke<void>("github_convert_pr_to_draft", { owner, repo, number }),
 };
