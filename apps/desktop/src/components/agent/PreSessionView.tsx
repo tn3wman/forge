@@ -156,15 +156,16 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
         useAgentStore.getState().appendMessage(session.id, userMsg);
         useAgentStore.getState().createPendingAssistant(session.id);
 
-        // Now trigger the UI transition — ChatView will find the tab immediately
+        // Now trigger the UI transition — ChatView will find the tab immediately.
+        // Do NOT pass label here — preserve the branch-based tab name set during creation.
         useTerminalStore.getState().activateTab(tabId, session.id, {
-          label: session.displayName,
           cliName: session.cliName,
           type: "chat",
         });
 
         // Persist session and initial user message
         {
+          const currentTabLabel = useTerminalStore.getState().tabs.find(t => t.tabId === tabId)?.label;
           const persisted = sessionInfoToPersistedSession(
             session.id,
             workspaceId,
@@ -182,6 +183,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
               workingDirectory: effectiveWorkDir,
               conversationId: session.conversationId,
               createdAt: session.createdAt,
+              tabLabel: currentTabLabel,
             },
           );
           void agentIpc.persistSession(persisted).catch((err) => {
@@ -252,7 +254,6 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
       });
 
       useTerminalStore.getState().activateTab(tabId, session.id, {
-        label: session.displayName,
         cliName: session.cliName,
         type: "terminal",
         mode: session.mode,

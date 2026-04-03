@@ -136,6 +136,7 @@ export function sessionInfoToPersistedSession(
     workingDirectory?: string;
     conversationId?: string;
     createdAt?: string;
+    tabLabel?: string;
   },
 ): PersistedSession {
   const now = new Date().toISOString();
@@ -155,7 +156,7 @@ export function sessionInfoToPersistedSession(
     workingDirectory: opts.workingDirectory,
     conversationId: opts.conversationId,
     totalCost: 0,
-    label: displayName,
+    label: opts.tabLabel ?? displayName,
     createdAt: opts.createdAt ?? now,
     updatedAt: now,
   };

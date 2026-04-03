@@ -172,7 +172,6 @@ export const ChatView = memo(function ChatView({ sessionId, variant = "default" 
             });
             if (termTab) {
               termStore.activateTab(termTab.tabId, newSession.id, {
-                label: newSession.displayName,
                 cliName: newSession.cliName,
                 type: "chat",
               });
@@ -226,6 +225,7 @@ export const ChatView = memo(function ChatView({ sessionId, variant = "default" 
                 workingDirectory: tab.workingDirectory,
                 conversationId: newSession.conversationId,
                 createdAt: newSession.createdAt,
+                tabLabel: termTab?.label,
               },
             );
             void agentIpc.persistSession(persisted).catch(() => {});
