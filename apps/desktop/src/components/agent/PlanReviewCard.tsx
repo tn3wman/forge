@@ -10,6 +10,7 @@ interface PlanReviewCardProps {
   planContent: string;
   sessionId: string;
   underlyingMode: AgentChatMode;
+  exitPlanToolUseId?: string;
 }
 
 function shortenPlanPath(filePath: string): string {
@@ -23,6 +24,7 @@ export const PlanReviewCard = memo(function PlanReviewCard({
   planContent,
   sessionId,
   underlyingMode,
+  exitPlanToolUseId,
 }: PlanReviewCardProps) {
   const updateTabMeta = useAgentStore((s) => s.updateTabMeta);
   const updateTabState = useAgentStore((s) => s.updateTabState);
@@ -36,7 +38,16 @@ export const PlanReviewCard = memo(function PlanReviewCard({
     updateTabMeta(sessionId, { planMode: false });
     updateTabState(sessionId, "thinking");
 
-    // Wait for mode switch before sending message
+    if (exitPlanToolUseId) {
+      // Resolve the pending ExitPlanMode approval — SDK will process mode switch
+      try {
+        await agentIpc.respondPermission(sessionId, exitPlanToolUseId, true);
+      } catch (err) {
+        console.error("Failed to approve ExitPlanMode:", err);
+      }
+    }
+
+    // Ensure permission mode is updated to the underlying mode
     try {
       await agentIpc.updatePermissionMode(sessionId, underlyingMode);
     } catch (err) {
@@ -55,22 +66,34 @@ export const PlanReviewCard = memo(function PlanReviewCard({
     void agentIpc.sendMessage(sessionId, "Plan approved. Execute it.").catch((err) => {
       console.error("Failed to send plan approval:", err);
     });
-  }, [sessionId, underlyingMode, clearPlanReview, updateTabMeta, updateTabState, appendMessage, createPendingAssistant]);
+  }, [sessionId, underlyingMode, exitPlanToolUseId, clearPlanReview, updateTabMeta, updateTabState, appendMessage, createPendingAssistant]);
 
   const handleEdit = useCallback(() => {
     clearPlanReview(sessionId);
     updateTabState(sessionId, "completed");
+    // Deny ExitPlanMode so agent stays in plan mode and can revise
+    if (exitPlanToolUseId) {
+      void agentIpc.respondPermission(sessionId, exitPlanToolUseId, false).catch((err) => {
+        console.error("Failed to deny ExitPlanMode:", err);
+      });
+    }
     // User can now type feedback in the regular input box
-  }, [sessionId, clearPlanReview, updateTabState]);
+  }, [sessionId, exitPlanToolUseId, clearPlanReview, updateTabState]);
 
   const handleCancel = useCallback(() => {
     clearPlanReview(sessionId);
     updateTabMeta(sessionId, { planMode: false });
     updateTabState(sessionId, "completed");
+    // Deny ExitPlanMode and exit plan mode without executing
+    if (exitPlanToolUseId) {
+      void agentIpc.respondPermission(sessionId, exitPlanToolUseId, false).catch((err) => {
+        console.error("Failed to deny ExitPlanMode:", err);
+      });
+    }
     void agentIpc.updatePermissionMode(sessionId, underlyingMode).catch((err) => {
       console.error("Failed to update permission mode:", err);
     });
-  }, [sessionId, underlyingMode, clearPlanReview, updateTabMeta, updateTabState]);
+  }, [sessionId, underlyingMode, exitPlanToolUseId, clearPlanReview, updateTabMeta, updateTabState]);
 
   return (
     <div className="rounded-lg border border-blue-500/40 bg-blue-500/5 px-4 py-3">

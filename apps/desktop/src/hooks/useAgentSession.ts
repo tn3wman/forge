@@ -285,7 +285,36 @@ function handleAgentEvent(payload: AgentEventPayload) {
       const tab = store.tabs.find((t) => t.sessionId === sessionId);
       const currentMode = tab?.mode ?? "supervised";
 
-      if (event.toolUseId && shouldAutoApprove(currentMode)) {
+      // Plan mode: intercept ExitPlanMode to show plan review card
+      if (tab?.planMode && event.toolName === "ExitPlanMode" && event.toolUseId) {
+        const messages = store.messagesBySession[sessionId] ?? [];
+        let planFilePath = "";
+        let planContent = "";
+        for (let i = messages.length - 1; i >= 0; i--) {
+          const m = messages[i];
+          if (m.type === "tool_use" && m.toolName?.toLowerCase() === "write" && m.toolInput) {
+            const fp = m.toolInput.file_path as string | undefined;
+            if (fp && (fp.includes("/plans/") || fp.includes(".claude/plans"))) {
+              planFilePath = fp;
+              planContent = (m.toolInput.content as string) ?? "";
+              break;
+            }
+          }
+        }
+        store.updateTabMeta(sessionId, {
+          planReview: {
+            filePath: planFilePath || "plan",
+            content: planContent || "",
+            underlyingMode: tab.mode,
+            exitPlanToolUseId: event.toolUseId,
+          },
+        });
+        updateStateIfChanged(store, sessionId, "awaiting_approval");
+        break;
+      }
+
+      // Auto-approve in fullAccess mode, but NEVER during plan mode
+      if (!tab?.planMode && event.toolUseId && shouldAutoApprove(currentMode)) {
         void agentIpc.respondPermission(sessionId, event.toolUseId, true).catch((err) => {
           console.error("Failed to auto-approve:", err);
         });

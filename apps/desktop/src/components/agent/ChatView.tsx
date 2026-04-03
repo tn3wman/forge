@@ -389,6 +389,7 @@ export const ChatView = memo(function ChatView({ sessionId, variant = "default" 
             planContent={tab.planReview.content}
             sessionId={sessionId}
             underlyingMode={tab.planReview.underlyingMode}
+            exitPlanToolUseId={tab.planReview.exitPlanToolUseId}
           />
         )}
       </div>

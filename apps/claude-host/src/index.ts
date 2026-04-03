@@ -389,7 +389,6 @@ const READ_ONLY_TOOLS = new Set([
   "ListMcpResourcesTool",
   "ReadMcpResourceTool",
   // Non-destructive SDK tools that should auto-approve
-  "ExitPlanMode",
   "EnterPlanMode",
 ]);
 

@@ -54,6 +54,7 @@ export interface AgentTab {
     filePath: string;
     content: string;
     underlyingMode: AgentChatMode;
+    exitPlanToolUseId?: string;
   } | null;
   slashCommands?: SlashCommandInfo[];
   totalCost: number;
