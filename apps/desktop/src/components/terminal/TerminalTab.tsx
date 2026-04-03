@@ -40,6 +40,10 @@ export const TerminalTab = memo(function TerminalTab({ tab, isActive, onSelect, 
           : "border-transparent text-muted-foreground hover:text-foreground",
       )}
     >
+      <span
+        className="h-2 w-2 rounded-full shrink-0"
+        style={{ backgroundColor: `hsl(${tab.colorHue ?? 0}, 60%, 55%)` }}
+      />
       {tab.status === "pre-session" ? (
         <Sparkles className="h-3 w-3 shrink-0" />
       ) : tab.type === "chat" ? (

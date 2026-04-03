@@ -8,11 +8,21 @@ export interface TerminalTab {
   sessionId: string | null;     // null during pre-session
   workspaceId: string;
   label: string;
+  colorHue?: number;             // 0-360 hue for visual tab differentiation (computed from label if omitted)
   cliName: string | null;       // null until selected/defaulted
   mode: AgentMode;
   type: "terminal" | "chat";
   status: "pre-session" | "active";
   workingDirectory?: string;    // optional override for the working directory
+}
+
+/** Deterministic string hash → hue (0-360) so the same label always gets the same color. */
+function labelToHue(label: string): number {
+  let hash = 0;
+  for (let i = 0; i < label.length; i++) {
+    hash = ((hash << 5) - hash + label.charCodeAt(i)) | 0;
+  }
+  return ((hash % 360) + 360) % 360;
 }
 
 let tabCounter = 0;
@@ -40,11 +50,12 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
   setLayoutMode: (mode) => set({ layoutMode: mode }),
   addTab: (tab) =>
     set((s) => ({
-      tabs: [...s.tabs, tab],
+      tabs: [...s.tabs, { ...tab, colorHue: tab.colorHue ?? labelToHue(tab.label) }],
       activeTabId: tab.tabId,
     })),
   addPreSessionTab: (workspaceId, config?) => {
     const tabId = generateTabId();
+    const label = config?.label ?? "New Agent";
     set((s) => ({
       tabs: [
         ...s.tabs,
@@ -52,7 +63,8 @@ export const useTerminalStore = create<TerminalStore>((set, get) => ({
           tabId,
           sessionId: null,
           workspaceId,
-          label: config?.label ?? "New Agent",
+          label,
+          colorHue: labelToHue(label),
           cliName: null,
           mode: "Normal",
           type: "chat",

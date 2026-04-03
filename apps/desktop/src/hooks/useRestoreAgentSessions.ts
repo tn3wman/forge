@@ -20,7 +20,7 @@ function restoreSessionToStores(session: PersistedSession) {
     tabId,
     sessionId: session.id,
     workspaceId: session.workspaceId,
-    label: session.displayName,
+    label: session.label || session.displayName,
     cliName: session.cliName,
     mode: "Normal",
     type: "chat",
