@@ -1,6 +1,7 @@
 import { memo } from "react";
 import {
   FileText,
+  MessageCircleQuestion,
   Pencil,
   FilePlus,
   Terminal,
@@ -165,6 +166,16 @@ export const ToolInputSummary = memo(function ToolInputSummary({
             </code>
           </>
         )}
+      </div>
+    );
+  }
+
+  if (name === "askuserquestion") {
+    const question = toolInput.question as string;
+    return (
+      <div className="flex items-center gap-2 text-xs">
+        <MessageCircleQuestion className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+        <span className="text-foreground">{question}</span>
       </div>
     );
   }

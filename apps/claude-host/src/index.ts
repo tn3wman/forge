@@ -391,7 +391,6 @@ const READ_ONLY_TOOLS = new Set([
   // Non-destructive SDK tools that should auto-approve
   "ExitPlanMode",
   "EnterPlanMode",
-  "AskUserQuestion",
 ]);
 
 async function startSession(command: Extract<HostCommand, { type: "start_session" }>) {

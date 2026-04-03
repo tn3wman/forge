@@ -1,5 +1,5 @@
 import { memo, useCallback } from "react";
-import { ShieldAlert } from "lucide-react";
+import { MessageCircleQuestion, ShieldAlert } from "lucide-react";
 import { agentIpc } from "@/ipc/agent";
 import type { AgentMessage } from "@/stores/agentStore";
 import { ToolInputSummary } from "./tool-renderers/ToolInputSummary";
@@ -22,6 +22,37 @@ export const PermissionPrompt = memo(function PermissionPrompt({
     },
     [sessionId, toolUseId],
   );
+
+  if (message.toolName === "AskUserQuestion") {
+    const question =
+      (message.toolInput?.question as string) ?? message.content;
+    return (
+      <div className="rounded-lg border border-blue-500/40 bg-blue-500/5 px-4 py-3">
+        <div className="flex items-start gap-3">
+          <MessageCircleQuestion className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
+          <div className="flex-1 space-y-2">
+            <p className="text-sm font-medium text-foreground">{question}</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleRespond(false)}
+                className="rounded-md border border-border bg-transparent px-3 py-1 text-xs font-medium text-foreground hover:bg-muted"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRespond(true)}
+                className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/5 px-4 py-3">
