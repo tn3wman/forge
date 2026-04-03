@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
-import type { AgentEventPayload, AgentExitPayload, AgentChatMode } from "@forge/shared";
+import type { AgentEventPayload, AgentExitPayload, AgentChatMode, AgentState } from "@forge/shared";
 import { useAgentStore } from "@/stores/agentStore";
 import { agentIpc } from "@/ipc/agent";
 import { persistMessagesForSession, persistSingleMessage } from "@/lib/agentPersistence";
@@ -25,6 +25,67 @@ function hasPendingApproval(
 
 function shouldAutoApprove(mode: AgentChatMode): boolean {
   return mode === "fullAccess";
+}
+
+/** Only call store.updateTabState when the state actually differs — avoids
+ *  recreating the tabs array on every streaming delta event. */
+function updateStateIfChanged(
+  store: ReturnType<typeof useAgentStore.getState>,
+  sessionId: string,
+  newState: AgentState,
+) {
+  const tab = store.tabs.find((t) => t.sessionId === sessionId);
+  if (!tab || tab.state === newState) return;
+  store.updateTabState(sessionId, newState);
+}
+
+// ---------------------------------------------------------------------------
+// rAF-based delta batching — coalesces high-frequency streaming deltas into
+// a single store update per animation frame (~60 fps) instead of one per token.
+// ---------------------------------------------------------------------------
+interface DeltaAccum {
+  messageId?: string;
+  turnId?: string;
+  content: string;
+  reasoning: string;
+  toolDeltas: Map<string, { input: string; result: string; resultIsError?: boolean }>;
+}
+
+const deltaBuffer = new Map<string, DeltaAccum>();
+let rafScheduled = false;
+
+function flushDeltas() {
+  rafScheduled = false;
+  const store = useAgentStore.getState();
+  for (const [sessionId, buf] of deltaBuffer) {
+    if (buf.content && buf.messageId) {
+      store.appendAssistantDelta(sessionId, buf.messageId, buf.content);
+    }
+    if (buf.reasoning) {
+      store.appendReasoningDelta(sessionId, buf.reasoning, buf.messageId, buf.turnId);
+    }
+    for (const [toolUseId, td] of buf.toolDeltas) {
+      if (td.input) store.appendToolInputDelta(sessionId, toolUseId, td.input);
+      if (td.result) store.appendToolResultDelta(sessionId, toolUseId, td.result, td.resultIsError);
+    }
+  }
+  deltaBuffer.clear();
+}
+
+function scheduleFlush() {
+  if (!rafScheduled) {
+    rafScheduled = true;
+    requestAnimationFrame(flushDeltas);
+  }
+}
+
+function getAccum(sessionId: string): DeltaAccum {
+  let accum = deltaBuffer.get(sessionId);
+  if (!accum) {
+    accum = { content: "", reasoning: "", toolDeltas: new Map() };
+    deltaBuffer.set(sessionId, accum);
+  }
+  return accum;
 }
 
 function handleAgentEvent(payload: AgentEventPayload) {
@@ -61,7 +122,7 @@ function handleAgentEvent(payload: AgentEventPayload) {
           }
         }
       }
-      store.updateTabState(sessionId, "thinking");
+      updateStateIfChanged(store, sessionId, "thinking");
       break;
     }
     case "session_meta": {
@@ -90,15 +151,22 @@ function handleAgentEvent(payload: AgentEventPayload) {
     }
     case "assistant_message_start": {
       store.startAssistantMessage(sessionId, event.messageId, event.turnId);
-      store.updateTabState(sessionId, "thinking");
+      updateStateIfChanged(store, sessionId, "thinking");
       break;
     }
     case "assistant_message_delta": {
-      store.appendAssistantDelta(sessionId, event.messageId, event.contentDelta ?? "");
-      store.updateTabState(sessionId, "thinking");
+      const accum = getAccum(sessionId);
+      accum.messageId = event.messageId;
+      accum.content += event.contentDelta ?? "";
+      scheduleFlush();
+      updateStateIfChanged(store, sessionId, "thinking");
       break;
     }
     case "assistant_message_complete": {
+      // Flush any buffered deltas before completing so content is up-to-date
+      if (deltaBuffer.has(sessionId)) {
+        flushDeltas();
+      }
       store.completeAssistantMessage(
         sessionId,
         event.messageId,
@@ -106,7 +174,7 @@ function handleAgentEvent(payload: AgentEventPayload) {
         event.turnId,
       );
       store.completeReasoning(sessionId, event.messageId, event.turnId);
-      store.updateTabState(sessionId, "thinking");
+      updateStateIfChanged(store, sessionId, "thinking");
       // Persist completed assistant message for crash safety
       {
         const msgs = useAgentStore.getState().messagesBySession[sessionId];
@@ -127,17 +195,16 @@ function handleAgentEvent(payload: AgentEventPayload) {
     }
     case "thinking_start": {
       store.createPendingAssistant(sessionId, event.turnId);
-      store.updateTabState(sessionId, "thinking");
+      updateStateIfChanged(store, sessionId, "thinking");
       break;
     }
     case "reasoning_delta": {
-      store.appendReasoningDelta(
-        sessionId,
-        event.contentDelta ?? "",
-        event.messageId,
-        event.turnId,
-      );
-      store.updateTabState(sessionId, "thinking");
+      const accum = getAccum(sessionId);
+      accum.messageId = event.messageId;
+      accum.turnId = event.turnId;
+      accum.reasoning += event.contentDelta ?? "";
+      scheduleFlush();
+      updateStateIfChanged(store, sessionId, "thinking");
       break;
     }
     case "reasoning_complete": {
@@ -152,12 +219,16 @@ function handleAgentEvent(payload: AgentEventPayload) {
         event.input,
         event.turnId,
       );
-      store.updateTabState(sessionId, "executing");
+      updateStateIfChanged(store, sessionId, "executing");
       break;
     }
     case "tool_input_delta": {
-      store.appendToolInputDelta(sessionId, event.toolUseId, event.inputDelta);
-      store.updateTabState(sessionId, "executing");
+      const accum = getAccum(sessionId);
+      const td = accum.toolDeltas.get(event.toolUseId) ?? { input: "", result: "" };
+      td.input += event.inputDelta;
+      accum.toolDeltas.set(event.toolUseId, td);
+      scheduleFlush();
+      updateStateIfChanged(store, sessionId, "executing");
       break;
     }
     case "tool_progress": {
@@ -167,27 +238,31 @@ function handleAgentEvent(payload: AgentEventPayload) {
         event.name,
         event.status,
       );
-      store.updateTabState(sessionId, "executing");
+      updateStateIfChanged(store, sessionId, "executing");
       break;
     }
     case "tool_result_delta": {
-      store.appendToolResultDelta(
-        sessionId,
-        event.toolUseId,
-        event.contentDelta,
-        event.isError,
-      );
-      store.updateTabState(sessionId, "executing");
+      const accum = getAccum(sessionId);
+      const td = accum.toolDeltas.get(event.toolUseId) ?? { input: "", result: "" };
+      td.result += event.contentDelta;
+      td.resultIsError = event.isError;
+      accum.toolDeltas.set(event.toolUseId, td);
+      scheduleFlush();
+      updateStateIfChanged(store, sessionId, "executing");
       break;
     }
     case "tool_result_complete": {
+      // Flush any buffered tool deltas before completing
+      if (deltaBuffer.has(sessionId)) {
+        flushDeltas();
+      }
       store.completeToolResult(
         sessionId,
         event.toolUseId,
         event.content,
         event.isError,
       );
-      store.updateTabState(sessionId, event.isError ? "error" : "thinking");
+      updateStateIfChanged(store, sessionId, event.isError ? "error" : "thinking");
       // Persist tool_use + tool_result pair
       {
         const msgs = useAgentStore.getState().messagesBySession[sessionId];
@@ -227,7 +302,7 @@ function handleAgentEvent(payload: AgentEventPayload) {
           collapsed: false,
           resolved: true,
         });
-        store.updateTabState(sessionId, "executing");
+        updateStateIfChanged(store, sessionId, "executing");
         break;
       }
 
@@ -244,16 +319,16 @@ function handleAgentEvent(payload: AgentEventPayload) {
         timestamp: now,
         collapsed: false,
       });
-      store.updateTabState(sessionId, "awaiting_approval");
+      updateStateIfChanged(store, sessionId, "awaiting_approval");
       break;
     }
     case "approval_resolved": {
       store.resolveApproval(sessionId, event.approvalId, event.allow);
-      store.updateTabState(sessionId, event.allow ? "executing" : "thinking");
+      updateStateIfChanged(store, sessionId, event.allow ? "executing" : "thinking");
       break;
     }
     case "status": {
-      store.updateTabState(sessionId, event.state);
+      updateStateIfChanged(store, sessionId, event.state);
       if (event.state === "awaiting_approval") {
         const messages = store.messagesBySession[sessionId];
         if (!hasPendingApproval(messages, event.toolUseId)) {
@@ -274,11 +349,15 @@ function handleAgentEvent(payload: AgentEventPayload) {
       break;
     }
     case "result": {
+      // Flush any remaining buffered deltas before finalizing
+      if (deltaBuffer.has(sessionId)) {
+        flushDeltas();
+      }
       store.updateTabCost(sessionId, event.totalCostUsd ?? 0);
       if (event.isError) {
         store.markAssistantError(sessionId, event.resultText);
         store.finalizeAllPending(sessionId);
-        store.updateTabState(sessionId, "error");
+        updateStateIfChanged(store, sessionId, "error");
       } else {
         // Fallback: if streaming events were lost, populate the assistant
         // message with the final result text so the user sees *something*.
@@ -314,12 +393,12 @@ function handleAgentEvent(payload: AgentEventPayload) {
                 underlyingMode: planTab.mode,
               },
             });
-            store.updateTabState(sessionId, "awaiting_approval");
+            updateStateIfChanged(store, sessionId, "awaiting_approval");
           } else {
-            store.updateTabState(sessionId, "completed");
+            updateStateIfChanged(store, sessionId, "completed");
           }
         } else {
-          store.updateTabState(sessionId, "completed");
+          updateStateIfChanged(store, sessionId, "completed");
         }
       }
       // Batch-persist all messages as safety net and update session cost
@@ -338,8 +417,11 @@ function handleAgentEvent(payload: AgentEventPayload) {
     }
     case "plan_delta": {
       // Map plan deltas to assistant message deltas so plan content is visible
-      store.appendAssistantDelta(sessionId, event.itemId, event.contentDelta ?? "");
-      store.updateTabState(sessionId, "thinking");
+      const accum = getAccum(sessionId);
+      accum.messageId = event.itemId;
+      accum.content += event.contentDelta ?? "";
+      scheduleFlush();
+      updateStateIfChanged(store, sessionId, "thinking");
       break;
     }
     case "plan_updated": {

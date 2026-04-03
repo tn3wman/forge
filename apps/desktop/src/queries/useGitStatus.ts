@@ -6,6 +6,7 @@ export function useGitStatus(localPath: string | null) {
     queryKey: ["git-status", localPath],
     queryFn: () => gitIpc.getStatus(localPath!),
     enabled: !!localPath,
-    refetchInterval: 5_000,
+    refetchInterval: 15_000,
+    staleTime: 5_000,
   });
 }

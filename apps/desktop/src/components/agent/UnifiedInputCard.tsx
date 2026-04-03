@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { memo, useState, useCallback, useRef, useEffect } from "react";
 import {
   ArrowUp,
   Square,
@@ -94,7 +94,7 @@ interface UnifiedInputCardProps {
   onClear?: () => void;
 }
 
-export function UnifiedInputCard({
+export const UnifiedInputCard = memo(function UnifiedInputCard({
   onSend,
   onAbort,
   agentState,
@@ -633,7 +633,7 @@ export function UnifiedInputCard({
       </div>
     </div>
   );
-}
+});
 
 function Separator() {
   return <div className="mx-1 h-4 w-px bg-border" />;

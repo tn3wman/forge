@@ -1,4 +1,5 @@
 import { useCallback, useEffect, Component, type ReactNode } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { Plus, LayoutGrid, Columns, Layers, X, AlertTriangle, RotateCcw, Loader2 } from "lucide-react";
 import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -68,7 +69,14 @@ interface TerminalsProps {
 export function Terminals({ onNewTerminal }: TerminalsProps) {
   const { tabs: allTabs, activeTabId, layoutMode, setLayoutMode, setActiveTab, removeTab } =
     useTerminalStore();
-  const agentTabs = useAgentStore((s) => s.tabs);
+  const agentTabs = useAgentStore(
+    useShallow((s) => s.tabs.map((t) => ({
+      sessionId: t.sessionId,
+      state: t.state,
+      provider: t.provider,
+      cliName: t.cliName,
+    }))),
+  );
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const tabs = allTabs.filter((t) => t.workspaceId === activeWorkspaceId);
 
@@ -81,11 +89,14 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
 
   const handleClose = useCallback(
     (tabId: string) => {
-      const tab = tabs.find((t) => t.tabId === tabId);
+      // Read tabs from store directly to avoid depending on the filtered `tabs`
+      // array, which changes reference on every render and would invalidate this
+      // callback (cascading re-renders to all TerminalTab children).
+      const allTermTabs = useTerminalStore.getState().tabs;
+      const tab = allTermTabs.find((t) => t.tabId === tabId);
       if (tab && tab.status === "active" && tab.sessionId) {
         if (tab.type === "chat") {
           agentIpc.kill(tab.sessionId).catch(() => {});
-          // Permanently delete persisted session data
           agentIpc.deletePersistedSession(tab.sessionId).catch(() => {});
           useAgentStore.getState().removeTab(tab.sessionId);
         } else {
@@ -94,7 +105,7 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
       }
       removeTab(tabId);
     },
-    [removeTab, tabs],
+    [removeTab],
   );
 
   if (tabs.length === 0) {
@@ -151,8 +162,8 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
                 key={tab.tabId}
                 tab={tab}
                 isActive={tab.tabId === activeTabId}
-                onSelect={() => setActiveTab(tab.tabId)}
-                onClose={() => handleClose(tab.tabId)}
+                onSelect={setActiveTab}
+                onClose={handleClose}
               />
             ))}
           </div>

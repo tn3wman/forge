@@ -14,6 +14,12 @@ import {
 import { cn } from "@/lib/utils";
 import type { AgentMessage } from "@/stores/agentStore";
 
+// Stable plugin array references — inline arrays like [remarkGfm] create new
+// references every render, defeating React.memo and forcing ReactMarkdown to
+// re-initialize its parser pipeline.
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypeHighlight];
+
 /**
  * Escape bare ordered-list markers (e.g. "100." on a line by itself)
  * so ReactMarkdown doesn't render short numeric answers as `<ol>`.
@@ -85,7 +91,7 @@ export const ChatMessage = memo(function ChatMessage({
 
             {message.content ? (
               <div className="prose prose-sm prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-0">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
                   {escapeBareLists(message.content)}
                 </ReactMarkdown>
               </div>
@@ -117,7 +123,7 @@ export const ChatMessage = memo(function ChatMessage({
                 ) : (
                   <div className="border-t border-border/70 px-3 py-2">
                     <div className="prose prose-sm prose-invert max-w-none text-xs text-muted-foreground [&>*]:text-muted-foreground [&>*]:text-xs [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-0">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
                         {escapeBareLists(message.reasoning ?? "")}
                       </ReactMarkdown>
                     </div>

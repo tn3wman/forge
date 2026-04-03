@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Brain, Wrench, Check, AlertTriangle, Dot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { AgentState } from "@forge/shared";
@@ -46,7 +47,7 @@ function formatModel(model: string): string {
     .trim();
 }
 
-export function AgentStatusBar({
+export const AgentStatusBar = memo(function AgentStatusBar({
   state,
   model,
   permissionMode,
@@ -81,4 +82,4 @@ export function AgentStatusBar({
       <span className="font-mono tabular-nums">${(totalCost ?? 0).toFixed(4)}</span>
     </div>
   );
-}
+});

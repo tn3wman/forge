@@ -3,6 +3,7 @@ use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
 pub struct PtySession {
@@ -97,9 +98,15 @@ impl PtySession {
         let killed_clone = killed.clone();
         let sid = session_id.clone();
 
-        // Spawn a native thread for blocking PTY reads
+        // Spawn a native thread for blocking PTY reads with time-based buffering.
+        // Coalesces rapid small reads into fewer, larger IPC events (~60 fps).
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
+            let mut pending: Vec<u8> = Vec::new();
+            let mut last_emit = Instant::now();
+            const FLUSH_INTERVAL: Duration = Duration::from_millis(16);
+            const MAX_PENDING: usize = 32768;
+
             loop {
                 if killed_clone.load(Ordering::Relaxed) {
                     break;
@@ -107,16 +114,31 @@ impl PtySession {
                 match reader.read(&mut buf) {
                     Ok(0) => break, // EOF
                     Ok(n) => {
-                        let _ = app_handle.emit(
-                            "terminal-output",
-                            TerminalOutputPayload {
-                                session_id: sid.clone(),
-                                data: buf[..n].to_vec(),
-                            },
-                        );
+                        pending.extend_from_slice(&buf[..n]);
+                        if last_emit.elapsed() >= FLUSH_INTERVAL || pending.len() >= MAX_PENDING {
+                            let _ = app_handle.emit(
+                                "terminal-output",
+                                TerminalOutputPayload {
+                                    session_id: sid.clone(),
+                                    data: std::mem::take(&mut pending),
+                                },
+                            );
+                            last_emit = Instant::now();
+                        }
                     }
                     Err(_) => break,
                 }
+            }
+
+            // Flush any remaining buffered output
+            if !pending.is_empty() {
+                let _ = app_handle.emit(
+                    "terminal-output",
+                    TerminalOutputPayload {
+                        session_id: sid.clone(),
+                        data: pending,
+                    },
+                );
             }
 
             // Emit exit event

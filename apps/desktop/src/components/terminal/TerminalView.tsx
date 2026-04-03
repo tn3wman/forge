@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
@@ -13,7 +13,7 @@ interface TerminalViewProps {
   onExit?: (exitCode: number | null) => void;
 }
 
-export function TerminalView({ sessionId, isActive, alwaysVisible, onExit }: TerminalViewProps) {
+export const TerminalView = memo(function TerminalView({ sessionId, isActive, alwaysVisible, onExit }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -24,6 +24,7 @@ export function TerminalView({ sessionId, isActive, alwaysVisible, onExit }: Ter
 
     const term = new Terminal({
       cursorBlink: true,
+      scrollback: 5000,
       fontSize: 13,
       fontFamily: "'Geist Mono', 'SF Mono', 'Monaco', 'Menlo', monospace",
       theme: {
@@ -113,4 +114,4 @@ export function TerminalView({ sessionId, isActive, alwaysVisible, onExit }: Ter
       style={{ display: alwaysVisible || isActive ? "block" : "none" }}
     />
   );
-}
+});

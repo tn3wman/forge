@@ -1,5 +1,6 @@
-import { useEffect, useRef, useMemo, useCallback } from "react";
-import { useAgentStore, type AgentMessage } from "@/stores/agentStore";
+import { memo, useEffect, useRef, useMemo, useCallback } from "react";
+import { useShallow } from "zustand/react/shallow";
+import { useAgentStore, EMPTY_MESSAGES, type AgentMessage } from "@/stores/agentStore";
 import { agentIpc } from "@/ipc/agent";
 import { persistSingleMessage, sessionInfoToPersistedSession } from "@/lib/agentPersistence";
 import { useTerminalStore } from "@/stores/terminalStore";
@@ -14,23 +15,46 @@ import { useSlashCommands } from "@/hooks/useCliDiscovery";
 
 const PERMISSIVE_MODES: AgentChatMode[] = ["fullAccess"];
 
+// Static selector for store actions — functions never change, so this selector
+// always returns the same references and never triggers re-renders.
+const actionsSelector = (s: ReturnType<typeof useAgentStore.getState>) => ({
+  appendMessage: s.appendMessage,
+  createPendingAssistant: s.createPendingAssistant,
+  toggleMessageCollapsed: s.toggleMessageCollapsed,
+  toggleReasoningCollapsed: s.toggleReasoningCollapsed,
+  updateTabState: s.updateTabState,
+  updateTabMeta: s.updateTabMeta,
+  updateTabMode: s.updateTabMode,
+  clearMessages: s.clearMessages,
+});
+
 interface ChatViewProps {
   sessionId: string;
   variant?: "default" | "claude";
 }
 
-export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
-  const tab = useAgentStore((s) => s.tabs.find((t) => t.sessionId === sessionId));
-  const messages = useAgentStore((s) => s.messagesBySession[sessionId] ?? []);
-  const appendMessage = useAgentStore((s) => s.appendMessage);
-  const createPendingAssistant = useAgentStore((s) => s.createPendingAssistant);
-  const toggleMessageCollapsed = useAgentStore((s) => s.toggleMessageCollapsed);
-  const toggleReasoningCollapsed = useAgentStore((s) => s.toggleReasoningCollapsed);
-  const updateTabState = useAgentStore((s) => s.updateTabState);
-  const updateTabMeta = useAgentStore((s) => s.updateTabMeta);
-  const updateTabMode = useAgentStore((s) => s.updateTabMode);
-  const clearMessages = useAgentStore((s) => s.clearMessages);
-  const activeTabId = useAgentStore((s) => s.activeTabId);
+export const ChatView = memo(function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
+  // Single data selector with shallow equality — only re-renders when this
+  // session's tab or messages actually change, not when other sessions update.
+  const { tab, messages, activeTabId } = useAgentStore(
+    useShallow((s) => ({
+      tab: s.tabs.find((t) => t.sessionId === sessionId),
+      messages: s.messagesBySession[sessionId] ?? EMPTY_MESSAGES,
+      activeTabId: s.activeTabId,
+    })),
+  );
+
+  // Actions never change — single subscription, stable references
+  const {
+    appendMessage,
+    createPendingAssistant,
+    toggleMessageCollapsed,
+    toggleReasoningCollapsed,
+    updateTabState,
+    updateTabMeta,
+    updateTabMode,
+    clearMessages,
+  } = useAgentStore(actionsSelector);
   const { data: discoveredSlashCommands } = useSlashCommands(tab?.cliName ?? null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -41,12 +65,18 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
       ? tab.slashCommands
       : (discoveredSlashCommands ?? []);
 
-  // Auto-scroll on new messages
+  // Auto-scroll on new messages — debounced with rAF to avoid layout thrashing
+  // during high-frequency streaming updates
+  const scrollRafRef = useRef<number>(0);
   useEffect(() => {
-    const el = scrollRef.current;
-    if (el) {
-      el.scrollTop = el.scrollHeight;
-    }
+    cancelAnimationFrame(scrollRafRef.current);
+    scrollRafRef.current = requestAnimationFrame(() => {
+      const el = scrollRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+    return () => cancelAnimationFrame(scrollRafRef.current);
   }, [messages]);
 
   // Build a map of toolUseId -> tool_result message
@@ -390,4 +420,4 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
       />
     </div>
   );
-}
+});

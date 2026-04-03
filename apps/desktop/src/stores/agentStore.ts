@@ -96,6 +96,9 @@ interface AgentStore {
   clearPlanReview: (sessionId: string) => void;
 }
 
+/** Stable empty array to avoid creating new references in selectors */
+export const EMPTY_MESSAGES: AgentMessage[] = [];
+
 let localIdCounter = 0;
 function nextLocalId(prefix: string) {
   return `${prefix}-${Date.now()}-${localIdCounter++}`;
@@ -111,7 +114,7 @@ function getMessagesForSession(
   messagesBySession: Record<string, AgentMessage[]>,
   sessionId: string,
 ) {
-  return messagesBySession[sessionId] ?? [];
+  return messagesBySession[sessionId] ?? EMPTY_MESSAGES;
 }
 
 function findMessageIndex(
@@ -160,11 +163,14 @@ function upsertAssistant(
 ) {
   const idx = findAssistantIndex(messages, messageId, turnId);
   if (idx >= 0) {
-    return { messages: [...messages], idx };
+    // Return a single shallow copy — callers will mutate messages[idx] in place
+    // on this copy. Previous code spread twice (once here, once in caller).
+    const copy = messages.slice();
+    return { messages: copy, idx };
   }
 
-  const next = [...messages];
-  next.push({
+  const copy = messages.slice();
+  copy.push({
     id: nextLocalId("assistant"),
     type: "assistant",
     content: "",
@@ -177,7 +183,7 @@ function upsertAssistant(
     reasoningState: "pending",
     reasoningCollapsed: false,
   });
-  return { messages: next, idx: next.length - 1 };
+  return { messages: copy, idx: copy.length - 1 };
 }
 
 function upsertToolResult(messages: AgentMessage[], toolUseId: string) {
