@@ -63,6 +63,10 @@ const DialogTitle = React.forwardRef<
 ));
 DialogTitle.displayName = "DialogTitle";
 
+const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
+);
+
 const DialogDescription = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
@@ -85,4 +89,5 @@ export {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 };
