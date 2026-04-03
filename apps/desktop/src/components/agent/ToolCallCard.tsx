@@ -19,9 +19,11 @@ export const ToolCallCard = memo(function ToolCallCard({
   onToggle,
 }: ToolCallCardProps) {
   const pending =
-    !toolResult ||
-    toolResult.streamState === "pending" ||
-    toolResult.streamState === "streaming";
+    toolUse.streamState !== "completed" &&
+    toolUse.streamState !== "error" &&
+    (!toolResult ||
+      toolResult.streamState === "pending" ||
+      toolResult.streamState === "streaming");
   const isError = toolResult?.isError || toolUse.streamState === "error";
 
   return (
