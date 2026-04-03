@@ -190,6 +190,13 @@ pub async fn git_remove_worktree(path: String, name: String) -> Result<(), Strin
         .map_err(|e| format!("Task failed: {e}"))?
 }
 
+#[tauri::command]
+pub async fn git_unlock_worktree(path: String, name: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || crate::git::worktree::unlock_worktree(&path, &name))
+        .await
+        .map_err(|e| format!("Task failed: {e}"))?
+}
+
 // ── Staging & Commit ────────────────────────────────────────────────────────
 
 #[tauri::command]

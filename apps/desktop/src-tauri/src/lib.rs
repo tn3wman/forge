@@ -119,6 +119,7 @@ pub fn run() {
             commands::git::git_list_worktrees,
             commands::git::git_create_worktree,
             commands::git::git_remove_worktree,
+            commands::git::git_unlock_worktree,
             commands::git::git_start_watching,
             commands::git::git_stop_watching,
             commands::git::git_set_local_path,

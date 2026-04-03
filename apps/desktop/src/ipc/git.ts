@@ -42,6 +42,7 @@ export const gitIpc = {
   createWorktree: (path: string, branch: string, fromRef?: string, worktreeBase?: string) =>
     invoke<WorktreeInfo>("git_create_worktree", { path, branch, fromRef: fromRef ?? null, worktreeBase: worktreeBase ?? null }),
   removeWorktree: (path: string, name: string) => invoke<void>("git_remove_worktree", { path, name }),
+  unlockWorktree: (path: string, name: string) => invoke<void>("git_unlock_worktree", { path, name }),
   startWatching: (path: string) => invoke<void>("git_start_watching", { path }),
   stopWatching: (path: string) => invoke<void>("git_stop_watching", { path }),
   setLocalPath: (repoId: string, localPath: string) =>

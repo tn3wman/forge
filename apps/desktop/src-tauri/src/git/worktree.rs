@@ -7,6 +7,18 @@ use crate::models::git::WorktreeInfo;
 /// Directories to symlink from the main repo into new worktrees (best-effort).
 const SYMLINK_DIRS: &[&str] = &["node_modules", ".next", "dist", "target", ".turbo"];
 
+/// Check if a worktree is locked by looking for git's `locked` sentinel file.
+/// We bypass git2's `Worktree::is_locked()` because it incorrectly returns
+/// `Ok(empty Buf)` for unlocked worktrees (libgit2 returns 0, which git2-rs
+/// doesn't treat as an error).
+fn is_worktree_locked(repo: &Repository, worktree_name: &str) -> bool {
+    repo.path()
+        .join("worktrees")
+        .join(worktree_name)
+        .join("locked")
+        .exists()
+}
+
 pub fn list_worktrees(path: &str) -> Result<Vec<WorktreeInfo>, String> {
     let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
 
@@ -53,7 +65,7 @@ pub fn list_worktrees(path: &str) -> Result<Vec<WorktreeInfo>, String> {
             Err(_) => continue,
         };
 
-        let is_locked = wt.is_locked().is_ok();
+        let is_locked = is_worktree_locked(&repo, &name);
 
         let wt_path = wt.path().to_string_lossy().to_string();
 
@@ -188,7 +200,7 @@ pub fn remove_worktree(path: &str, name: &str) -> Result<(), String> {
     let wt_path = wt.path().to_path_buf();
 
     // If locked, unlock first
-    if wt.is_locked().is_ok() {
+    if is_worktree_locked(&repo, name) {
         wt.unlock().map_err(|e| format!("Failed to unlock worktree '{name}': {e}"))?;
     }
 
@@ -206,6 +218,16 @@ pub fn remove_worktree(path: &str, name: &str) -> Result<(), String> {
             .map_err(|e| format!("Failed to remove worktree directory: {e}"))?;
     }
 
+    Ok(())
+}
+
+pub fn unlock_worktree(path: &str, name: &str) -> Result<(), String> {
+    let repo = Repository::open(path).map_err(|e| format!("Failed to open repo: {e}"))?;
+    let wt = repo
+        .find_worktree(name)
+        .map_err(|e| format!("Failed to find worktree '{name}': {e}"))?;
+    wt.unlock()
+        .map_err(|e| format!("Failed to unlock worktree '{name}': {e}"))?;
     Ok(())
 }
 

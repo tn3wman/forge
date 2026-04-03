@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCliDiscovery, useSlashCommands } from "@/hooks/useCliDiscovery";
 import { useRepositories } from "@/queries/useRepositories";
 import { useGitBranches, useCurrentBranch } from "@/queries/useGitBranches";
@@ -22,6 +23,7 @@ interface PreSessionViewProps {
 }
 
 export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
+  const queryClient = useQueryClient();
   const { data: clis, isLoading: clisLoading } = useCliDiscovery();
   const { data: repos } = useRepositories(workspaceId);
   const tab = useTerminalStore((s) => s.tabs.find((t) => t.tabId === tabId));
@@ -179,6 +181,19 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
     ],
   );
 
+  const handleUnlockWorktree = useCallback(
+    async (wt: WorktreeInfo) => {
+      if (!workingDirectory) return;
+      try {
+        await gitIpc.unlockWorktree(workingDirectory, wt.name);
+        queryClient.invalidateQueries({ queryKey: ["git-worktrees", workingDirectory] });
+      } catch (err) {
+        console.error("Failed to unlock worktree:", err);
+      }
+    },
+    [workingDirectory, queryClient],
+  );
+
   const handleOpenTerminal = useCallback(async () => {
     if (creating) return;
     setCreating(true);
@@ -263,6 +278,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
             worktreesLoading={worktreesLoading}
             selectedWorktree={selectedWorktree}
             onWorktreeChange={setSelectedWorktree}
+            onUnlockWorktree={handleUnlockWorktree}
             disabled={creating}
           />
         ) : (

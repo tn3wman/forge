@@ -1,4 +1,4 @@
-import { FolderOpen, GitBranch, ChevronDown, Loader2 } from "lucide-react";
+import { FolderOpen, GitBranch, ChevronDown, Loader2, LockOpen } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +27,7 @@ interface WorkModeSelectorProps {
   worktreesLoading?: boolean;
   selectedWorktree: WorktreeInfo | null;
   onWorktreeChange: (wt: WorktreeInfo) => void;
+  onUnlockWorktree?: (wt: WorktreeInfo) => void;
 
   disabled?: boolean;
 }
@@ -49,6 +50,7 @@ export function WorkModeSelector({
   worktreesLoading,
   selectedWorktree,
   onWorktreeChange,
+  onUnlockWorktree,
   disabled,
 }: WorkModeSelectorProps) {
   const nonMainWorktrees = worktrees.filter((wt) => !wt.isMain);
@@ -175,17 +177,23 @@ export function WorkModeSelector({
             {nonMainWorktrees.map((wt) => (
               <DropdownMenuItem
                 key={wt.name}
-                onClick={() => onWorktreeChange(wt)}
-                disabled={wt.isLocked}
+                onClick={() =>
+                  wt.isLocked && onUnlockWorktree
+                    ? onUnlockWorktree(wt)
+                    : onWorktreeChange(wt)
+                }
                 className={cn(
                   selectedWorktree?.name === wt.name && "bg-accent",
-                  wt.isLocked && "opacity-50",
+                  wt.isLocked && "opacity-60",
                 )}
               >
                 <GitBranch className="mr-2 h-3.5 w-3.5" />
                 {wt.branch ?? wt.name}
                 {wt.isLocked && (
-                  <span className="ml-2 text-muted-foreground/50 text-[10px]">locked</span>
+                  <span className="ml-2 inline-flex items-center gap-1 text-muted-foreground/50 text-[10px]">
+                    <LockOpen className="h-2.5 w-2.5" />
+                    unlock
+                  </span>
                 )}
               </DropdownMenuItem>
             ))}
