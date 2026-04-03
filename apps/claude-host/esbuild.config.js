@@ -8,4 +8,5 @@ await esbuild.build({
   format: "esm",
   outfile: "dist/index.js",
   sourcemap: true,
+  external: ["@anthropic-ai/claude-agent-sdk"],
 });

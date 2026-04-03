@@ -180,6 +180,7 @@ impl AgentSessionManager {
             AgentMode::Assisted => "assisted",
             AgentMode::FullAccess => "fullAccess",
         };
+        entry.session.update_permission_mode(permission_str)?;
         entry.info.mode = mode;
         entry.info.permission_mode = Some(permission_str.to_string());
         Ok(())

@@ -59,6 +59,10 @@ impl AgentSession {
         self.backend.respond_permission(tool_use_id, allow)
     }
 
+    pub fn update_permission_mode(&mut self, mode: &str) -> Result<(), String> {
+        self.backend.update_permission_mode(mode)
+    }
+
     pub fn abort(&mut self) -> Result<(), String> {
         self.backend.abort()
     }

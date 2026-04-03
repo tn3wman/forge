@@ -48,6 +48,12 @@ type HostCommand =
       sessionId: string;
     }
   | {
+      type: "update_permission_mode";
+      requestId: string;
+      sessionId: string;
+      permissionMode: string;
+    }
+  | {
       type: "end_session";
       requestId: string;
       sessionId: string;
@@ -365,7 +371,7 @@ function toSdkPermissionMode(mode?: string | null): PermissionMode | undefined {
   switch (mode) {
     case "plan": return "plan";
     case "supervised": return "default";
-    case "assisted": return "default";
+    case "assisted": return "acceptEdits";
     case "fullAccess": return "bypassPermissions";
     default: return undefined;
   }
@@ -449,6 +455,9 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
       cwd: command.cwd ?? undefined,
       includePartialMessages: true,
       permissionMode: toSdkPermissionMode(command.permissionMode),
+      ...(toSdkPermissionMode(command.permissionMode) === "bypassPermissions"
+        ? { allowDangerouslySkipPermissions: true }
+        : {}),
       maxThinkingTokens: command.effort === "high" ? 12000 : undefined,
       pathToClaudeCodeExecutable: command.claudePath ?? undefined,
       canUseTool,
@@ -712,6 +721,18 @@ async function handleCommand(command: HostCommand) {
         approvalId: command.approvalId,
         allow: command.allow,
       });
+      emitResult(command.requestId);
+      break;
+    }
+    case "update_permission_mode": {
+      const session = sessions.get(command.sessionId);
+      if (!session) throw new Error(`Session '${command.sessionId}' not found`);
+      session.permissionMode = command.permissionMode;
+      session.underlyingPermissionMode = command.permissionMode;
+      const sdkMode = toSdkPermissionMode(command.permissionMode);
+      if (sdkMode && typeof session.queryRuntime?.setPermissionMode === "function") {
+        await session.queryRuntime.setPermissionMode(sdkMode);
+      }
       emitResult(command.requestId);
       break;
     }

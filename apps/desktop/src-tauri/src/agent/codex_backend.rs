@@ -853,6 +853,10 @@ impl AgentBackend for CodexBackend {
         }
     }
 
+    fn update_permission_mode(&mut self, _mode: &str) -> Result<(), String> {
+        Ok(()) // Codex backend does not support runtime mode changes
+    }
+
     fn abort(&mut self) -> Result<(), String> {
         // Send turn/interrupt if we have an active turn
         let tid = self.thread_id.lock().ok().and_then(|t| t.clone());

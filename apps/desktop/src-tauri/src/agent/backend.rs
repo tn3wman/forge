@@ -12,6 +12,9 @@ pub trait AgentBackend: Send {
     /// Respond to a permission/tool-use request from the agent.
     fn respond_permission(&mut self, tool_use_id: &str, allow: bool) -> Result<(), String>;
 
+    /// Update the permission mode for the running agent.
+    fn update_permission_mode(&mut self, mode: &str) -> Result<(), String>;
+
     /// Request a graceful abort of the current operation.
     fn abort(&mut self) -> Result<(), String>;
 

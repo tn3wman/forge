@@ -670,6 +670,17 @@ impl AgentBackend for ClaudeBackend {
         Ok(())
     }
 
+    fn update_permission_mode(&mut self, mode: &str) -> Result<(), String> {
+        self.call_host(
+            "update_permission_mode",
+            json!({
+                "sessionId": self.session_id,
+                "permissionMode": mode,
+            }),
+        )?;
+        Ok(())
+    }
+
     fn abort(&mut self) -> Result<(), String> {
         self.call_host(
             "interrupt_turn",

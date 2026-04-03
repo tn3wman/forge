@@ -116,7 +116,7 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
                 effort,
                 planMode,
                 agent: agent.trim() || undefined,
-                claudePath: claudeExecutablePath.trim() || undefined,
+                claudePath: effectiveClaudePath || undefined,
               }
             : undefined,
         });
