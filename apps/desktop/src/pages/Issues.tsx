@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { CircleDot, Loader2, Search, Plus } from "lucide-react";
 import { useIssues } from "@/queries/useIssues";
 import { useRepositories } from "@/queries/useRepositories";
@@ -89,6 +89,25 @@ export function Issues() {
     }
     return counts;
   }, [issues]);
+
+  // Keyboard shortcut: "c" to create new issue (when not in an input)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (
+        e.key === "c" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement) &&
+        !(e.target instanceof HTMLSelectElement)
+      ) {
+        handleOpenNewIssue();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [repos]);
 
   const filteredIssues = useMemo(
     () => filterIssues(issues, activeFilter, searchQuery),

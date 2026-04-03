@@ -167,3 +167,8 @@ export interface NotificationItem {
   updatedAt: string;
   url: string;
 }
+
+export interface CreateIssueResult {
+  number: number;
+  htmlUrl: string;
+}
