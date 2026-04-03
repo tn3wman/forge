@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { ArrowLeft, Loader2, GitPullRequest, GitMerge, GitPullRequestClosed, Plus, Minus, CheckCircle2, CircleDot } from "lucide-react";
+import { ArrowLeft, Loader2, GitPullRequest, GitPullRequestDraft, GitMerge, GitPullRequestClosed, Plus, Minus, CheckCircle2, CircleDot } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { usePrDetail, usePrCommits, usePrFiles } from "@/queries/usePrDetail";
-import { useAddComment, useSubmitReview, useMergePr, useClosePr, useReopenPr } from "@/queries/useMutations";
+import { useAddComment, useSubmitReview, useMergePr, useClosePr, useReopenPr, useMarkPrReady, useConvertPrToDraft } from "@/queries/useMutations";
 import { MarkdownBody } from "@/components/common/MarkdownBody";
 import { CommentThread } from "@/components/comment/CommentThread";
 import { CommentEditor } from "@/components/comment/CommentEditor";
@@ -35,6 +35,8 @@ export function PrDetail() {
   const mergePr = useMergePr();
   const closePr = useClosePr();
   const reopenPr = useReopenPr();
+  const markPrReady = useMarkPrReady();
+  const convertPrToDraft = useConvertPrToDraft();
 
   if (isLoading) {
     return (
@@ -82,17 +84,31 @@ export function PrDetail() {
     reopenPr.mutate({ owner, repo, number: selectedPrNumber });
   };
 
+  const handleMarkReady = () => {
+    if (!owner || !repo || selectedPrNumber == null) return;
+    markPrReady.mutate({ owner, repo, number: selectedPrNumber });
+  };
+
+  const handleConvertToDraft = () => {
+    if (!owner || !repo || selectedPrNumber == null) return;
+    convertPrToDraft.mutate({ owner, repo, number: selectedPrNumber });
+  };
+
   const StateIcon = pr.state === "merged"
     ? GitMerge
     : pr.state === "closed"
       ? GitPullRequestClosed
-      : GitPullRequest;
+      : pr.draft
+        ? GitPullRequestDraft
+        : GitPullRequest;
 
   const stateColor = pr.state === "merged"
     ? "text-purple-400"
     : pr.state === "closed"
       ? "text-red-400"
-      : "text-green-400";
+      : pr.draft
+        ? "text-muted-foreground"
+        : "text-green-400";
 
   return (
     <div className="flex flex-col h-full">
@@ -103,14 +119,31 @@ export function PrDetail() {
         </Button>
         <StateIcon className={cn("h-5 w-5 shrink-0", stateColor)} />
         <div className="flex-1 min-w-0">
-          <h1 className="text-sm font-semibold truncate">
-            #{pr.number}: {pr.title}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm font-semibold truncate">
+              #{pr.number}: {pr.title}
+            </h1>
+            {pr.draft && (
+              <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground shrink-0">
+                Draft
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">
             {selectedRepoFullName}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {pr.state === "open" && !pr.draft && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleConvertToDraft}
+              disabled={convertPrToDraft.isPending}
+            >
+              {convertPrToDraft.isPending ? "Converting..." : "Convert to draft"}
+            </Button>
+          )}
           {pr.state === "open" && (
             <Button variant="outline" size="sm" onClick={handleClose}>
               Close
@@ -124,8 +157,11 @@ export function PrDetail() {
           <MergeButton
             mergeable={pr.mergeable}
             state={pr.state}
+            draft={pr.draft}
             onMerge={handleMerge}
             isMerging={mergePr.isPending}
+            onMarkReady={handleMarkReady}
+            isMarkingReady={markPrReady.isPending}
           />
         </div>
       </div>

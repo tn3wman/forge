@@ -85,6 +85,30 @@ export function useReopenPr() {
   });
 }
 
+export function useMarkPrReady() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; number: number }) =>
+      githubIpc.markPrReady(args.owner, args.repo, args.number),
+    onSuccess: (_data, args) => {
+      queryClient.invalidateQueries({ queryKey: ["prDetail", args.owner, args.repo, args.number] });
+      queryClient.invalidateQueries({ queryKey: ["pullRequests"] });
+    },
+  });
+}
+
+export function useConvertPrToDraft() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { owner: string; repo: string; number: number }) =>
+      githubIpc.convertPrToDraft(args.owner, args.repo, args.number),
+    onSuccess: (_data, args) => {
+      queryClient.invalidateQueries({ queryKey: ["prDetail", args.owner, args.repo, args.number] });
+      queryClient.invalidateQueries({ queryKey: ["pullRequests"] });
+    },
+  });
+}
+
 export function useCreatePr() {
   const queryClient = useQueryClient();
   return useMutation({

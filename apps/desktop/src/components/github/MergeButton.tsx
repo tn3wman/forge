@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { GitMerge, ChevronDown, AlertTriangle } from "lucide-react";
+import { GitMerge, ChevronDown, AlertTriangle, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +14,9 @@ interface MergeButtonProps {
   onMerge: (method: string) => void;
   isMerging?: boolean;
   state: string;
+  draft?: boolean;
+  onMarkReady?: () => void;
+  isMarkingReady?: boolean;
 }
 
 const METHODS: Record<string, string> = {
@@ -33,6 +36,9 @@ export function MergeButton({
   onMerge,
   isMerging = false,
   state,
+  draft = false,
+  onMarkReady,
+  isMarkingReady = false,
 }: MergeButtonProps) {
   const [selectedMethod, setSelectedMethod] = useState<string>("merge");
 
@@ -49,6 +55,22 @@ export function MergeButton({
     return (
       <div className="inline-flex items-center gap-1.5 rounded-md bg-red-500/20 px-3 py-1.5 text-sm font-medium text-red-400">
         Closed
+      </div>
+    );
+  }
+
+  if (draft) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">Draft — not ready to merge</span>
+        <Button
+          size="sm"
+          onClick={onMarkReady}
+          disabled={isMarkingReady}
+        >
+          <Eye className="h-3.5 w-3.5 mr-1.5" />
+          {isMarkingReady ? "Marking ready..." : "Ready for review"}
+        </Button>
       </div>
     );
   }
