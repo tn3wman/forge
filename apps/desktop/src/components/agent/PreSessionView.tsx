@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCliDiscovery, useSlashCommands } from "@/hooks/useCliDiscovery";
 import { useRepositories } from "@/queries/useRepositories";
