@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use crate::github::client::{self as gh_client, PrCommitItem, PrFileItem, SearchRepoResult};
-use crate::github::mutations::{comments, issues, pr_actions, reviews};
+use crate::github::mutations::{comments, issues as issue_mutations, pr_actions, reviews};
 use crate::github::mutations::comments::CommentResult;
 use crate::github::queries::issue_detail;
 use crate::github::queries::issues::{self, IssueItem};
@@ -328,7 +328,7 @@ pub async fn github_create_issue(
     title: String,
     body: String,
     labels: Vec<String>,
-) -> Result<issues::CreateIssueResult, String> {
+) -> Result<issue_mutations::CreateIssueResult, String> {
     let token = cache.require_token()?;
-    issues::create_issue(&client, &token, &owner, &repo, &title, &body, &labels).await
+    issue_mutations::create_issue(&client, &token, &owner, &repo, &title, &body, &labels).await
 }
