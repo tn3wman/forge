@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { isEditableTarget } from "@/lib/keyboard";
 import type { Issue } from "@forge/shared";
 
 const ISSUE_FILTERS = [
@@ -112,9 +113,7 @@ export function Issues() {
         !e.metaKey &&
         !e.ctrlKey &&
         !e.altKey &&
-        !(e.target instanceof HTMLInputElement) &&
-        !(e.target instanceof HTMLTextAreaElement) &&
-        !(e.target instanceof HTMLSelectElement)
+        !isEditableTarget(e)
       ) {
         handleOpenNewIssue();
       }

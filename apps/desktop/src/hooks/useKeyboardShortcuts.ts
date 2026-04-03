@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { isEditableTarget } from "../lib/keyboard";
 
 export interface Shortcut {
   label: string;
@@ -23,7 +24,7 @@ export function useKeyboardShortcuts(shortcuts: Shortcut[]) {
     let timeout: ReturnType<typeof setTimeout>;
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (isEditableTarget(e)) return;
 
       // Handle combo shortcuts (e.g. Escape, Cmd+K)
       for (const s of shortcutsRef.current) {

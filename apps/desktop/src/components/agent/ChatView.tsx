@@ -12,6 +12,7 @@ import { PlanReviewCard } from "./PlanReviewCard";
 import { AgentStatusBar } from "./AgentStatusBar";
 import { UnifiedInputCard } from "./UnifiedInputCard";
 import { useSlashCommands } from "@/hooks/useCliDiscovery";
+import { isEditableTarget } from "@/lib/keyboard";
 
 const PERMISSIVE_MODES: AgentChatMode[] = ["fullAccess"];
 
@@ -109,7 +110,7 @@ export const ChatView = memo(function ChatView({ sessionId, variant = "default" 
     if (!pendingPermission || activeTabId !== sessionId) return;
 
     const handler = (e: KeyboardEvent) => {
-      if (inputFocusedRef.current) return;
+      if (inputFocusedRef.current || isEditableTarget(e)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       const toolUseId = pendingPermission.toolUseId;
