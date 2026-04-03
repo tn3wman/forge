@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { useStartWork, type StartWorkStep } from "@/hooks/useStartWork";
 import { useRepositories } from "@/queries/useRepositories";
 import { useGitBranches } from "@/queries/useGitBranches";
@@ -70,6 +71,8 @@ export function StartWorkDialog({ open, onOpenChange, issue, linkedPrs }: StartW
   const [phase, setPhase] = useState<"configure" | "creating" | "done" | "error">("configure");
   const [syncNeeded, setSyncNeeded] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const { data: branches } = useGitBranches(repo?.localPath ?? null);
   const { data: worktrees } = useGitWorktrees(repo?.localPath ?? null);
@@ -146,17 +149,18 @@ export function StartWorkDialog({ open, onOpenChange, issue, linkedPrs }: StartW
 
   const hasLinkedPr = linkedPrs && linkedPrs.length > 0;
 
-  const handleSync = async () => {
-    if (!repo?.localPath || !isAuthenticated) return;
+  const handleSync = useCallback(async () => {
+    if (!repo?.localPath || !isAuthenticated || !baseBranch) return;
     setSyncing(true);
+    setSyncError(null);
     try {
-      await gitIpc.pull(repo.localPath, "origin", baseBranch);
-      setSyncNeeded(false);
-    } catch {
-      // pull may fail if not ff, just continue
+      await gitIpc.syncBranch(repo.localPath, "origin", baseBranch);
+      await queryClient.invalidateQueries({ queryKey: ["git-branches", repo.localPath] });
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : String(err));
     }
     setSyncing(false);
-  };
+  }, [repo?.localPath, isAuthenticated, baseBranch, queryClient]);
 
   const handleStart = async () => {
     if (!repo?.localPath || !owner || !repoName) return;
@@ -274,21 +278,28 @@ export function StartWorkDialog({ open, onOpenChange, issue, linkedPrs }: StartW
             </div>
 
             {/* Sync warning */}
-            {syncNeeded && (
-              <div className="flex items-center gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2">
-                <AlertCircle className="h-4 w-4 text-yellow-500 shrink-0" />
-                <p className="text-xs text-yellow-500 flex-1">
-                  Local branch is behind remote.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSync}
-                  disabled={syncing}
-                  className="h-6 text-[10px]"
-                >
-                  {syncing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Sync"}
-                </Button>
+            {(syncNeeded || syncError) && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-500 shrink-0" />
+                  <p className="text-xs text-yellow-500 flex-1">
+                    Local branch is behind remote.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSync}
+                    disabled={syncing}
+                    className="h-6 text-[10px]"
+                  >
+                    {syncing ? <Loader2 className="h-3 w-3 animate-spin" /> : "Sync"}
+                  </Button>
+                </div>
+                {syncError && (
+                  <p className="text-xs text-destructive px-1">
+                    Sync failed: {syncError}
+                  </p>
+                )}
               </div>
             )}
 

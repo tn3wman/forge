@@ -28,6 +28,8 @@ export const gitIpc = {
     invoke<void>("git_pull", { path, remoteName: remote ?? "origin", branch: branch ?? null }),
   push: (path: string, remote?: string, branch?: string) =>
     invoke<void>("git_push", { path, remoteName: remote ?? "origin", branch: branch ?? null }),
+  syncBranch: (path: string, remote: string, branch: string) =>
+    invoke<void>("git_sync_branch", { path, remoteName: remote, branch }),
   stashPush: (path: string, message?: string, includeUntracked?: boolean) =>
     invoke<string>("git_stash_push", { path, message: message ?? null, includeUntracked: includeUntracked ?? false }),
   stashList: (path: string) => invoke<StashEntry[]>("git_stash_list", { path }),
