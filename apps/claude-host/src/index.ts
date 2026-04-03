@@ -388,6 +388,10 @@ const READ_ONLY_TOOLS = new Set([
   "TodoRead",
   "ListMcpResourcesTool",
   "ReadMcpResourceTool",
+  // Non-destructive SDK tools that should auto-approve
+  "ExitPlanMode",
+  "EnterPlanMode",
+  "AskUserQuestion",
 ]);
 
 async function startSession(command: Extract<HostCommand, { type: "start_session" }>) {
@@ -419,12 +423,17 @@ async function startSession(command: Extract<HostCommand, { type: "start_session
       : (session.underlyingPermissionMode ?? session.permissionMode);
     // Full Access: auto-approve all tools
     if (effectiveMode === "fullAccess") {
-      return Promise.resolve({ behavior: "allow" as const });
+      return Promise.resolve({ behavior: "allow" as const, updatedInput: asRecord(toolInput) ?? {} });
+    }
+
+    // Plan mode: auto-approve non-destructive tools
+    if (effectiveMode === "plan" && READ_ONLY_TOOLS.has(toolName)) {
+      return Promise.resolve({ behavior: "allow" as const, updatedInput: asRecord(toolInput) ?? {} });
     }
 
     // Assisted: auto-approve read-only tools, prompt for writes
     if (effectiveMode === "assisted" && READ_ONLY_TOOLS.has(toolName)) {
-      return Promise.resolve({ behavior: "allow" as const });
+      return Promise.resolve({ behavior: "allow" as const, updatedInput: asRecord(toolInput) ?? {} });
     }
 
     // Supervised (default): prompt for everything
