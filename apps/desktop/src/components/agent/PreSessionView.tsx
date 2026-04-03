@@ -88,6 +88,28 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
     }
   }, [clis, selectedCli]);
 
+  // Auto-send initial prompt for purpose-driven tabs (e.g. create-issue)
+  const autoSentRef = useRef(false);
+  useEffect(() => {
+    if (autoSentRef.current || creating) return;
+    if (!tab?.purpose || tab.purpose.type !== "create-issue") return;
+    if (!selectedCli || !clis || clis.length === 0) return;
+
+    autoSentRef.current = true;
+    const repo = tab.purpose.repoFullName || "this repository";
+    const prompt = [
+      `Help me create a new GitHub issue for ${repo}.`,
+      "",
+      "Ask me what the issue is about, then help me write a clear title and description.",
+      "When I confirm I'm satisfied, output the final issue in this exact format on its own line:",
+      "",
+      '@@FORGE_CREATE_ISSUE@@{"title":"...","body":"...","labels":[]}',
+      "",
+      "Do not create the issue yourself via CLI — just output that structured line and the app will handle creation.",
+    ].join("\n");
+    void handleSend(prompt);
+  }, [tab?.purpose, selectedCli, clis, creating]);
+
   const handleSend = useCallback(
     async (text: string) => {
       if (!selectedCli || creating) return;
