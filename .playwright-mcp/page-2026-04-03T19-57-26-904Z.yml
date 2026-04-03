@@ -1,0 +1,8 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - img [ref=e8]
+    - heading "Welcome to Forge" [level=1] [ref=e11]
+    - paragraph [ref=e12]: Sign in with GitHub to get started
+  - button "Sign in with GitHub" [ref=e13]:
+    - img
+    - text: Sign in with GitHub

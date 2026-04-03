@@ -1,5 +1,4 @@
 import { useCallback, useEffect, Component, type ReactNode } from "react";
-import { useShallow } from "zustand/react/shallow";
 import { Plus, LayoutGrid, Columns, Layers, X, AlertTriangle, RotateCcw, Loader2 } from "lucide-react";
 import { MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -69,14 +68,7 @@ interface TerminalsProps {
 export function Terminals({ onNewTerminal }: TerminalsProps) {
   const { tabs: allTabs, activeTabId, layoutMode, setLayoutMode, setActiveTab, removeTab } =
     useTerminalStore();
-  const agentTabs = useAgentStore(
-    useShallow((s) => s.tabs.map((t) => ({
-      sessionId: t.sessionId,
-      state: t.state,
-      provider: t.provider,
-      cliName: t.cliName,
-    }))),
-  );
+  const agentTabs = useAgentStore((s) => s.tabs);
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const tabs = allTabs.filter((t) => t.workspaceId === activeWorkspaceId);
 

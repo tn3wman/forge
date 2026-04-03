@@ -1,0 +1,26 @@
+[     428ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:20102
+[     479ms] [LOG] [Forge] checkAuth: checking keychain... @ http://localhost:1420/src/hooks/useAuth.ts:11
+[     480ms] [LOG] [Forge] checkAuth: checking keychain... @ http://localhost:1420/src/hooks/useAuth.ts:11
+[     480ms] [ERROR] [Forge] checkAuth error: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:1420/node_modules/.vite/deps/chunk-T4FVAMNU.js?v=1f83dcda:109:37)
+    at Object.getStoredToken (http://localhost:1420/src/ipc/auth.ts:5:25)
+    at checkAuth (http://localhost:1420/src/hooks/useAuth.ts:14:35)
+    at http://localhost:1420/src/hooks/useAuth.ts:8:7
+    at Object.react_stack_bottom_frame (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:18567:20)
+    at runWithFiberInDEV (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:997:72)
+    at commitHookEffectListMount (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:9411:163)
+    at commitHookPassiveMountEffects (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:9465:60)
+    at commitPassiveMountOnFiber (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:11040:29)
+    at recursivelyTraversePassiveMountEffects (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:11010:13) @ http://localhost:1420/src/hooks/useAuth.ts:29
+[     480ms] [ERROR] [Forge] checkAuth error: TypeError: Cannot read properties of undefined (reading 'invoke')
+    at invoke (http://localhost:1420/node_modules/.vite/deps/chunk-T4FVAMNU.js?v=1f83dcda:109:37)
+    at Object.getStoredToken (http://localhost:1420/src/ipc/auth.ts:5:25)
+    at checkAuth (http://localhost:1420/src/hooks/useAuth.ts:14:35)
+    at http://localhost:1420/src/hooks/useAuth.ts:8:7
+    at Object.react_stack_bottom_frame (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:18567:20)
+    at runWithFiberInDEV (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:997:72)
+    at commitHookEffectListMount (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:9411:163)
+    at commitHookPassiveMountEffects (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:9465:60)
+    at reconnectPassiveEffects (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:11273:13)
+    at recursivelyTraverseReconnectPassiveEffects (http://localhost:1420/node_modules/.vite/deps/react-dom_client.js?v=1f83dcda:11240:11) @ http://localhost:1420/src/hooks/useAuth.ts:29
+[     506ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:1420/favicon.ico:0

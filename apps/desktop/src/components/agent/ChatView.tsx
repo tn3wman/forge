@@ -44,7 +44,7 @@ export const ChatView = memo(function ChatView({ sessionId, variant = "default" 
     })),
   );
 
-  // Actions never change — single subscription, stable references
+  // Actions never change — useShallow ensures the wrapping object is stable
   const {
     appendMessage,
     createPendingAssistant,
@@ -54,7 +54,7 @@ export const ChatView = memo(function ChatView({ sessionId, variant = "default" 
     updateTabMeta,
     updateTabMode,
     clearMessages,
-  } = useAgentStore(actionsSelector);
+  } = useAgentStore(useShallow(actionsSelector));
   const { data: discoveredSlashCommands } = useSlashCommands(tab?.cliName ?? null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -299,8 +299,10 @@ export const ChatView = memo(function ChatView({ sessionId, variant = "default" 
 
   if (!tab) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm text-muted-foreground">Session not found</p>
+      <div className="flex h-full flex-col">
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-sm text-muted-foreground animate-pulse">Loading session…</p>
+        </div>
       </div>
     );
   }

@@ -124,12 +124,9 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
             : undefined,
         });
 
-        useTerminalStore.getState().activateTab(tabId, session.id, {
-          label: session.displayName,
-          cliName: session.cliName,
-          type: "chat",
-        });
-
+        // Populate agent store BEFORE activating the terminal tab.
+        // activateTab changes status to "active" which triggers ChatView to mount —
+        // the agent tab and messages must already exist or ChatView renders empty.
         useAgentStore.getState().addTab({
           sessionId: session.id,
           label: session.displayName,
@@ -158,6 +155,13 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
         };
         useAgentStore.getState().appendMessage(session.id, userMsg);
         useAgentStore.getState().createPendingAssistant(session.id);
+
+        // Now trigger the UI transition — ChatView will find the tab immediately
+        useTerminalStore.getState().activateTab(tabId, session.id, {
+          label: session.displayName,
+          cliName: session.cliName,
+          type: "chat",
+        });
 
         // Persist session and initial user message
         {
