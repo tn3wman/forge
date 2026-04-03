@@ -16,6 +16,8 @@ export interface CreateSessionRequest {
   planMode?: boolean;
   model?: string;
   effort?: "low" | "medium" | "high";
+  initialCols?: number;
+  initialRows?: number;
 }
 
 export interface SessionInfo {

@@ -230,6 +230,10 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
     try {
       const cliName = selectedCli ?? "bash";
       const isCli = cliName === "claude" || cliName === "codex" || cliName === "aider";
+      // Estimate terminal dimensions from viewport so the PTY starts close to
+      // the right size. The first fitAddon.fit() + resize IPC will correct it.
+      const estimatedCols = Math.max(80, Math.floor((window.innerWidth - 100) / 7.8));
+      const estimatedRows = Math.max(24, Math.floor((window.innerHeight - 200) / 17));
       const session = await terminalIpc.createSession({
         cliName,
         mode: "Normal",
@@ -239,6 +243,8 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
         planMode: isCli ? planMode : undefined,
         model: isCli && model ? model : undefined,
         effort: isCli && effort ? effort : undefined,
+        initialCols: estimatedCols,
+        initialRows: estimatedRows,
       });
 
       useTerminalStore.getState().activateTab(tabId, session.id, {

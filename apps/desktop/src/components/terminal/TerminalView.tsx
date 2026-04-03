@@ -19,6 +19,9 @@ export function TerminalView({ sessionId, isActive, alwaysVisible, onExit }: Ter
   const fitAddonRef = useRef<FitAddon | null>(null);
 
   useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
     const term = new Terminal({
       cursorBlink: true,
       fontSize: 13,
@@ -51,25 +54,44 @@ export function TerminalView({ sessionId, isActive, alwaysVisible, onExit }: Ter
     term.loadAddon(fitAddon);
     fitAddonRef.current = fitAddon;
 
-    if (containerRef.current) {
-      term.open(containerRef.current);
-      try { term.loadAddon(new WebglAddon()); } catch { /* fallback to canvas */ }
-      fitAddon.fit();
-    }
+    term.open(container);
 
-    setTerminal(term);
-    return () => { term.dispose(); };
+    // Wait one frame for layout to stabilize before fitting and loading WebGL.
+    // Defer setTerminal so useTerminalSession doesn't attach listeners until
+    // the terminal is properly sized — early PTY output buffers in Tauri events.
+    const rafId = requestAnimationFrame(() => {
+      fitAddon.fit();
+      try { term.loadAddon(new WebglAddon()); } catch { /* fallback to canvas */ }
+      setTerminal(term);
+    });
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      term.dispose();
+    };
   }, []);
 
   useTerminalSession(sessionId, terminal, onExit);
 
   useEffect(() => {
-    if (!containerRef.current || !fitAddonRef.current) return;
+    const container = containerRef.current;
+    const fitAddon = fitAddonRef.current;
+    if (!container || !fitAddon) return;
+
+    let rafId: number | null = null;
     const observer = new ResizeObserver(() => {
-      try { fitAddonRef.current?.fit(); } catch { /* ignore */ }
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        try { fitAddon.fit(); } catch { /* ignore */ }
+        rafId = null;
+      });
     });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
+
+    observer.observe(container);
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
   }, []);
 
   // Refit terminal when it becomes active or when home page becomes visible
