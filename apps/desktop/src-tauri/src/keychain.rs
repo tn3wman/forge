@@ -41,8 +41,40 @@ impl TokenCache {
 }
 
 pub fn store_token(token: &str) -> Result<(), String> {
-    let entry = Entry::new(SERVICE_NAME, ACCOUNT_NAME).map_err(|e| e.to_string())?;
-    entry.set_password(token).map_err(|e| e.to_string())
+    // On macOS, use the `security` CLI with the `-A` flag so that any binary
+    // (including unsigned dev builds) can read the entry without a Keychain
+    // prompt.  The `keyring` crate creates entries tied to the calling binary's
+    // code-signature, which changes on every recompile.
+    #[cfg(target_os = "macos")]
+    {
+        // Remove the old entry first (ignore "not found" errors).
+        let _ = std::process::Command::new("security")
+            .args(["delete-generic-password", "-s", SERVICE_NAME, "-a", ACCOUNT_NAME])
+            .output();
+
+        let output = std::process::Command::new("security")
+            .args([
+                "add-generic-password",
+                "-s", SERVICE_NAME,
+                "-a", ACCOUNT_NAME,
+                "-w", token,
+                "-A",          // allow access by any application
+            ])
+            .output()
+            .map_err(|e| format!("Failed to store token: {e}"))?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(format!("Failed to store token in keychain: {stderr}"));
+        }
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let entry = Entry::new(SERVICE_NAME, ACCOUNT_NAME).map_err(|e| e.to_string())?;
+        entry.set_password(token).map_err(|e| e.to_string())
+    }
 }
 
 pub fn get_token() -> Result<Option<String>, String> {

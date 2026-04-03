@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import type { AgentEventPayload, AgentExitPayload, AgentChatMode } from "@forge/shared";
 import { useAgentStore } from "@/stores/agentStore";
 import { agentIpc } from "@/ipc/agent";
+import { persistMessagesForSession, persistSingleMessage } from "@/lib/agentPersistence";
 
 declare global {
   var __forgeAgentBridgePromise: Promise<void> | undefined;
@@ -78,6 +79,13 @@ function handleAgentEvent(payload: AgentEventPayload) {
       if (event.conversationId) {
         store.setConversationId(sessionId, event.conversationId);
       }
+      // Persist session meta updates
+      void agentIpc.updatePersistedSessionMeta(sessionId, {
+        ...(event.provider ? { provider: event.provider } : {}),
+        ...(event.conversationId ? { conversationId: event.conversationId } : {}),
+        ...(event.agent ? { agent: event.agent } : {}),
+        ...(event.effort ? { effort: event.effort } : {}),
+      }).catch(() => {});
       break;
     }
     case "assistant_message_start": {
@@ -99,6 +107,22 @@ function handleAgentEvent(payload: AgentEventPayload) {
       );
       store.completeReasoning(sessionId, event.messageId, event.turnId);
       store.updateTabState(sessionId, "thinking");
+      // Persist completed assistant message for crash safety
+      {
+        const msgs = useAgentStore.getState().messagesBySession[sessionId];
+        if (msgs) {
+          let assistantMsg: typeof msgs[number] | undefined;
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            if (msgs[i].type === "assistant" && msgs[i].messageId === event.messageId) {
+              assistantMsg = msgs[i];
+              break;
+            }
+          }
+          if (assistantMsg) {
+            persistSingleMessage(sessionId, assistantMsg);
+          }
+        }
+      }
       break;
     }
     case "thinking_start": {
@@ -164,6 +188,22 @@ function handleAgentEvent(payload: AgentEventPayload) {
         event.isError,
       );
       store.updateTabState(sessionId, event.isError ? "error" : "thinking");
+      // Persist tool_use + tool_result pair
+      {
+        const msgs = useAgentStore.getState().messagesBySession[sessionId];
+        if (msgs) {
+          const toPersist: typeof msgs = [];
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            const m = msgs[i];
+            if (m.toolUseId === event.toolUseId && (m.type === "tool_use" || m.type === "tool_result")) {
+              toPersist.push(m);
+            }
+          }
+          if (toPersist.length > 0) {
+            persistMessagesForSession(sessionId, toPersist);
+          }
+        }
+      }
       break;
     }
     case "approval_requested": {
@@ -245,7 +285,52 @@ function handleAgentEvent(payload: AgentEventPayload) {
           store.fillEmptyAssistant(sessionId, event.resultText);
         }
         store.completeReasoning(sessionId);
-        store.updateTabState(sessionId, "completed");
+
+        // Check if this is a plan mode completion — show plan review UI
+        const planTab = store.tabs.find((t) => t.sessionId === sessionId);
+        if (planTab?.planMode) {
+          const messages = store.messagesBySession[sessionId] ?? [];
+          // Find the last Write tool that wrote to a plan file
+          let planFilePath = "";
+          let planContent = "";
+          for (let i = messages.length - 1; i >= 0; i--) {
+            const m = messages[i];
+            if (m.type === "tool_use" && m.toolName?.toLowerCase() === "write" && m.toolInput) {
+              const fp = m.toolInput.file_path as string | undefined;
+              if (fp && (fp.includes("/plans/") || fp.includes(".claude/plans"))) {
+                planFilePath = fp;
+                planContent = (m.toolInput.content as string) ?? "";
+                break;
+              }
+            }
+          }
+          if (planFilePath || event.resultText) {
+            store.updateTabMeta(sessionId, {
+              planReview: {
+                filePath: planFilePath || "plan",
+                content: planContent || event.resultText || "",
+                underlyingMode: planTab.mode,
+              },
+            });
+            store.updateTabState(sessionId, "awaiting_approval");
+          } else {
+            store.updateTabState(sessionId, "completed");
+          }
+        } else {
+          store.updateTabState(sessionId, "completed");
+        }
+      }
+      // Batch-persist all messages as safety net and update session cost
+      {
+        const allMsgs = useAgentStore.getState().messagesBySession[sessionId];
+        if (allMsgs) {
+          persistMessagesForSession(sessionId, allMsgs);
+        }
+        const tab = useAgentStore.getState().tabs.find((t) => t.sessionId === sessionId);
+        void agentIpc.updatePersistedSessionMeta(sessionId, {
+          totalCost: event.totalCostUsd ?? 0,
+          conversationId: tab?.conversationId ?? undefined,
+        }).catch(() => {});
       }
       break;
     }

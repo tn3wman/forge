@@ -49,6 +49,11 @@ export interface AgentTab {
   claudePath?: string | null;
   capabilitiesLoaded?: boolean;
   planMode?: boolean;
+  planReview?: {
+    filePath: string;
+    content: string;
+    underlyingMode: AgentChatMode;
+  } | null;
   slashCommands?: SlashCommandInfo[];
   totalCost: number;
 }
@@ -86,6 +91,7 @@ interface AgentStore {
   toggleMessageCollapsed: (sessionId: string, messageId: string) => void;
   toggleReasoningCollapsed: (sessionId: string, messageId: string) => void;
   clearMessages: (sessionId: string) => void;
+  clearPlanReview: (sessionId: string) => void;
 }
 
 let localIdCounter = 0;
@@ -659,5 +665,12 @@ export const useAgentStore = create<AgentStore>((set) => ({
   clearMessages: (sessionId) =>
     set((s) => ({
       messagesBySession: { ...s.messagesBySession, [sessionId]: [] },
+    })),
+
+  clearPlanReview: (sessionId) =>
+    set((s) => ({
+      tabs: s.tabs.map((tab) =>
+        tab.sessionId === sessionId ? { ...tab, planReview: null } : tab,
+      ),
     })),
 }));

@@ -39,6 +39,7 @@ import { Search } from "@/pages/Search";
 import { Terminals } from "@/pages/Terminals";
 import { useTerminalStore } from "@/stores/terminalStore";
 import { useAgentEventBridge } from "@/hooks/useAgentSession";
+import { useRestoreAgentSessions } from "@/hooks/useRestoreAgentSessions";
 import { getWorkspaceColor } from "@/lib/workspaceColors";
 
 const navItems: { icon: typeof LayoutDashboard; label: string; shortcut: string; page: AppPage }[] = [
@@ -105,6 +106,7 @@ export function AppShell() {
 
   const { activeWorkspaceId, activePage, setActiveWorkspaceId, setActivePage, navigateToChanges, navigateToCommitGraph, navigateToBranches } =
     useWorkspaceStore();
+  useRestoreAgentSessions(activeWorkspaceId);
   const { data: workspaces } = useWorkspaces();
   const { data: repos } = useRepositories(activeWorkspaceId);
   const workspaceRepoNames = repos?.map((r) => r.fullName);

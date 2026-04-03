@@ -1,5 +1,7 @@
 use crate::agent::manager::AgentSessionManager;
+use crate::agent::persistence::{self, PersistedMessage, PersistedSession};
 use crate::agent::slash_commands;
+use crate::db::Database;
 use crate::models::agent::{AgentMode, AgentSessionInfo, CreateAgentSessionRequest, ImageAttachment, SlashCommandInfo};
 use tauri::AppHandle;
 
@@ -68,4 +70,80 @@ pub async fn agent_update_permission_mode(
 #[tauri::command]
 pub async fn agent_discover_slash_commands(cli_name: String) -> Result<Vec<SlashCommandInfo>, String> {
     Ok(slash_commands::discover_slash_commands(&cli_name))
+}
+
+#[tauri::command]
+pub async fn agent_load_persisted_sessions(
+    db: tauri::State<'_, Database>,
+    workspace_id: String,
+) -> Result<Vec<PersistedSession>, String> {
+    let conn = db.conn.lock().unwrap();
+    persistence::load_sessions(&conn, &workspace_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn agent_load_messages(
+    db: tauri::State<'_, Database>,
+    session_id: String,
+    offset: i64,
+    limit: i64,
+) -> Result<Vec<PersistedMessage>, String> {
+    let conn = db.conn.lock().unwrap();
+    persistence::load_messages(&conn, &session_id, offset, limit).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn agent_persist_session(
+    db: tauri::State<'_, Database>,
+    session: PersistedSession,
+) -> Result<(), String> {
+    let conn = db.conn.lock().unwrap();
+    persistence::save_session(&conn, &session).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn agent_persist_messages(
+    db: tauri::State<'_, Database>,
+    messages: Vec<PersistedMessage>,
+) -> Result<(), String> {
+    let conn = db.conn.lock().unwrap();
+    persistence::save_messages_batch(&conn, &messages).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn agent_update_persisted_session_meta(
+    db: tauri::State<'_, Database>,
+    session_id: String,
+    conversation_id: Option<String>,
+    total_cost: Option<f64>,
+    model: Option<String>,
+    provider: Option<String>,
+    permission_mode: Option<String>,
+    agent: Option<String>,
+    effort: Option<String>,
+    label: Option<String>,
+) -> Result<(), String> {
+    let conn = db.conn.lock().unwrap();
+    persistence::update_session_meta(
+        &conn,
+        &session_id,
+        conversation_id.as_deref(),
+        total_cost,
+        model.as_deref(),
+        provider.as_deref(),
+        permission_mode.as_deref(),
+        agent.as_deref(),
+        effort.as_deref(),
+        label.as_deref(),
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn agent_delete_persisted_session(
+    db: tauri::State<'_, Database>,
+    session_id: String,
+) -> Result<(), String> {
+    let conn = db.conn.lock().unwrap();
+    persistence::delete_session(&conn, &session_id).map_err(|e| e.to_string())
 }

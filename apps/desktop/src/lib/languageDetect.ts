@@ -35,7 +35,8 @@ const EXT_TO_LANG: Record<string, string> = {
   gql: "graphql",
 };
 
-export function detectLanguage(filePath: string): string | undefined {
+export function detectLanguage(filePath: string | undefined): string | undefined {
+  if (!filePath) return undefined;
   const basename = filePath.split("/").pop() ?? "";
   const lower = basename.toLowerCase();
   if (lower === "dockerfile") return "dockerfile";

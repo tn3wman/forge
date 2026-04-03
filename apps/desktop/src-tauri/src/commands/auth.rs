@@ -47,6 +47,10 @@ pub fn auth_get_stored_token(
     let token = keychain::get_token()?;
     if let Some(ref t) = token {
         cache.set(t.clone());
+        // Re-store with permissive ACLs so the next app launch won't prompt.
+        // This is a one-time migration for entries created by the keyring crate.
+        #[cfg(target_os = "macos")]
+        let _ = keychain::store_token(t);
     }
     Ok(token)
 }

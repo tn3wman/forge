@@ -111,6 +111,51 @@ export interface AgentExitPayload {
   exitCode?: number;
 }
 
+export interface PersistedSession {
+  id: string;
+  workspaceId: string;
+  cliName: string;
+  displayName: string;
+  mode: string;
+  provider?: string;
+  model?: string;
+  permissionMode?: string;
+  agent?: string;
+  effort?: string;
+  claudePath?: string;
+  planMode?: boolean;
+  workingDirectory?: string;
+  conversationId?: string;
+  totalCost: number;
+  label: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersistedMessage {
+  id: string;
+  sessionId: string;
+  seq: number;
+  type: string;
+  content: string;
+  reasoning?: string;
+  messageId?: string;
+  turnId?: string;
+  toolUseId?: string;
+  toolName?: string;
+  toolInput?: string;
+  toolStatus?: string;
+  detail?: string;
+  approvalId?: string;
+  resolved?: boolean;
+  isError?: boolean;
+  state?: string;
+  streamState: string;
+  reasoningState?: string;
+  images?: string;
+  timestamp: number;
+}
+
 export type SlashCommandCategory = "local" | "builtin" | "plugin" | "skill";
 
 export interface SlashCommandInfo {

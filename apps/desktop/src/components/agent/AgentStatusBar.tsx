@@ -55,7 +55,9 @@ export function AgentStatusBar({
   totalCost,
   planMode,
 }: AgentStatusBarProps) {
-  const { label, icon: Icon, spin } = stateConfig[state] ?? stateConfig.idle;
+  const config = stateConfig[state] ?? stateConfig.idle;
+  const label = planMode && state === "awaiting_approval" ? "Plan Ready for Review" : config.label;
+  const { icon: Icon, spin } = config;
 
   const details: string[] = [];
   if (planMode) details.push("Plan");

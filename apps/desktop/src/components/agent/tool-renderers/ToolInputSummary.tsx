@@ -15,7 +15,8 @@ interface ToolInputSummaryProps {
   toolInputText?: string;
 }
 
-function shortenPath(filePath: string): string {
+function shortenPath(filePath: string | undefined): string {
+  if (!filePath) return "unknown";
   const parts = filePath.split("/");
   if (parts.length <= 3) return filePath;
   return ".../" + parts.slice(-3).join("/");

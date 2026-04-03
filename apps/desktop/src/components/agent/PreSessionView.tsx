@@ -8,6 +8,7 @@ import { useTerminalStore } from "@/stores/terminalStore";
 import { useAgentStore } from "@/stores/agentStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { agentIpc } from "@/ipc/agent";
+import { sessionInfoToPersistedSession, persistSingleMessage } from "@/lib/agentPersistence";
 import { gitIpc } from "@/ipc/git";
 import { terminalIpc } from "@/ipc/terminal";
 import { UnifiedInputCard } from "./UnifiedInputCard";
@@ -147,14 +148,42 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
           totalCost: 0,
         });
 
-        useAgentStore.getState().appendMessage(session.id, {
+        const userMsg = {
           id: `user-${Date.now()}`,
-          type: "user",
+          type: "user" as const,
           content: text,
           timestamp: Date.now(),
           collapsed: false,
-        });
+        };
+        useAgentStore.getState().appendMessage(session.id, userMsg);
         useAgentStore.getState().createPendingAssistant(session.id);
+
+        // Persist session and initial user message
+        {
+          const persisted = sessionInfoToPersistedSession(
+            session.id,
+            workspaceId,
+            session.cliName,
+            session.displayName,
+            mode,
+            {
+              provider: session.provider ?? (isClaude ? "claude" : undefined),
+              model: session.model ?? (model.trim() || undefined),
+              permissionMode: session.permissionMode ?? (isClaude ? mode : undefined),
+              agent: session.agent ?? (agent.trim() || undefined),
+              effort: session.effort ?? (isClaude ? effort : undefined),
+              claudePath: session.claudePath ?? (effectiveClaudePath || undefined),
+              planMode,
+              workingDirectory: effectiveWorkDir,
+              conversationId: session.conversationId,
+              createdAt: session.createdAt,
+            },
+          );
+          void agentIpc.persistSession(persisted).catch((err) => {
+            console.error("Failed to persist session:", err);
+          });
+          persistSingleMessage(session.id, userMsg);
+        }
       } catch (err) {
         console.error("Failed to create agent session:", err);
         setLaunchError(err instanceof Error ? err.message : String(err));

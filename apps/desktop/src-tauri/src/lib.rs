@@ -141,6 +141,12 @@ pub fn run() {
             commands::agent::agent_list_sessions,
             commands::agent::agent_update_permission_mode,
             commands::agent::agent_discover_slash_commands,
+            commands::agent::agent_load_persisted_sessions,
+            commands::agent::agent_load_messages,
+            commands::agent::agent_persist_session,
+            commands::agent::agent_persist_messages,
+            commands::agent::agent_update_persisted_session_meta,
+            commands::agent::agent_delete_persisted_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

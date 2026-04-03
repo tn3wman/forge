@@ -21,6 +21,7 @@ impl Database {
         conn.execute_batch(include_str!("../migrations/002_terminal_configs.sql"))?;
         // 003 uses ALTER TABLE which isn't idempotent — ignore "duplicate column" errors
         let _ = conn.execute_batch(include_str!("../migrations/003_workspace_colors.sql"));
+        conn.execute_batch(include_str!("../migrations/004_agent_sessions.sql"))?;
         Ok(())
     }
 }

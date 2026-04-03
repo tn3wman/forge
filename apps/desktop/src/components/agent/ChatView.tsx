@@ -1,10 +1,13 @@
 import { useEffect, useRef, useMemo, useCallback } from "react";
 import { useAgentStore, type AgentMessage } from "@/stores/agentStore";
 import { agentIpc } from "@/ipc/agent";
+import { persistSingleMessage, sessionInfoToPersistedSession } from "@/lib/agentPersistence";
+import { useTerminalStore } from "@/stores/terminalStore";
 import type { AgentChatMode, ImageAttachment } from "@forge/shared";
 import { ChatMessage } from "./ChatMessage";
 import { ToolCallCard } from "./ToolCallCard";
 import { PermissionPrompt } from "./PermissionPrompt";
+import { PlanReviewCard } from "./PlanReviewCard";
 import { AgentStatusBar } from "./AgentStatusBar";
 import { UnifiedInputCard } from "./UnifiedInputCard";
 import { useSlashCommands } from "@/hooks/useCliDiscovery";
@@ -96,23 +99,127 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
   }, [pendingPermission, sessionId, activeTabId]);
 
   const handleSend = useCallback(
-    (text: string, images?: ImageAttachment[]) => {
+    async (text: string, images?: ImageAttachment[]) => {
       const now = Date.now();
-      appendMessage(sessionId, {
-        id: `user-${Date.now()}`,
-        type: "user",
+      const userMsg = {
+        id: `user-${now}`,
+        type: "user" as const,
         content: text,
         timestamp: now,
         collapsed: false,
         images: images?.length ? images : undefined,
-      });
+        streamState: "completed" as const,
+      };
+
+      // Check if this is a dead/restored session that needs a new backend
+      if (tab?.state === "completed" || tab?.state === "error") {
+        try {
+          const liveSessions = await agentIpc.listSessions();
+          const isAlive = liveSessions.some((s) => s.id === sessionId);
+          if (!isAlive) {
+            // Resume: create a new backend session with same config
+            const newSession = await agentIpc.createSession({
+              cliName: tab.cliName,
+              mode: tab.mode,
+              workingDirectory: undefined, // Will use default
+              workspaceId: "", // Will be filled by backend
+              initialPrompt: text,
+              planMode: tab.planMode,
+              claude: tab.cliName === "claude" ? {
+                provider: "claude",
+                model: tab.model,
+                permissionMode: tab.mode,
+                effort: tab.effort ?? undefined,
+                planMode: tab.planMode,
+                agent: tab.agent,
+                claudePath: tab.claudePath ?? undefined,
+              } : undefined,
+            });
+
+            // Update stores to point to the new session
+            const agentStore = useAgentStore.getState();
+            const termStore = useTerminalStore.getState();
+
+            // Find and update the terminal tab
+            const termTab = termStore.tabs.find((t) => t.sessionId === sessionId);
+            if (termTab) {
+              termStore.activateTab(termTab.tabId, newSession.id, {
+                label: newSession.displayName,
+                cliName: newSession.cliName,
+                type: "chat",
+              });
+            }
+
+            // Move messages to new session in agent store, add new tab
+            const oldMessages = agentStore.messagesBySession[sessionId] ?? [];
+            agentStore.removeTab(sessionId);
+            agentStore.addTab({
+              sessionId: newSession.id,
+              label: newSession.displayName,
+              cliName: newSession.cliName,
+              mode: tab.mode,
+              state: "thinking",
+              conversationId: newSession.conversationId ?? null,
+              provider: tab.provider,
+              model: newSession.model ?? tab.model,
+              permissionMode: newSession.permissionMode ?? tab.permissionMode,
+              agent: newSession.agent ?? tab.agent,
+              effort: newSession.effort ?? tab.effort,
+              claudePath: newSession.claudePath ?? tab.claudePath,
+              planMode: tab.planMode,
+              totalCost: 0,
+            });
+
+            // Re-add old messages for continuity in UI
+            for (const msg of oldMessages) {
+              agentStore.appendMessage(newSession.id, msg);
+            }
+
+            // Add the new user message and persist
+            agentStore.appendMessage(newSession.id, userMsg);
+            agentStore.createPendingAssistant(newSession.id);
+
+            // Persist new session
+            const persisted = sessionInfoToPersistedSession(
+              newSession.id,
+              termTab?.workspaceId ?? "",
+              newSession.cliName,
+              newSession.displayName,
+              tab.mode,
+              {
+                provider: newSession.provider ?? tab.provider,
+                model: newSession.model ?? tab.model,
+                permissionMode: newSession.permissionMode ?? tab.permissionMode,
+                agent: newSession.agent ?? tab.agent,
+                effort: newSession.effort ?? tab.effort ?? undefined,
+                claudePath: newSession.claudePath ?? tab.claudePath ?? undefined,
+                planMode: tab.planMode,
+                conversationId: newSession.conversationId,
+                createdAt: newSession.createdAt,
+              },
+            );
+            void agentIpc.persistSession(persisted).catch(() => {});
+
+            // Delete old persisted session
+            void agentIpc.deletePersistedSession(sessionId).catch(() => {});
+
+            return;
+          }
+        } catch {
+          // If check fails, try sending normally
+        }
+      }
+
+      appendMessage(sessionId, userMsg);
       createPendingAssistant(sessionId);
       updateTabState(sessionId, "thinking");
+      // Persist user message immediately
+      persistSingleMessage(sessionId, userMsg);
       void agentIpc.sendMessage(sessionId, text, images).catch((error) => {
         console.error("Failed to send agent message:", error);
       });
     },
-    [sessionId, appendMessage, createPendingAssistant, updateTabState],
+    [sessionId, tab, appendMessage, createPendingAssistant, updateTabState],
   );
 
   const handleModeChange = useCallback(
@@ -245,6 +352,15 @@ export function ChatView({ sessionId, variant = "default" }: ChatViewProps) {
 
           return null;
         })}
+
+        {tab.planReview && (
+          <PlanReviewCard
+            planFilePath={tab.planReview.filePath}
+            planContent={tab.planReview.content}
+            sessionId={sessionId}
+            underlyingMode={tab.planReview.underlyingMode}
+          />
+        )}
       </div>
 
       <AgentStatusBar

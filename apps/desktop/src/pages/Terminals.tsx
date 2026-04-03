@@ -85,6 +85,9 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
       if (tab && tab.status === "active" && tab.sessionId) {
         if (tab.type === "chat") {
           agentIpc.kill(tab.sessionId).catch(() => {});
+          // Permanently delete persisted session data
+          agentIpc.deletePersistedSession(tab.sessionId).catch(() => {});
+          useAgentStore.getState().removeTab(tab.sessionId);
         } else {
           terminalIpc.kill(tab.sessionId).catch(() => {});
         }
