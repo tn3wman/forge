@@ -81,7 +81,7 @@ export function CommitMessageDialog({
           <p className="text-xs text-destructive">
             {error || (generateMutation.error instanceof Error
               ? generateMutation.error.message
-              : "Failed to generate message")}
+              : String(generateMutation.error))}
           </p>
         )}
         <div className="flex items-center justify-between">
