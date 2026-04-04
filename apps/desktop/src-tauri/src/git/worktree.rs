@@ -5,7 +5,7 @@ use git2::Repository;
 use crate::models::git::WorktreeInfo;
 
 /// Directories to symlink from the main repo into new worktrees (best-effort).
-const SYMLINK_DIRS: &[&str] = &["node_modules", ".next", "dist", "target", ".turbo"];
+const SYMLINK_DIRS: &[&str] = &[".next", "dist", "target", ".turbo"];
 
 /// Check if a worktree is locked by looking for git's `locked` sentinel file.
 /// We bypass git2's `Worktree::is_locked()` because it incorrectly returns
@@ -180,6 +180,18 @@ pub fn create_worktree(
 
     // Best-effort symlink of common directories
     setup_symlinks(repo_root, &wt_path);
+
+    // Best-effort: install dependencies so the worktree is immediately usable.
+    // pnpm's content-addressable store makes this fast (links, no re-download).
+    // We don't symlink node_modules because pnpm rewrites internal relative
+    // symlinks from the caller's perspective, corrupting the source repo.
+    let _ = std::process::Command::new("pnpm")
+        .arg("install")
+        .arg("--frozen-lockfile")
+        .current_dir(&wt_path)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status();
 
     Ok(WorktreeInfo {
         name: dir_name,
