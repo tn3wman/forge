@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { load } from "@tauri-apps/plugin-store";
 import type { AgentChatMode, ClaudeEffort } from "@forge/shared";
 
+export type CommitMessageProvider = "auto" | "claude" | "codex";
+
 export interface AppSettings {
   githubPollInterval: number;
   gitPollInterval: number;
@@ -12,6 +14,8 @@ export interface AppSettings {
   defaultEffort: ClaudeEffort;
   defaultPermissionMode: AgentChatMode;
   defaultPlanMode: boolean;
+  commitMessageProvider: CommitMessageProvider;
+  commitMessageModel: string;
 }
 
 const DEFAULTS: AppSettings = {
@@ -24,6 +28,8 @@ const DEFAULTS: AppSettings = {
   defaultEffort: "medium",
   defaultPermissionMode: "assisted",
   defaultPlanMode: false,
+  commitMessageProvider: "auto",
+  commitMessageModel: "",
 };
 
 interface SettingsStore extends AppSettings {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { User, Bell, GitBranch, FolderGit2, Settings as SettingsIcon, Bot, Wand2 } from "lucide-react";
+import { User, Bell, GitBranch, FolderGit2, Settings as SettingsIcon, Bot, Wand2, MessageSquare } from "lucide-react";
 import { check } from "@tauri-apps/plugin-updater";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useAuthStore } from "@/stores/authStore";
@@ -42,6 +42,8 @@ export function Settings() {
     defaultEffort,
     defaultPermissionMode,
     defaultPlanMode,
+    commitMessageProvider,
+    commitMessageModel,
   } = useSettingsStore();
 
   const user = useAuthStore((s) => s.user);
@@ -305,6 +307,49 @@ export function Settings() {
                 checked={defaultPlanMode}
                 onCheckedChange={(checked) => updateSetting("defaultPlanMode", checked)}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Commit Messages */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>Commit Messages</CardTitle>
+            </div>
+            <CardDescription>
+              Settings for AI-generated commit messages
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="commit-msg-provider">Provider</Label>
+              <select
+                id="commit-msg-provider"
+                value={commitMessageProvider}
+                onChange={(e) => updateSetting("commitMessageProvider", e.target.value as "auto" | "claude" | "codex")}
+                className="rounded-md border bg-background px-2 py-1 text-sm"
+              >
+                <option value="auto">Auto (Claude → Codex)</option>
+                <option value="claude">Claude</option>
+                <option value="codex">Codex</option>
+              </select>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="commit-msg-model">Model</Label>
+              <select
+                id="commit-msg-model"
+                value={commitMessageModel}
+                onChange={(e) => updateSetting("commitMessageModel", e.target.value)}
+                className="rounded-md border bg-background px-2 py-1 text-sm"
+              >
+                <option value="">Default</option>
+                <option value="claude-opus-4-6">Opus 4.6</option>
+                <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+                <option value="claude-haiku-4-5">Haiku 4.5</option>
+              </select>
             </div>
           </CardContent>
         </Card>

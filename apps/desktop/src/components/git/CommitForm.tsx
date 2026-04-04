@@ -9,9 +9,10 @@ import { useGenerateCommitMessage } from "@/hooks/useGenerateCommitMessage";
 interface CommitFormProps {
   localPath: string;
   stagedCount: number;
+  totalChangeCount: number;
 }
 
-export function CommitForm({ localPath, stagedCount }: CommitFormProps) {
+export function CommitForm({ localPath, stagedCount, totalChangeCount }: CommitFormProps) {
   const [message, setMessage] = useState("");
   const [amend, setAmend] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -51,14 +52,14 @@ export function CommitForm({ localPath, stagedCount }: CommitFormProps) {
   }, [canCommit, isPending, amend, amendMutation, commitMutation, localPath, message]);
 
   const handleGenerate = useCallback(() => {
-    if (stagedCount === 0 || generateMutation.isPending) return;
+    if (totalChangeCount === 0 || generateMutation.isPending) return;
     generateMutation.mutate(localPath, {
       onSuccess: (data) => {
         const msg = data.body ? `${data.title}\n\n${data.body}` : data.title;
         setMessage(msg);
       },
     });
-  }, [stagedCount, generateMutation, localPath]);
+  }, [totalChangeCount, generateMutation, localPath]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -115,9 +116,9 @@ export function CommitForm({ localPath, stagedCount }: CommitFormProps) {
           variant="ghost"
           size="sm"
           onClick={handleGenerate}
-          disabled={stagedCount === 0 || generateMutation.isPending}
+          disabled={totalChangeCount === 0 || generateMutation.isPending}
           className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-          title={stagedCount === 0 ? "Stage changes first" : "Generate commit message with AI"}
+          title={totalChangeCount === 0 ? "No changes to generate from" : "Generate commit message with AI"}
         >
           {generateMutation.isPending ? (
             <Loader2 className="h-3 w-3 animate-spin" />

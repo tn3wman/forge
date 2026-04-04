@@ -16,6 +16,7 @@ export function Changes() {
 
   const { data: files = [] } = useGitStatus(localPath);
   const stagedCount = files.filter((f) => f.staged).length;
+  const totalChangeCount = files.length;
 
   const { data: diffEntries = [] } = useGitDiff(
     localPath,
@@ -49,7 +50,7 @@ export function Changes() {
               onSelectFile={(path, staged) => setSelectedFile({ path, staged })}
             />
           </div>
-          <CommitForm localPath={localPath} stagedCount={stagedCount} />
+          <CommitForm localPath={localPath} stagedCount={stagedCount} totalChangeCount={totalChangeCount} />
         </div>
 
         {/* Right panel: diff viewer */}

@@ -45,8 +45,8 @@ export const gitIpc = {
     invoke<WorktreeInfo>("git_create_worktree", { path, branch, fromRef: fromRef ?? null, worktreeBase: worktreeBase ?? null }),
   removeWorktree: (path: string, name: string) => invoke<void>("git_remove_worktree", { path, name }),
   unlockWorktree: (path: string, name: string) => invoke<void>("git_unlock_worktree", { path, name }),
-  generateCommitMessage: (path: string, claudePath?: string) =>
-    invoke<GeneratedCommitMessage>("git_generate_commit_message", { path, claudePath: claudePath || null }),
+  generateCommitMessage: (path: string, claudePath?: string, provider?: string, model?: string) =>
+    invoke<GeneratedCommitMessage>("git_generate_commit_message", { path, claudePath: claudePath || null, provider: provider || null, model: model || null }),
   startWatching: (path: string) => invoke<void>("git_start_watching", { path }),
   stopWatching: (path: string) => invoke<void>("git_stop_watching", { path }),
   setLocalPath: (repoId: string, localPath: string) =>

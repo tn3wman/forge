@@ -240,10 +240,14 @@ pub async fn git_amend(path: String, message: String) -> Result<String, String> 
 pub async fn git_generate_commit_message(
     path: String,
     claude_path: Option<String>,
+    provider: Option<String>,
+    model: Option<String>,
 ) -> Result<GeneratedCommitMessage, String> {
     let cli = claude_path.unwrap_or_default();
+    let prov = provider.unwrap_or_default();
+    let mdl = model.unwrap_or_default();
     tokio::task::spawn_blocking(move || {
-        crate::git::commit_message::generate(&path, &cli)
+        crate::git::commit_message::generate(&path, &cli, &prov, &mdl)
     })
     .await
     .map_err(|e| format!("Task failed: {e}"))?
