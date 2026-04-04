@@ -5,9 +5,9 @@ use serde_json::Value;
 use crate::github::graphql::execute_graphql;
 
 const LIST_ISSUES_QUERY: &str = r#"
-query($owner: String!, $repo: String!, $states: [IssueState!]) {
+query($owner: String!, $repo: String!, $states: [IssueState!], $after: String) {
   repository(owner: $owner, name: $repo) {
-    issues(first: 50, states: $states, orderBy: {field: UPDATED_AT, direction: DESC}) {
+    issues(first: 50, after: $after, states: $states, orderBy: {field: UPDATED_AT, direction: DESC}) {
       nodes {
         id
         number
@@ -24,10 +24,28 @@ query($owner: String!, $repo: String!, $states: [IssueState!]) {
         updatedAt
         closedAt
       }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
     }
   }
 }
 "#;
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct PageInfo {
+    pub has_next_page: bool,
+    pub end_cursor: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuesPage {
+    pub items: Vec<IssueItem>,
+    pub page_info: PageInfo,
+}
 
 #[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -55,7 +73,8 @@ pub async fn list_issues(
     owner: &str,
     repo: &str,
     state: Option<&str>,
-) -> Result<Vec<IssueItem>, String> {
+    after: Option<&str>,
+) -> Result<IssuesPage, String> {
     let states: Value = match state {
         Some("open") => serde_json::json!(["OPEN"]),
         Some("closed") => serde_json::json!(["CLOSED"]),
@@ -66,16 +85,32 @@ pub async fn list_issues(
         "owner": owner,
         "repo": repo,
         "states": states,
+        "after": after,
     });
 
     let data = execute_graphql(client, token, LIST_ISSUES_QUERY, variables).await?;
 
-    let nodes = data
+    let issues_obj = data
         .get("repository")
         .and_then(|r| r.get("issues"))
-        .and_then(|issues| issues.get("nodes"))
-        .and_then(|n| n.as_array())
         .ok_or_else(|| "Failed to parse issues from GraphQL response".to_string())?;
+
+    let nodes = issues_obj
+        .get("nodes")
+        .and_then(|n| n.as_array())
+        .ok_or_else(|| "Failed to parse issues nodes from GraphQL response".to_string())?;
+
+    let page_info_obj = issues_obj.get("pageInfo");
+    let page_info = PageInfo {
+        has_next_page: page_info_obj
+            .and_then(|p| p.get("hasNextPage"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        end_cursor: page_info_obj
+            .and_then(|p| p.get("endCursor"))
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+    };
 
     let mut items = Vec::new();
     for node in nodes {
@@ -135,5 +170,5 @@ pub async fn list_issues(
         });
     }
 
-    Ok(items)
+    Ok(IssuesPage { items, page_info })
 }

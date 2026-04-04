@@ -42,7 +42,8 @@ export function CommitGraph() {
 
   const tintStyle = useWorkspaceTint();
   const { data: prs = [] } = usePullRequests();
-  const { data: issues = [] } = useIssues();
+  const { data: issuesData } = useIssues();
+  const issues = useMemo(() => issuesData?.pages.flatMap((p) => p.issues) ?? [], [issuesData]);
   const { data: currentBranch } = useCurrentBranch(selectedRepoLocalPath);
 
   // Build GitHub login → avatar lookup, and a helper to resolve commit authors
