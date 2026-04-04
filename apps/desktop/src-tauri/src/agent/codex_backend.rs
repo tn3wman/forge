@@ -820,7 +820,7 @@ impl AgentBackend for CodexBackend {
         self.write_jsonrpc(&msg)
     }
 
-    fn respond_permission(&mut self, tool_use_id: &str, allow: bool) -> Result<(), String> {
+    fn respond_permission(&mut self, tool_use_id: &str, allow: bool, _result_text: Option<&str>) -> Result<(), String> {
         // Look up the pending approval to get the JSON-RPC request ID and method
         let approval = {
             let mut approvals = self.pending_approvals.lock().map_err(|e| e.to_string())?;

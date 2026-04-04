@@ -14,8 +14,8 @@ export const agentIpc = {
     invoke<AgentSessionInfo>("agent_create_session", { request }),
   sendMessage: (sessionId: string, message: string, images?: ImageAttachment[]) =>
     invoke<void>("agent_send_message", { sessionId, message, images: images?.length ? images : null }),
-  respondPermission: (sessionId: string, toolUseId: string, allow: boolean) =>
-    invoke<void>("agent_respond_permission", { sessionId, toolUseId, allow }),
+  respondPermission: (sessionId: string, toolUseId: string, allow: boolean, resultText?: string) =>
+    invoke<void>("agent_respond_permission", { sessionId, toolUseId, allow, resultText: resultText ?? null }),
   updatePermissionMode: (sessionId: string, mode: AgentChatMode) =>
     invoke<void>("agent_update_permission_mode", { sessionId, mode }),
   abort: (sessionId: string) =>

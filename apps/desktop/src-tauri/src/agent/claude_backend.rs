@@ -652,21 +652,22 @@ impl AgentBackend for ClaudeBackend {
         Ok(())
     }
 
-    fn respond_permission(&mut self, tool_use_id: &str, allow: bool) -> Result<(), String> {
+    fn respond_permission(&mut self, tool_use_id: &str, allow: bool, result_text: Option<&str>) -> Result<(), String> {
         let approval_id = self
             .approval_lookup
             .lock()
             .map_err(|e| e.to_string())?
             .remove(tool_use_id)
             .unwrap_or_else(|| tool_use_id.to_string());
-        self.call_host(
-            "respond_approval",
-            json!({
-                "sessionId": self.session_id,
-                "approvalId": approval_id,
-                "allow": allow,
-            }),
-        )?;
+        let mut payload = json!({
+            "sessionId": self.session_id,
+            "approvalId": approval_id,
+            "allow": allow,
+        });
+        if let Some(text) = result_text {
+            payload.as_object_mut().unwrap().insert("resultText".to_string(), json!(text));
+        }
+        self.call_host("respond_approval", payload)?;
         Ok(())
     }
 

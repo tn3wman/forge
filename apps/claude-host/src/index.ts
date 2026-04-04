@@ -41,6 +41,7 @@ type HostCommand =
       sessionId: string;
       approvalId: string;
       allow: boolean;
+      resultText?: string;
     }
   | {
       type: "interrupt_turn";
@@ -721,9 +722,13 @@ async function handleCommand(command: HostCommand) {
       const pending = session.pendingApprovals.get(command.approvalId);
       if (!pending) throw new Error(`Approval '${command.approvalId}' not found`);
       session.pendingApprovals.delete(command.approvalId);
+      const updatedInput = { ...pending.toolInput };
+      if (command.allow && command.resultText) {
+        updatedInput.result = command.resultText;
+      }
       pending.resolve(
         command.allow
-          ? { behavior: "allow", updatedInput: pending.toolInput }
+          ? { behavior: "allow", updatedInput }
           : { behavior: "deny", message: "User denied tool execution." },
       );
       emit({

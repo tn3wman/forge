@@ -30,8 +30,9 @@ pub async fn agent_respond_permission(
     session_id: String,
     tool_use_id: String,
     allow: bool,
+    result_text: Option<String>,
 ) -> Result<(), String> {
-    manager.respond_permission(&session_id, &tool_use_id, allow)
+    manager.respond_permission(&session_id, &tool_use_id, allow, result_text.as_deref())
 }
 
 #[tauri::command]

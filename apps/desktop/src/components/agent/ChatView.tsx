@@ -116,6 +116,12 @@ export const ChatView = memo(function ChatView({ sessionId, variant = "default" 
       const toolUseId = pendingPermission.toolUseId;
       if (!toolUseId) return;
 
+      // Disable y/n shortcuts for structured AskUserQuestion options
+      if (pendingPermission.toolName === "AskUserQuestion") {
+        const questions = pendingPermission.toolInput?.questions;
+        if (Array.isArray(questions) && questions.some((q: Record<string, unknown>) => Array.isArray(q.options))) return;
+      }
+
       if (e.key === "y") {
         e.preventDefault();
         agentIpc.respondPermission(sessionId, toolUseId, true);
