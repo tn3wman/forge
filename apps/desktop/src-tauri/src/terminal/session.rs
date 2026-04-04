@@ -6,6 +6,45 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 
+/// Find the byte index at which to split `data` so the emitted prefix
+/// contains only complete UTF-8 sequences. Returns `data.len()` when the
+/// last character is complete (the common case for ASCII-heavy terminal
+/// output).
+fn utf8_safe_split_point(data: &[u8]) -> usize {
+    if data.is_empty() {
+        return 0;
+    }
+    // Walk back at most 3 bytes (max UTF-8 continuation run)
+    let start = data.len().saturating_sub(3);
+    for i in (start..data.len()).rev() {
+        let b = data[i];
+        if b & 0x80 == 0 {
+            // ASCII byte — everything up to and including it is complete
+            return data.len();
+        }
+        if b & 0xC0 != 0x80 {
+            // Lead byte — check if enough continuation bytes follow
+            let expected = if b & 0xE0 == 0xC0 {
+                2
+            } else if b & 0xF0 == 0xE0 {
+                3
+            } else if b & 0xF8 == 0xF0 {
+                4
+            } else {
+                1 // invalid lead, emit anyway
+            };
+            let available = data.len() - i;
+            if available >= expected {
+                return data.len(); // complete
+            } else {
+                return i; // split before incomplete char
+            }
+        }
+    }
+    // All continuation bytes with no lead in scan range — emit as-is
+    data.len()
+}
+
 pub struct PtySession {
     writer: Box<dyn Write + Send>,
     pty: portable_pty::PtyPair,
@@ -148,13 +187,19 @@ impl PtySession {
                     Ok(n) => {
                         pending.extend_from_slice(&buf[..n]);
                         if last_emit.elapsed() >= FLUSH_INTERVAL || pending.len() >= MAX_PENDING {
-                            let _ = app_handle.emit(
-                                "terminal-output",
-                                TerminalOutputPayload {
-                                    session_id: sid.clone(),
-                                    data: std::mem::take(&mut pending),
-                                },
-                            );
+                            let split = utf8_safe_split_point(&pending);
+                            if split > 0 {
+                                let remainder = pending[split..].to_vec();
+                                pending.truncate(split);
+                                let _ = app_handle.emit(
+                                    "terminal-output",
+                                    TerminalOutputPayload {
+                                        session_id: sid.clone(),
+                                        data: std::mem::take(&mut pending),
+                                    },
+                                );
+                                pending = remainder;
+                            }
                             last_emit = Instant::now();
                         }
                     }
