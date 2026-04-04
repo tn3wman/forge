@@ -135,7 +135,13 @@ pub fn get_diff(
             .head()
             .and_then(|r| r.peel_to_tree())
             .ok();
-        repo.diff_tree_to_index(head_tree.as_ref(), None, Some(&mut opts))
+        let mut index = repo
+            .index()
+            .map_err(|e| format!("Failed to read index: {e}"))?;
+        index
+            .read(true)
+            .map_err(|e| format!("Failed to refresh index: {e}"))?;
+        repo.diff_tree_to_index(head_tree.as_ref(), Some(&index), Some(&mut opts))
             .map_err(|e| format!("Failed to get staged diff: {e}"))?
     } else {
         repo.diff_index_to_workdir(None, Some(&mut opts))
