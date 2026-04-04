@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useCommit, useAmend } from "@/queries/useGitMutations";
 import { useGitLog } from "@/queries/useGitLog";
+import { useGenerateCommitMessage } from "@/hooks/useGenerateCommitMessage";
 
 interface CommitFormProps {
   localPath: string;
@@ -17,6 +18,7 @@ export function CommitForm({ localPath, stagedCount }: CommitFormProps) {
 
   const commitMutation = useCommit();
   const amendMutation = useAmend();
+  const generateMutation = useGenerateCommitMessage();
   const { data: logPages } = useGitLog(localPath);
 
   const lastCommitMessage = logPages?.pages?.[0]?.[0]?.commit?.message ?? "";
@@ -47,6 +49,16 @@ export function CommitForm({ localPath, stagedCount }: CommitFormProps) {
       },
     );
   }, [canCommit, isPending, amend, amendMutation, commitMutation, localPath, message]);
+
+  const handleGenerate = useCallback(() => {
+    if (stagedCount === 0 || generateMutation.isPending) return;
+    generateMutation.mutate(localPath, {
+      onSuccess: (data) => {
+        const msg = data.body ? `${data.title}\n\n${data.body}` : data.title;
+        setMessage(msg);
+      },
+    });
+  }, [stagedCount, generateMutation, localPath]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -79,6 +91,13 @@ export function CommitForm({ localPath, stagedCount }: CommitFormProps) {
         >
           {firstLine.length}/72
         </span>
+        {generateMutation.isError && (
+          <span className="text-destructive truncate ml-2">
+            {generateMutation.error instanceof Error
+              ? generateMutation.error.message
+              : "Failed to generate message"}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
@@ -91,6 +110,21 @@ export function CommitForm({ localPath, stagedCount }: CommitFormProps) {
           />
           Amend
         </label>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleGenerate}
+          disabled={stagedCount === 0 || generateMutation.isPending}
+          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+          title="Generate commit message with AI"
+        >
+          {generateMutation.isPending ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Sparkles className="h-3 w-3" />
+          )}
+        </Button>
 
         <div className="flex-1" />
 

@@ -118,6 +118,7 @@ pub fn run() {
             commands::git::git_stage_all,
             commands::git::git_commit,
             commands::git::git_amend,
+            commands::git::git_generate_commit_message,
             commands::git::git_fetch,
             commands::git::git_pull,
             commands::git::git_push,

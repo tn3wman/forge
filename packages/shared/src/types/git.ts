@@ -71,3 +71,8 @@ export interface WorktreeInfo {
   isLocked: boolean;
   isMain: boolean;
 }
+
+export interface GeneratedCommitMessage {
+  title: string;
+  body: string;
+}
