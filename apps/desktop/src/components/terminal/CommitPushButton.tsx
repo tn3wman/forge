@@ -156,6 +156,7 @@ export const CommitPushButton = memo(function CommitPushButton({
         title="Commit & Push"
         isLoading={isLoading}
         error={error}
+        localPath={workingDirectory ?? undefined}
       />
 
       <CommitMessageDialog
@@ -165,6 +166,7 @@ export const CommitPushButton = memo(function CommitPushButton({
         title="Commit"
         isLoading={isLoading}
         error={error}
+        localPath={workingDirectory ?? undefined}
       />
 
       <CreatePrDialog

@@ -93,3 +93,10 @@ pub struct StashEntry {
     pub message: String,
     pub timestamp: i64,
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratedCommitMessage {
+    pub title: String,
+    pub body: String,
+}

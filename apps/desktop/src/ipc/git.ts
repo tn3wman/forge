@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { FileStatus, DiffEntry, BranchInfo, GraphRow, StashEntry, WorktreeInfo } from "@forge/shared";
+import type { FileStatus, DiffEntry, BranchInfo, GraphRow, StashEntry, WorktreeInfo, GeneratedCommitMessage } from "@forge/shared";
 
 export const gitIpc = {
   getStatus: (path: string) => invoke<FileStatus[]>("git_get_status", { path }),
@@ -45,6 +45,8 @@ export const gitIpc = {
     invoke<WorktreeInfo>("git_create_worktree", { path, branch, fromRef: fromRef ?? null, worktreeBase: worktreeBase ?? null }),
   removeWorktree: (path: string, name: string) => invoke<void>("git_remove_worktree", { path, name }),
   unlockWorktree: (path: string, name: string) => invoke<void>("git_unlock_worktree", { path, name }),
+  generateCommitMessage: (path: string, claudePath?: string) =>
+    invoke<GeneratedCommitMessage>("git_generate_commit_message", { path, claudePath: claudePath || null }),
   startWatching: (path: string) => invoke<void>("git_start_watching", { path }),
   stopWatching: (path: string) => invoke<void>("git_stop_watching", { path }),
   setLocalPath: (repoId: string, localPath: string) =>

@@ -6,7 +6,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
+import { useGenerateCommitMessage } from "@/hooks/useGenerateCommitMessage";
 
 interface CommitMessageDialogProps {
   open: boolean;
@@ -15,6 +16,7 @@ interface CommitMessageDialogProps {
   title: string;
   isLoading: boolean;
   error: string | null;
+  localPath?: string;
 }
 
 export function CommitMessageDialog({
@@ -24,8 +26,20 @@ export function CommitMessageDialog({
   title,
   isLoading,
   error,
+  localPath,
 }: CommitMessageDialogProps) {
   const [message, setMessage] = useState("");
+  const generateMutation = useGenerateCommitMessage();
+
+  const handleGenerate = useCallback(() => {
+    if (!localPath || generateMutation.isPending) return;
+    generateMutation.mutate(localPath, {
+      onSuccess: (data) => {
+        const msg = data.body ? `${data.title}\n\n${data.body}` : data.title;
+        setMessage(msg);
+      },
+    });
+  }, [localPath, generateMutation]);
 
   const handleSubmit = useCallback(() => {
     if (message.trim()) {
@@ -63,11 +77,33 @@ export function CommitMessageDialog({
           placeholder="Describe your changes..."
           className="min-h-[80px] w-full resize-none rounded-md border bg-transparent px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
         />
-        {error && (
-          <p className="text-xs text-destructive">{error}</p>
+        {(error || generateMutation.isError) && (
+          <p className="text-xs text-destructive">
+            {error || (generateMutation.error instanceof Error
+              ? generateMutation.error.message
+              : "Failed to generate message")}
+          </p>
         )}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">⌘+Enter to submit</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">⌘+Enter to submit</span>
+            {localPath && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleGenerate}
+                disabled={generateMutation.isPending}
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                title="Generate commit message with AI"
+              >
+                {generateMutation.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3" />
+                )}
+              </Button>
+            )}
+          </div>
           <Button
             size="sm"
             disabled={!message.trim() || isLoading}

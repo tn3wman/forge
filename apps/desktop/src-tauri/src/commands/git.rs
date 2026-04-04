@@ -1,6 +1,8 @@
 use crate::db::Database;
 use crate::keychain::TokenCache;
-use crate::models::git::{BranchInfo, DiffEntry, FileStatus, GraphRow, StashEntry, WorktreeInfo};
+use crate::models::git::{
+    BranchInfo, DiffEntry, FileStatus, GeneratedCommitMessage, GraphRow, StashEntry, WorktreeInfo,
+};
 
 // ── Clone ──────────────────────────────────────────────────────────────────
 
@@ -232,6 +234,19 @@ pub async fn git_amend(path: String, message: String) -> Result<String, String> 
     tokio::task::spawn_blocking(move || crate::git::commit::amend_commit(&path, &message))
         .await
         .map_err(|e| format!("Task failed: {e}"))?
+}
+
+#[tauri::command]
+pub async fn git_generate_commit_message(
+    path: String,
+    claude_path: Option<String>,
+) -> Result<GeneratedCommitMessage, String> {
+    let cli = claude_path.unwrap_or_default();
+    tokio::task::spawn_blocking(move || {
+        crate::git::commit_message::generate(&path, &cli)
+    })
+    .await
+    .map_err(|e| format!("Task failed: {e}"))?
 }
 
 // ── Remote ──────────────────────────────────────────────────────────────────
