@@ -173,3 +173,13 @@ export interface CreateIssueResult {
   number: number;
   htmlUrl: string;
 }
+
+export interface PageInfo {
+  hasNextPage: boolean;
+  endCursor: string | null;
+}
+
+export interface IssuesPage {
+  items: Issue[];
+  pageInfo: PageInfo;
+}

@@ -126,7 +126,8 @@ export function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useDashboardStats();
   const tintStyle = useWorkspaceTint();
   const { data: prs = [] } = usePullRequests();
-  const { data: issues = [] } = useIssues();
+  const { data: issuesData } = useIssues();
+  const issues = useMemo(() => issuesData?.pages.flatMap((p) => p.issues) ?? [], [issuesData]);
   const { navigateToPr, navigateToIssue } = useWorkspaceStore();
 
   const recentActivity = useMemo<ActivityItem[]>(() => {

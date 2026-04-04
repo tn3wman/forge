@@ -20,7 +20,7 @@ const ISSUE_FILTERS = [
   { value: "closed", label: "Closed" },
 ] as const;
 
-type SortField = "updated" | "created" | "comments" | "title";
+type SortField = "updated" | "created" | "comments" | "title" | "number";
 type SortDirection = "asc" | "desc";
 
 const SORT_OPTIONS: { value: SortField; label: string }[] = [
@@ -28,6 +28,7 @@ const SORT_OPTIONS: { value: SortField; label: string }[] = [
   { value: "created", label: "Created" },
   { value: "comments", label: "Comments" },
   { value: "title", label: "Title" },
+  { value: "number", label: "Number" },
 ];
 
 const PAGE_SIZE = 50;
@@ -44,6 +45,8 @@ function sortIssues(issues: Issue[], field: SortField, direction: SortDirection)
         return dir * (a.commentsCount - b.commentsCount);
       case "title":
         return dir * a.title.localeCompare(b.title);
+      case "number":
+        return dir * (a.number - b.number);
     }
   });
 }
@@ -82,7 +85,11 @@ export function Issues() {
   const [startWorkIssue, setStartWorkIssue] = useState<Issue | null>(null);
   const { navigateToIssue, activeWorkspaceId, setActivePage } = useWorkspaceStore();
   const tintStyle = useWorkspaceTint();
-  const { data: issues = [], isLoading, error } = useIssues();
+  const { data: issuesData, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useIssues();
+  const issues = useMemo(
+    () => issuesData?.pages.flatMap((p) => p.issues) ?? [],
+    [issuesData],
+  );
   const { data: repos } = useRepositories(activeWorkspaceId);
   const linkedPrMap = useIssueLinkedPrs();
 
@@ -250,10 +257,10 @@ export function Issues() {
       </div>
 
       {/* Pagination bar */}
-      {filteredAndSorted.length > PAGE_SIZE && (
+      {(filteredAndSorted.length > PAGE_SIZE || hasNextPage) && (
         <div className="flex shrink-0 items-center justify-between border-t border-border px-4 h-8 text-xs text-muted-foreground">
           <span>
-            {rangeStart}–{rangeEnd} of {filteredAndSorted.length}
+            {rangeStart}–{rangeEnd} of {filteredAndSorted.length}{hasNextPage ? "+" : ""}
           </span>
           <div className="flex items-center gap-1">
             <Button
@@ -266,17 +273,26 @@ export function Issues() {
               <ChevronLeft className="h-3 w-3" />
             </Button>
             <span>
-              Page {safePage} of {totalPages}
+              Page {safePage} of {totalPages}{hasNextPage ? "+" : ""}
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0"
-              disabled={safePage >= totalPages}
-              onClick={() => setCurrentPage((p) => p + 1)}
-            >
-              <ChevronRight className="h-3 w-3" />
-            </Button>
+            {isFetchingNextPage ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                disabled={safePage >= totalPages && !hasNextPage}
+                onClick={() => {
+                  if (safePage >= totalPages && hasNextPage) {
+                    fetchNextPage();
+                  }
+                  setCurrentPage((p) => p + 1);
+                }}
+              >
+                <ChevronRight className="h-3 w-3" />
+              </Button>
+            )}
           </div>
         </div>
       )}

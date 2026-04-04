@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { PullRequest, Issue, PrDetail, PrCommit, PrFile, IssueDetail, RepoLabel } from "@forge/shared";
+import type { PullRequest, Issue, PrDetail, PrCommit, PrFile, IssueDetail, RepoLabel, IssuesPage } from "@forge/shared";
 
 export interface RepoRef {
   owner: string;
@@ -17,8 +17,8 @@ export const githubIpc = {
   listPrs: (owner: string, repo: string, state?: string) =>
     invoke<PullRequest[]>("github_list_prs", { owner, repo, state: state ?? null }),
 
-  listIssues: (owner: string, repo: string, state?: string) =>
-    invoke<Issue[]>("github_list_issues", { owner, repo, state: state ?? null }),
+  listIssues: (owner: string, repo: string, state?: string, after?: string | null) =>
+    invoke<IssuesPage>("github_list_issues", { owner, repo, state: state ?? null, after: after ?? null }),
 
   getDashboard: (repos: RepoRef[]) =>
     invoke<DashboardStats>("github_get_dashboard", { repos }),

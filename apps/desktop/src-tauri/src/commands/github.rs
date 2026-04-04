@@ -4,7 +4,7 @@ use crate::github::client::{self as gh_client, PrCommitItem, PrFileItem, SearchR
 use crate::github::mutations::{comments, issue_actions, pr_actions, reviews};
 use crate::github::mutations::comments::CommentResult;
 use crate::github::queries::issue_detail;
-use crate::github::queries::issues::{self, IssueItem};
+use crate::github::queries::issues::{self, IssuesPage};
 use crate::github::queries::pr_detail;
 use crate::github::queries::pull_requests::{self, DashboardStats, PullRequestItem};
 use crate::keychain::TokenCache;
@@ -54,9 +54,10 @@ pub async fn github_list_issues(
     owner: String,
     repo: String,
     state: Option<String>,
-) -> Result<Vec<IssueItem>, String> {
+    after: Option<String>,
+) -> Result<IssuesPage, String> {
     let token = cache.require_token()?;
-    issues::list_issues(&client, &token, &owner, &repo, state.as_deref()).await
+    issues::list_issues(&client, &token, &owner, &repo, state.as_deref(), after.as_deref()).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -104,17 +105,17 @@ pub async fn github_get_dashboard(
             }
         }
 
-        let issue_items = issues::list_issues(
+        let issues_page = issues::list_issues(
             &client,
             &token,
             &repo_ref.owner,
             &repo_ref.repo,
             Some("open"),
+            None,
         )
-        .await
-        .unwrap_or_default();
+        .await;
 
-        total_open_issues += issue_items.len() as i32;
+        total_open_issues += issues_page.map(|p| p.items.len() as i32).unwrap_or(0);
     }
 
     Ok(DashboardStats {
