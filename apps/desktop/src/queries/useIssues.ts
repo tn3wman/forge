@@ -65,6 +65,6 @@ export function useIssues(state?: string) {
       return hasAny ? nextCursors : undefined;
     },
     enabled: isAuthenticated && !!repos && repos.length > 0,
-    refetchInterval: 60_000,
+    refetchInterval: 5 * 60_000,
   });
 }

@@ -87,6 +87,14 @@ export function Issues() {
   const { navigateToIssue, activeWorkspaceId, setActivePage } = useWorkspaceStore();
   const tintStyle = useWorkspaceTint();
   const { data: issuesData, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useIssues();
+
+  // Auto-fetch all pages so the full issue list is available
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   const issues = useMemo(
     () => issuesData?.pages.flatMap((p) => p.issues) ?? [],
     [issuesData],
@@ -258,8 +266,9 @@ export function Issues() {
       {/* Pagination bar */}
       {(filteredAndSorted.length > PAGE_SIZE || hasNextPage) && (
         <div className="flex shrink-0 items-center justify-between border-t border-border px-4 h-8 text-xs text-muted-foreground">
-          <span>
+          <span className="flex items-center gap-1">
             {rangeStart}–{rangeEnd} of {filteredAndSorted.length}{hasNextPage ? "+" : ""}
+            {isFetchingNextPage && <Loader2 className="h-3 w-3 animate-spin" />}
           </span>
           <div className="flex items-center gap-1">
             <Button
