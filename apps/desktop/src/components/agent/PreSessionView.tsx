@@ -260,29 +260,44 @@ export function PreSessionView({ tabId, workspaceId }: PreSessionViewProps) {
     if (creating) return;
     setCreating(true);
     try {
-      const cliName = selectedCli ?? "bash";
-      const isCli = cliName === "claude" || cliName === "codex" || cliName === "aider";
       // Estimate terminal dimensions from viewport so the PTY starts close to
       // the right size. The first fitAddon.fit() + resize IPC will correct it.
       const estimatedCols = Math.max(80, Math.floor((window.innerWidth - 100) / 7.8));
       const estimatedRows = Math.max(24, Math.floor((window.innerHeight - 200) / 17));
+
+      // Spawn a regular shell terminal
       const session = await terminalIpc.createSession({
-        cliName,
+        cliName: "shell",
         mode: "Normal",
         workspaceId,
         workingDirectory,
-        permissionMode: isCli ? mode : undefined,
-        planMode: isCli ? planMode : undefined,
-        model: isCli && model ? model : undefined,
-        effort: isCli && effort ? effort : undefined,
         initialCols: estimatedCols,
         initialRows: estimatedRows,
       });
 
+      // Build a prefill command from the current agent settings so the user
+      // can run it with Enter or delete it and use the terminal freely.
+      const prefillParts: string[] = [];
+      const cli = selectedCli;
+      if (cli) {
+        prefillParts.push(cli);
+        if (cli === "claude") {
+          if (mode === "fullAccess") prefillParts.push("--dangerously-skip-permissions");
+          if (planMode) prefillParts.push("--plan");
+          if (model?.trim()) { prefillParts.push("--model"); prefillParts.push(model.trim()); }
+        } else if (cli === "codex") {
+          if (mode === "fullAccess") prefillParts.push("--full-auto");
+          if (model?.trim()) { prefillParts.push("--model"); prefillParts.push(model.trim()); }
+        } else if (cli === "aider") {
+          if (model?.trim()) { prefillParts.push("--model"); prefillParts.push(model.trim()); }
+        }
+      }
+
       useTerminalStore.getState().activateTab(tabId, session.id, {
-        cliName: session.cliName,
+        cliName: "shell",
         type: "terminal",
         mode: session.mode,
+        prefill: prefillParts.length > 0 ? prefillParts.join(" ") : undefined,
       });
     } catch (err) {
       console.error("Failed to create terminal session:", err);
