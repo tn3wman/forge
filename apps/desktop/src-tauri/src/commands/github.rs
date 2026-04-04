@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use crate::github::client::{self as gh_client, PrCommitItem, PrFileItem, SearchRepoResult};
-use crate::github::mutations::{comments, issue_actions, pr_actions, reviews};
+use crate::github::mutations::{comments, issue_actions, pr_actions, repo_actions, reviews};
 use crate::github::mutations::comments::CommentResult;
 use crate::github::queries::issue_detail;
 use crate::github::queries::issues::{self, IssuesPage};
@@ -454,4 +454,29 @@ pub async fn github_list_repo_assignees(
 ) -> Result<Vec<String>, String> {
     let token = cache.require_token()?;
     issue_actions::list_repo_assignees(&client, &token, &owner, &repo).await
+}
+
+#[tauri::command]
+pub async fn github_create_repo(
+    client: tauri::State<'_, reqwest::Client>,
+    cache: tauri::State<'_, TokenCache>,
+    name: String,
+    description: Option<String>,
+    private: bool,
+    auto_init: bool,
+    gitignore_template: Option<String>,
+    license_template: Option<String>,
+) -> Result<repo_actions::CreateRepoResult, String> {
+    let token = cache.require_token()?;
+    repo_actions::create_repo(
+        &client,
+        &token,
+        &name,
+        description.as_deref(),
+        private,
+        auto_init,
+        gitignore_template.as_deref(),
+        license_template.as_deref(),
+    )
+    .await
 }

@@ -93,6 +93,7 @@ pub fn run() {
             commands::github::github_create_issue,
             commands::github::github_list_repo_labels,
             commands::github::github_list_repo_assignees,
+            commands::github::github_create_repo,
             commands::github::github_submit_review,
             commands::github::github_add_comment,
             commands::github::github_edit_comment,

@@ -94,4 +94,30 @@ export const githubIpc = {
 
   listRepoAssignees: (owner: string, repo: string) =>
     invoke<string[]>("github_list_repo_assignees", { owner, repo }),
+
+  createRepo: (
+    name: string,
+    isPrivate: boolean,
+    autoInit: boolean,
+    description?: string,
+    gitignoreTemplate?: string,
+    licenseTemplate?: string,
+  ) =>
+    invoke<{
+      githubId: number;
+      fullName: string;
+      name: string;
+      owner: string;
+      isPrivate: boolean;
+      defaultBranch: string;
+      cloneUrl: string;
+      htmlUrl: string;
+    }>("github_create_repo", {
+      name,
+      description: description ?? null,
+      private: isPrivate,
+      autoInit,
+      gitignoreTemplate: gitignoreTemplate ?? null,
+      licenseTemplate: licenseTemplate ?? null,
+    }),
 };
