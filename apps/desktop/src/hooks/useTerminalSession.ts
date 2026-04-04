@@ -16,6 +16,7 @@ interface TerminalExitPayload {
 export function useTerminalSession(
   sessionId: string | null,
   terminal: Terminal | null,
+  prefill?: string,
   onExit?: (exitCode: number | null) => void,
 ) {
   const onExitRef = useRef(onExit);
@@ -27,10 +28,22 @@ export function useTerminalSession(
     const disposables: Array<{ dispose: () => void }> = [];
     const unlisteners: Array<Promise<() => void>> = [];
 
+    // Track whether we've sent the prefill text yet (send once after first output)
+    let prefillSent = false;
+
     unlisteners.push(
       listen<TerminalOutputPayload>("terminal-output", (event) => {
         if (event.payload.sessionId === sessionId) {
           terminal.write(new Uint8Array(event.payload.data));
+
+          // After the first output (shell prompt), type the prefill command
+          // into the terminal without pressing Enter so the user can edit or
+          // delete it.
+          if (!prefillSent && prefill) {
+            prefillSent = true;
+            const bytes = Array.from(new TextEncoder().encode(prefill));
+            terminalIpc.write(sessionId, bytes).catch(() => {});
+          }
         }
       }),
     );
@@ -43,6 +56,11 @@ export function useTerminalSession(
         }
       }),
     );
+
+    // Start the PTY reader thread now that our event listeners are registered.
+    // This ensures no output events are lost to the race between PTY emission
+    // and listener attachment.
+    terminalIpc.attach(sessionId).catch(() => {});
 
     disposables.push(
       terminal.onData((data) => {

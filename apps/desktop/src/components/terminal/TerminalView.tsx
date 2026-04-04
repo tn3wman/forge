@@ -10,10 +10,11 @@ interface TerminalViewProps {
   sessionId: string;
   isActive: boolean;
   alwaysVisible?: boolean;
+  prefill?: string;
   onExit?: (exitCode: number | null) => void;
 }
 
-export const TerminalView = memo(function TerminalView({ sessionId, isActive, alwaysVisible, onExit }: TerminalViewProps) {
+export const TerminalView = memo(function TerminalView({ sessionId, isActive, alwaysVisible, prefill, onExit }: TerminalViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [terminal, setTerminal] = useState<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -72,7 +73,7 @@ export const TerminalView = memo(function TerminalView({ sessionId, isActive, al
     };
   }, []);
 
-  useTerminalSession(sessionId, terminal, onExit);
+  useTerminalSession(sessionId, terminal, prefill, onExit);
 
   useEffect(() => {
     const container = containerRef.current;

@@ -12,10 +12,18 @@ pub async fn terminal_discover_clis() -> Result<Vec<CliInfo>, String> {
 #[tauri::command]
 pub async fn terminal_create_session(
     manager: tauri::State<'_, SessionManager>,
-    app_handle: AppHandle,
     request: CreateSessionRequest,
 ) -> Result<SessionInfo, String> {
-    manager.create_session(request, app_handle)
+    manager.create_session(request)
+}
+
+#[tauri::command]
+pub async fn terminal_attach(
+    manager: tauri::State<'_, SessionManager>,
+    app_handle: AppHandle,
+    session_id: String,
+) -> Result<(), String> {
+    manager.attach_session(&session_id, app_handle)
 }
 
 #[tauri::command]

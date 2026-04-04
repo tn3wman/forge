@@ -277,6 +277,7 @@ export function Terminals({ onNewTerminal }: TerminalsProps) {
                     sessionId={tab.sessionId!}
                     isActive={isActive}
                     alwaysVisible={showCellChrome}
+                    prefill={tab.prefill}
                   />
                 )}
               </div>

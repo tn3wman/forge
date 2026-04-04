@@ -143,6 +143,7 @@ pub fn run() {
             commands::search::github_search,
             commands::terminal::terminal_discover_clis,
             commands::terminal::terminal_create_session,
+            commands::terminal::terminal_attach,
             commands::terminal::terminal_list_sessions,
             commands::terminal::terminal_write,
             commands::terminal::terminal_resize,

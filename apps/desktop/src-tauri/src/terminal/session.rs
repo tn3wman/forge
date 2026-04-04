@@ -11,6 +11,8 @@ pub struct PtySession {
     pty: portable_pty::PtyPair,
     killed: Arc<AtomicBool>,
     child: Box<dyn portable_pty::Child + Send + Sync>,
+    reader: Option<Box<dyn Read + Send>>,
+    session_id: String,
 }
 
 impl PtySession {
@@ -25,7 +27,6 @@ impl PtySession {
         _effort: Option<&str>,
         initial_cols: Option<u16>,
         initial_rows: Option<u16>,
-        app_handle: AppHandle,
     ) -> Result<Self, String> {
         let pty_system = native_pty_system();
 
@@ -38,40 +39,53 @@ impl PtySession {
             })
             .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
-        let cli_path = crate::shell_env::which(cli_name)
-            .map_err(|_| format!("CLI '{}' not found in PATH", cli_name))?;
+        let is_shell = cli_name == "shell";
+        let cli_path = if is_shell {
+            // Spawn the user's default login shell
+            std::path::PathBuf::from(
+                std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".into()),
+            )
+        } else {
+            crate::shell_env::which(cli_name)
+                .map_err(|_| format!("CLI '{}' not found in PATH", cli_name))?
+        };
 
         let mut cmd = CommandBuilder::new(&cli_path);
         crate::shell_env::apply_env_pty(&mut cmd);
 
-        // Determine effective settings from new fields or legacy mode fallback
-        let is_full_access = permission_mode == Some("fullAccess")
-            || matches!(mode, AgentMode::DangerouslyBypassPermissions);
-        let is_plan = plan_mode || matches!(mode, AgentMode::Plan);
+        if is_shell {
+            // Launch as interactive login shell
+            cmd.arg("-l");
+        } else {
+            // Determine effective settings from new fields or legacy mode fallback
+            let is_full_access = permission_mode == Some("fullAccess")
+                || matches!(mode, AgentMode::DangerouslyBypassPermissions);
+            let is_plan = plan_mode || matches!(mode, AgentMode::Plan);
 
-        if cli_name == "claude" {
-            if is_full_access {
-                cmd.arg("--dangerously-skip-permissions");
-            }
-            if is_plan {
-                cmd.arg("--plan");
-            }
-            if let Some(m) = model {
-                cmd.arg("--model");
-                cmd.arg(m);
-            }
-        } else if cli_name == "codex" {
-            if is_full_access {
-                cmd.arg("--full-auto");
-            }
-            if let Some(m) = model {
-                cmd.arg("--model");
-                cmd.arg(m);
-            }
-        } else if cli_name == "aider" {
-            if let Some(m) = model {
-                cmd.arg("--model");
-                cmd.arg(m);
+            if cli_name == "claude" {
+                if is_full_access {
+                    cmd.arg("--dangerously-skip-permissions");
+                }
+                if is_plan {
+                    cmd.arg("--plan");
+                }
+                if let Some(m) = model {
+                    cmd.arg("--model");
+                    cmd.arg(m);
+                }
+            } else if cli_name == "codex" {
+                if is_full_access {
+                    cmd.arg("--full-auto");
+                }
+                if let Some(m) = model {
+                    cmd.arg("--model");
+                    cmd.arg(m);
+                }
+            } else if cli_name == "aider" {
+                if let Some(m) = model {
+                    cmd.arg("--model");
+                    cmd.arg(m);
+                }
             }
         }
 
@@ -89,21 +103,39 @@ impl PtySession {
             .take_writer()
             .map_err(|e| format!("Failed to get PTY writer: {e}"))?;
 
-        let mut reader = pty
+        let reader = pty
             .master
             .try_clone_reader()
             .map_err(|e| format!("Failed to get PTY reader: {e}"))?;
 
         let killed = Arc::new(AtomicBool::new(false));
-        let killed_clone = killed.clone();
-        let sid = session_id.clone();
 
-        // Spawn a native thread for blocking PTY reads with time-based buffering.
-        // Coalesces rapid small reads into fewer, larger IPC events (~60 fps).
+        Ok(Self {
+            writer,
+            pty,
+            killed,
+            child,
+            reader: Some(reader),
+            session_id,
+        })
+    }
+
+    /// Start the PTY reader thread. Call this only after the frontend event
+    /// listener is attached so no output events are lost.
+    pub fn start_reading(&mut self, app_handle: AppHandle) {
+        let mut reader = match self.reader.take() {
+            Some(r) => r,
+            None => return, // already started
+        };
+
+        let killed_clone = self.killed.clone();
+        let sid = self.session_id.clone();
+
         std::thread::spawn(move || {
             let mut buf = [0u8; 4096];
             let mut pending: Vec<u8> = Vec::new();
-            let mut last_emit = Instant::now();
+            // Initialize to the past so the very first chunk is flushed immediately.
+            let mut last_emit = Instant::now() - FLUSH_INTERVAL;
             const FLUSH_INTERVAL: Duration = Duration::from_millis(16);
             const MAX_PENDING: usize = 32768;
 
@@ -150,13 +182,6 @@ impl PtySession {
                 },
             );
         });
-
-        Ok(Self {
-            writer,
-            pty,
-            killed,
-            child,
-        })
     }
 
     pub fn write(&mut self, data: &[u8]) -> Result<(), String> {

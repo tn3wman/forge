@@ -31,12 +31,11 @@ impl SessionManager {
         }
     }
 
-    const ALLOWED_CLIS: &[&str] = &["claude", "codex", "aider"];
+    const ALLOWED_CLIS: &[&str] = &["claude", "codex", "aider", "shell"];
 
     pub fn create_session(
         &self,
         request: CreateSessionRequest,
-        app_handle: AppHandle,
     ) -> Result<SessionInfo, String> {
         if !Self::ALLOWED_CLIS.contains(&request.cli_name.as_str()) {
             return Err(format!("CLI '{}' is not permitted", request.cli_name));
@@ -48,6 +47,7 @@ impl SessionManager {
             "claude" => "Claude Code",
             "codex" => "Codex CLI",
             "aider" => "Aider",
+            "shell" => "Terminal",
             other => other,
         }
         .to_string();
@@ -63,7 +63,6 @@ impl SessionManager {
             request.effort.as_deref(),
             request.initial_cols,
             request.initial_rows,
-            app_handle,
         )?;
 
         let created_at = SystemTime::now()
@@ -102,6 +101,15 @@ impl SessionManager {
         self.sessions.lock().unwrap().insert(id, entry);
 
         Ok(info)
+    }
+
+    pub fn attach_session(&self, session_id: &str, app_handle: AppHandle) -> Result<(), String> {
+        let mut sessions = self.sessions.lock().unwrap();
+        let entry = sessions
+            .get_mut(session_id)
+            .ok_or_else(|| format!("Session '{}' not found", session_id))?;
+        entry.session.start_reading(app_handle);
+        Ok(())
     }
 
     pub fn list_sessions(&self, workspace_id: Option<&str>) -> Vec<SessionInfo> {

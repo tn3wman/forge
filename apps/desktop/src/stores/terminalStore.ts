@@ -17,6 +17,7 @@ export interface TerminalTab {
   status: "pre-session" | "active";
   workingDirectory?: string;    // optional override for the working directory
   purpose?: TabPurpose;         // optional metadata for purpose-driven tabs (e.g. create-issue)
+  prefill?: string;             // optional command to pre-populate in terminal (not executed)
 }
 
 /** Deterministic string hash → hue (0-360) so the same label always gets the same color. */
