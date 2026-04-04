@@ -215,3 +215,24 @@ export function useCreateIssue() {
     },
   });
 }
+
+export function useCreateRepo() {
+  return useMutation({
+    mutationFn: (args: {
+      name: string;
+      isPrivate: boolean;
+      autoInit: boolean;
+      description?: string;
+      gitignoreTemplate?: string;
+      licenseTemplate?: string;
+    }) =>
+      githubIpc.createRepo(
+        args.name,
+        args.isPrivate,
+        args.autoInit,
+        args.description,
+        args.gitignoreTemplate,
+        args.licenseTemplate,
+      ),
+  });
+}

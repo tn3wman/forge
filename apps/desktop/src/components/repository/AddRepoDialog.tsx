@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Lock, Star, Loader2, Check, ArrowRight } from "lucide-react";
+import { Search, Lock, Star, Loader2, Check, ArrowRight, Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { repoIpc, type SearchRepoResult } from "@/ipc/repository";
 import { useAddRepo, useRepositories } from "@/queries/useRepositories";
 import { useWorkspaceStore } from "@/stores/workspaceStore";
 import { useAuthStore } from "@/stores/authStore";
+import { CreateRepoDialog } from "./CreateRepoDialog";
 
 interface AddRepoDialogProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function AddRepoDialog({ open, onOpenChange, onClose }: AddRepoDialogProp
   const { data: existingRepos } = useRepositories(activeWorkspaceId);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
   const [addedRepoIds, setAddedRepoIds] = useState<string[]>([]);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   // Load user repos on open
   useEffect(() => {
@@ -93,6 +95,32 @@ export function AddRepoDialog({ open, onOpenChange, onClose }: AddRepoDialogProp
     }
   }
 
+  async function handleRepoCreated(repo: {
+    githubId: number;
+    fullName: string;
+    name: string;
+    owner: string;
+    isPrivate: boolean;
+    defaultBranch: string;
+  }) {
+    if (!activeWorkspaceId) return;
+    try {
+      const newRepo = await addRepo.mutateAsync({
+        workspaceId: activeWorkspaceId,
+        owner: repo.owner,
+        name: repo.name,
+        fullName: repo.fullName,
+        githubId: repo.githubId,
+        isPrivate: repo.isPrivate,
+        defaultBranch: repo.defaultBranch,
+      });
+      setAddedIds((prev) => new Set(prev).add(repo.githubId));
+      setAddedRepoIds((prev) => [...prev, newRepo.id]);
+    } catch (e) {
+      console.error("Failed to add created repo:", e);
+    }
+  }
+
   function handleOpenChange(nextOpen: boolean) {
     onOpenChange(nextOpen);
   }
@@ -117,6 +145,15 @@ export function AddRepoDialog({ open, onOpenChange, onClose }: AddRepoDialogProp
             autoFocus
           />
         </div>
+
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2"
+          onClick={() => setShowCreateDialog(true)}
+        >
+          <Plus className="h-4 w-4" />
+          Create new repository
+        </Button>
 
         <div className="max-h-[300px] overflow-y-auto">
           {isSearching ? (
@@ -206,6 +243,12 @@ export function AddRepoDialog({ open, onOpenChange, onClose }: AddRepoDialogProp
           </div>
         )}
       </DialogContent>
+
+      <CreateRepoDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onCreated={handleRepoCreated}
+      />
     </Dialog>
   );
 }
