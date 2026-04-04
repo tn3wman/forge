@@ -171,6 +171,22 @@ export const ToolInputSummary = memo(function ToolInputSummary({
   }
 
   if (name === "askuserquestion") {
+    const questions = toolInput.questions as Array<{ question: string; header?: string; options?: Array<{ label: string }> }> | undefined;
+    if (Array.isArray(questions)) {
+      return (
+        <div className="space-y-1 text-xs">
+          {questions.map((q, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <MessageCircleQuestion className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+              <span className="text-foreground">{q.header ?? q.question}</span>
+              {q.options && (
+                <span className="text-muted-foreground">({q.options.length} options)</span>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
     const question = toolInput.question as string;
     return (
       <div className="flex items-center gap-2 text-xs">

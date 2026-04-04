@@ -55,8 +55,8 @@ impl AgentSession {
         self.backend.send_message(message, images)
     }
 
-    pub fn respond_permission(&mut self, tool_use_id: &str, allow: bool) -> Result<(), String> {
-        self.backend.respond_permission(tool_use_id, allow)
+    pub fn respond_permission(&mut self, tool_use_id: &str, allow: bool, result_text: Option<&str>) -> Result<(), String> {
+        self.backend.respond_permission(tool_use_id, allow, result_text)
     }
 
     pub fn update_permission_mode(&mut self, mode: &str) -> Result<(), String> {

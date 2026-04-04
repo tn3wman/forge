@@ -150,12 +150,13 @@ impl AgentSessionManager {
         session_id: &str,
         tool_use_id: &str,
         allow: bool,
+        result_text: Option<&str>,
     ) -> Result<(), String> {
         let mut sessions = self.sessions.lock().unwrap();
         let entry = sessions
             .get_mut(session_id)
             .ok_or_else(|| format!("Agent session '{}' not found", session_id))?;
-        entry.session.respond_permission(tool_use_id, allow)
+        entry.session.respond_permission(tool_use_id, allow, result_text)
     }
 
     pub fn abort_session(&self, session_id: &str) -> Result<(), String> {

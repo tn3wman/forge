@@ -10,7 +10,8 @@ pub trait AgentBackend: Send {
     fn send_message(&mut self, message: &str, images: Option<&[ImageAttachment]>) -> Result<(), String>;
 
     /// Respond to a permission/tool-use request from the agent.
-    fn respond_permission(&mut self, tool_use_id: &str, allow: bool) -> Result<(), String>;
+    /// `result_text` optionally carries the user's selected option for structured questions.
+    fn respond_permission(&mut self, tool_use_id: &str, allow: bool, result_text: Option<&str>) -> Result<(), String>;
 
     /// Update the permission mode for the running agent.
     fn update_permission_mode(&mut self, mode: &str) -> Result<(), String>;
