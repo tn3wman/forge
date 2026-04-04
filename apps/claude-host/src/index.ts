@@ -724,7 +724,11 @@ async function handleCommand(command: HostCommand) {
       session.pendingApprovals.delete(command.approvalId);
       const updatedInput = { ...pending.toolInput };
       if (command.allow && command.resultText) {
-        updatedInput.result = command.resultText;
+        try {
+          updatedInput.answers = JSON.parse(command.resultText);
+        } catch {
+          updatedInput.answers = { response: command.resultText };
+        }
       }
       pending.resolve(
         command.allow

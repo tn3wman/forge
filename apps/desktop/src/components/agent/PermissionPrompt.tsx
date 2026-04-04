@@ -134,7 +134,7 @@ function StructuredQuestionPrompt({
 
   const handleSelect = (questionIndex: number, label: string) => {
     if (isSingleQuestion) {
-      onRespond(true, label);
+      onRespond(true, JSON.stringify({ [questions[0].question]: label }));
       return;
     }
     setSelections((prev) => ({ ...prev, [questionIndex]: label }));
@@ -144,10 +144,11 @@ function StructuredQuestionPrompt({
 
   const handleSubmit = () => {
     if (!allAnswered) return;
-    const result = questions
-      .map((q, i) => `${q.header ?? q.question}: ${selections[i]}`)
-      .join("\n");
-    onRespond(true, result);
+    const answers: Record<string, string> = {};
+    questions.forEach((q, i) => {
+      answers[q.question] = selections[i];
+    });
+    onRespond(true, JSON.stringify(answers));
   };
 
   return (
