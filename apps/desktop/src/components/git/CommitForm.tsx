@@ -95,7 +95,7 @@ export function CommitForm({ localPath, stagedCount }: CommitFormProps) {
           <span className="text-destructive truncate ml-2">
             {generateMutation.error instanceof Error
               ? generateMutation.error.message
-              : "Failed to generate message"}
+              : String(generateMutation.error)}
           </span>
         )}
       </div>
@@ -117,7 +117,7 @@ export function CommitForm({ localPath, stagedCount }: CommitFormProps) {
           onClick={handleGenerate}
           disabled={stagedCount === 0 || generateMutation.isPending}
           className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-          title="Generate commit message with AI"
+          title={stagedCount === 0 ? "Stage changes first" : "Generate commit message with AI"}
         >
           {generateMutation.isPending ? (
             <Loader2 className="h-3 w-3 animate-spin" />

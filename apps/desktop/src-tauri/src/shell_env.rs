@@ -94,6 +94,8 @@ fn build_fallback_path() -> String {
     let candidates = [
         format!("{home}/.cargo/bin"),
         format!("{home}/.local/bin"),
+        format!("{home}/.volta/bin"),
+        format!("{home}/.npm-global/bin"),
         "/usr/local/bin".into(),
         "/opt/homebrew/bin".into(),
         "/opt/homebrew/sbin".into(),
