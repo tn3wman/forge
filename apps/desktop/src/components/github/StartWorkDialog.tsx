@@ -110,12 +110,20 @@ export function StartWorkDialog({ open, onOpenChange, issue, linkedPrs }: StartW
     return worktrees.find((wt) => !wt.isMain && wt.branch && knownBranches.has(wt.branch));
   }, [worktrees, branchName, linkedPrs, issueDetail]);
 
-  // Set default base branch
+  // Set default base branch — verify it exists locally before using GitHub API value
   useEffect(() => {
-    if (repo?.defaultBranch && !baseBranch) {
+    if (baseBranch || !branches) return;
+    const localNames = branches.filter((b) => !b.isRemote).map((b) => b.name);
+    if (repo?.defaultBranch && localNames.includes(repo.defaultBranch)) {
       setBaseBranch(repo.defaultBranch);
+    } else if (localNames.includes("main")) {
+      setBaseBranch("main");
+    } else if (localNames.includes("master")) {
+      setBaseBranch("master");
+    } else if (localNames.length > 0) {
+      setBaseBranch(localNames[0]);
     }
-  }, [repo?.defaultBranch, baseBranch]);
+  }, [repo?.defaultBranch, baseBranch, branches]);
 
   // Check if local base branch is behind remote
   useEffect(() => {
@@ -138,14 +146,14 @@ export function StartWorkDialog({ open, onOpenChange, issue, linkedPrs }: StartW
     else if (step !== "idle") setPhase("creating");
   }, [step]);
 
-  // Reset when dialog opens
+  // Reset when dialog opens — clear baseBranch so the default-setting effect re-runs
   useEffect(() => {
     if (open) {
       reset();
       setPhase("configure");
-      setBaseBranch(repo?.defaultBranch ?? "");
+      setBaseBranch("");
     }
-  }, [open, reset, repo?.defaultBranch]);
+  }, [open, reset]);
 
   const hasLinkedPr = linkedPrs && linkedPrs.length > 0;
 
@@ -205,6 +213,11 @@ export function StartWorkDialog({ open, onOpenChange, issue, linkedPrs }: StartW
     () => branches?.filter((b) => !b.isRemote) ?? [],
     [branches],
   );
+
+  const remoteRefMissing = useMemo(() => {
+    if (!branches || !baseBranch) return false;
+    return !branches.some((b) => b.isRemote && b.name === `origin/${baseBranch}`);
+  }, [branches, baseBranch]);
 
   const noLocalPath = !repo?.localPath;
 
@@ -276,6 +289,15 @@ export function StartWorkDialog({ open, onOpenChange, issue, linkedPrs }: StartW
                 ))}
               </select>
             </div>
+
+            {/* Remote ref missing warning */}
+            {remoteRefMissing && !syncNeeded && (
+              <div className="rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2">
+                <p className="text-xs text-yellow-500">
+                  Remote tracking branch &apos;origin/{baseBranch}&apos; not found locally. The correct remote branch will be resolved automatically when starting work.
+                </p>
+              </div>
+            )}
 
             {/* Sync warning */}
             {(syncNeeded || syncError) && (

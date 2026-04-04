@@ -56,10 +56,29 @@ export function useStartWork() {
         setStep("fetching");
         await gitIpc.fetch(config.repoLocalPath);
 
+        // Verify the remote ref exists after fetch; auto-resolve if needed
+        const freshBranches = await gitIpc.listBranches(config.repoLocalPath);
+        const remoteBranches = freshBranches.filter((b) => b.isRemote);
+        let resolvedBase = config.baseBranch;
+
+        if (!remoteBranches.some((b) => b.name === `origin/${resolvedBase}`)) {
+          const fallback = ["main", "master"].find((f) =>
+            remoteBranches.some((b) => b.name === `origin/${f}`),
+          );
+          if (fallback) {
+            resolvedBase = fallback;
+          } else {
+            const available = remoteBranches.map((b) => b.name).join(", ");
+            throw new Error(
+              `Remote branch 'origin/${config.baseBranch}' not found. Available: ${available}`,
+            );
+          }
+        }
+
         // Step 2: Create branch from base
         setStep("creating-branch");
         try {
-          await gitIpc.createBranch(config.repoLocalPath, branchName, `origin/${config.baseBranch}`);
+          await gitIpc.createBranch(config.repoLocalPath, branchName, `origin/${resolvedBase}`);
         } catch (e: unknown) {
           const msg = e instanceof Error ? e.message : String(e);
           // If branch already exists, that's OK — we'll reuse it
@@ -97,7 +116,7 @@ export function useStartWork() {
           config.issueTitle,
           prBody,
           branchName,
-          config.baseBranch,
+          resolvedBase,
           true,
         );
 
