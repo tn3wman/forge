@@ -75,7 +75,7 @@ pub fn create_branch(
     let target_commit = if let Some(ref_name) = from_ref {
         let reference = repo
             .resolve_reference_from_short_name(ref_name)
-            .map_err(|e| format!("Failed to resolve ref '{ref_name}': {e}"))?;
+            .map_err(|e| format!("Cannot find ref '{ref_name}'. Ensure 'git fetch' has been run. Error: {e}"))?;
         reference
             .peel_to_commit()
             .map_err(|e| format!("Failed to peel to commit: {e}"))?
