@@ -100,8 +100,9 @@ pub fn pull(
     Ok(())
 }
 
-/// Fast-forward a specific branch ref to match its remote tracking branch,
-/// without touching HEAD or the working tree.
+/// Fast-forward a specific branch ref to match its remote tracking branch.
+/// If the branch is checked out in a worktree, updates the working tree and
+/// index to match the new commit.
 pub fn sync_branch(
     path: &str,
     remote_name: &str,
@@ -157,6 +158,47 @@ pub fn sync_branch(
         &format!("sync_branch: fast-forward {branch}"),
     )
     .map_err(|e| format!("Failed to update ref: {e}"))?;
+
+    // If the branch is checked out, update the working tree and index
+    let head_matches = repo
+        .head()
+        .ok()
+        .and_then(|h| h.shorthand().map(|s| s == branch))
+        .unwrap_or(false);
+
+    if head_matches {
+        // Branch is checked out in the main worktree
+        repo.set_head(&local_refname)
+            .map_err(|e| format!("Failed to set HEAD: {e}"))?;
+        repo.checkout_head(Some(git2::build::CheckoutBuilder::new().force()))
+            .map_err(|e| format!("Failed to checkout: {e}"))?;
+    } else {
+        // Check if the branch is checked out in a linked worktree
+        if let Ok(worktree_names) = repo.worktrees() {
+            for i in 0..worktree_names.len() {
+                if let Some(name) = worktree_names.get(i) {
+                    if let Ok(wt) = repo.find_worktree(name) {
+                        if let Ok(wt_repo) = Repository::open(wt.path()) {
+                            let wt_head_matches = wt_repo
+                                .head()
+                                .ok()
+                                .and_then(|h| h.shorthand().map(|s| s == branch))
+                                .unwrap_or(false);
+                            if wt_head_matches {
+                                wt_repo
+                                    .checkout_head(Some(
+                                        git2::build::CheckoutBuilder::new().force(),
+                                    ))
+                                    .map_err(|e| {
+                                        format!("Failed to checkout worktree '{name}': {e}")
+                                    })?;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Ok(())
 }
