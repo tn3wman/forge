@@ -386,11 +386,18 @@ export function StartWorkDialog({ open, onOpenChange, issue, linkedPrs }: StartW
                   <span>Draft PR #{result.prNumber}</span>
                   {result.prUrl && (
                     <a
-                      href={result.prUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:underline inline-flex items-center gap-0.5"
-                      onClick={(e) => e.stopPropagation()}
+                      className="text-blue-400 hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+                      role="link"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        try {
+                          const { openUrl } = await import("@tauri-apps/plugin-opener");
+                          await openUrl(result.prUrl!);
+                        } catch {
+                          window.open(result.prUrl, "_blank");
+                        }
+                      }}
                     >
                       <ExternalLink className="h-3 w-3" />
                     </a>
