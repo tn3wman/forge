@@ -63,7 +63,7 @@ export const TerminalView = memo(function TerminalView({ sessionId, isActive, al
     // the terminal is properly sized — early PTY output buffers in Tauri events.
     const rafId = requestAnimationFrame(() => {
       fitAddon.fit();
-      try { term.loadAddon(new WebglAddon()); } catch { /* fallback to canvas */ }
+      try { term.loadAddon(new WebglAddon()); } catch (e) { console.warn("WebGL addon failed, using canvas:", e); }
       setTerminal(term);
     });
 
@@ -96,12 +96,13 @@ export const TerminalView = memo(function TerminalView({ sessionId, isActive, al
     };
   }, []);
 
-  // Refit terminal when it becomes active or when home page becomes visible
+  // Focus terminal when it becomes active. Refitting is handled by the
+  // ResizeObserver which fires when the container transitions from
+  // display:none to display:block, so we only need to focus here.
   const isHomePage = useWorkspaceStore((s) => s.activePage === "home");
   useEffect(() => {
     if (isActive && isHomePage) {
       const id = requestAnimationFrame(() => {
-        fitAddonRef.current?.fit();
         terminal?.focus();
       });
       return () => cancelAnimationFrame(id);
