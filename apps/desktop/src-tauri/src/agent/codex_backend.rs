@@ -28,6 +28,22 @@ pub struct CodexBackend {
     request_counter: Arc<AtomicU64>,
     /// Maps JSON-RPC server request IDs to their method + itemId for approval routing
     pending_approvals: Arc<Mutex<std::collections::HashMap<String, PendingApproval>>>,
+    // Stored for process restart on mode change
+    session_id: String,
+    working_directory: Option<String>,
+    app_handle: AppHandle,
+    mode: AgentMode,
+}
+
+/// Raw parts returned by [`spawn_codex_process`] before being assembled into a [`CodexBackend`].
+struct CodexProcessParts {
+    child: Child,
+    stdin: Option<ChildStdin>,
+    killed: Arc<AtomicBool>,
+    thread_id: Arc<Mutex<Option<String>>>,
+    turn_id: Arc<Mutex<Option<String>>>,
+    request_counter: Arc<AtomicU64>,
+    pending_approvals: Arc<Mutex<std::collections::HashMap<String, PendingApproval>>>,
 }
 
 #[derive(Clone)]
@@ -45,317 +61,27 @@ impl CodexBackend {
         plan_mode: bool,
         app_handle: AppHandle,
     ) -> Result<Self, String> {
-        let cli_path =
-            crate::shell_env::which("codex").map_err(|_| "CLI 'codex' not found in PATH".to_string())?;
-
-        let mut cmd = Command::new(&cli_path);
-        crate::shell_env::apply_env(&mut cmd);
-        cmd.arg("app-server")
-            .arg("--listen")
-            .arg("stdio://")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-
-        if let Some(dir) = working_directory {
-            cmd.current_dir(dir);
-        }
-
-        let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn codex app-server: {e}"))?;
-
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| "Failed to capture stdout".to_string())?;
-        let stderr = child
-            .stderr
-            .take()
-            .ok_or_else(|| "Failed to capture stderr".to_string())?;
-        let mut stdin = child.stdin.take();
-
-        let killed = Arc::new(AtomicBool::new(false));
-        let thread_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
-        let turn_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
-        let request_counter = Arc::new(AtomicU64::new(1));
-        let pending_approvals: Arc<Mutex<std::collections::HashMap<String, PendingApproval>>> =
-            Arc::new(Mutex::new(std::collections::HashMap::new()));
-        let turn_start_time: Arc<Mutex<Option<std::time::Instant>>> = Arc::new(Mutex::new(None));
-        let input_tokens: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
-        let output_tokens: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
-
-        let approval_mode = match mode {
-            AgentMode::FullAccess => "never",
-            AgentMode::Assisted => "on-request",
-            AgentMode::Supervised => "untrusted",
-        };
-        let unified_mode = codex_mode_to_unified(mode);
-
-        // Supervised uses workspace-write (not read-only) because the approval
-        // policy "untrusted" already gates every action through user approval.
-        // read-only would block writes entirely, even after approval.
-        // Plan mode overrides to read-only below via the thread/start config.
-        let sandbox_mode = match mode {
-            AgentMode::FullAccess => "danger-full-access",
-            AgentMode::Assisted => "workspace-write",
-            AgentMode::Supervised => "workspace-write",
-        };
-
-        // Send initialize request
-        let init_id = 0u64;
-        if let Some(ref mut writer) = stdin {
-            let msg = serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": init_id,
-                "method": "initialize",
-                "params": {
-                    "clientInfo": {
-                        "name": "forge",
-                        "version": "0.1.0"
-                    }
-                }
-            });
-            let _ = writer.write_all(msg.to_string().as_bytes());
-            let _ = writer.write_all(b"\n");
-            let _ = writer.flush();
-        }
-
-        // Stdout reader thread
-        {
-            let killed = killed.clone();
-            let thread_id = thread_id.clone();
-            let turn_id = turn_id.clone();
-            let pending_approvals = pending_approvals.clone();
-            let turn_start_time = turn_start_time.clone();
-            let input_tokens = input_tokens.clone();
-            let output_tokens = output_tokens.clone();
-            let session_id_clone = session_id.clone();
-            let app_handle_clone = app_handle.clone();
-
-            std::thread::spawn(move || {
-                let reader = BufReader::new(stdout);
-                for line in reader.lines() {
-                    if killed.load(Ordering::Relaxed) {
-                        break;
-                    }
-                    let line = match line {
-                        Ok(l) => l,
-                        Err(_) => break,
-                    };
-                    if line.trim().is_empty() {
-                        continue;
-                    }
-                    let json: serde_json::Value = match serde_json::from_str(&line) {
-                        Ok(v) => v,
-                        Err(_) => continue,
-                    };
-
-                    // Handle JSON-RPC responses (to our requests)
-                    if json.get("result").is_some() {
-                        // Extract thread ID from thread/start response
-                        if let Some(tid) = json.pointer("/result/thread/id").and_then(|v| v.as_str()) {
-                            if let Ok(mut t) = thread_id.lock() {
-                                *t = Some(tid.to_string());
-                            }
-                        }
-                        continue;
-                    }
-                    if json.get("error").is_some() {
-                        // Log JSON-RPC errors
-                        let err_msg = json.pointer("/error/message")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("unknown error");
-                        eprintln!("[forge/codex] JSON-RPC error: {}", err_msg);
-                        continue;
-                    }
-
-                    // Handle JSON-RPC notifications (server → client)
-                    if let Some(method) = json.get("method").and_then(|m| m.as_str()) {
-                        let params = json.get("params").cloned().unwrap_or(serde_json::Value::Null);
-
-                        // Check if this is a server request (has "id" field = needs response)
-                        let is_request = json.get("id").is_some();
-
-                        let events = parse_codex_notification(
-                            method,
-                            &params,
-                            is_request,
-                            json.get("id"),
-                            &thread_id,
-                            &turn_id,
-                            &pending_approvals,
-                            &turn_start_time,
-                            &input_tokens,
-                            &output_tokens,
-                        );
-
-                        for event in events {
-                            let _ = app_handle_clone.emit(
-                                "agent-event",
-                                AgentEventPayload {
-                                    session_id: session_id_clone.clone(),
-                                    event,
-                                },
-                            );
-                        }
-                    }
-                }
-
-                // EOF — emit exit
-                let _ = app_handle_clone.emit(
-                    "agent-exit",
-                    AgentExitPayload {
-                        session_id: session_id_clone,
-                        exit_code: None,
-                    },
-                );
-            });
-        }
-
-        // Stderr reader thread
-        {
-            let killed = killed.clone();
-            let session_id_clone = session_id.clone();
-            let app_handle_clone = app_handle.clone();
-
-            std::thread::spawn(move || {
-                let reader = BufReader::new(stderr);
-                for line in reader.lines() {
-                    if killed.load(Ordering::Relaxed) {
-                        break;
-                    }
-                    let line = match line {
-                        Ok(l) => l,
-                        Err(_) => break,
-                    };
-                    if line.contains("Error") || line.contains("error") {
-                        let _ = app_handle_clone.emit(
-                            "agent-event",
-                            AgentEventPayload {
-                                session_id: session_id_clone.clone(),
-                                event: AgentEvent::Raw {
-                                    data: serde_json::json!({
-                                        "type": "stderr",
-                                        "message": line,
-                                    }),
-                                },
-                            },
-                        );
-                    }
-                }
-            });
-        }
-
-        // Wait briefly for initialize response, then send initialized + thread/start + turn/start
-        // We send them sequentially via stdin
-        if let Some(ref mut writer) = stdin {
-            // Send `initialized` notification (no id)
-            let msg = serde_json::json!({
-                "jsonrpc": "2.0",
-                "method": "initialized",
-                "params": {}
-            });
-            let _ = writer.write_all(msg.to_string().as_bytes());
-            let _ = writer.write_all(b"\n");
-
-            // Send thread/start request
-            let thread_start_id = request_counter.fetch_add(1, Ordering::Relaxed);
-            let effective_sandbox = if plan_mode { "read-only" } else { sandbox_mode };
-            let mut thread_start_params = serde_json::json!({
-                "approvalPolicy": approval_mode,
-                "cwd": working_directory,
-                "sandboxPermissions": [effective_sandbox],
-            });
-            if plan_mode {
-                thread_start_params.as_object_mut().unwrap().insert(
-                    "config".to_string(),
-                    serde_json::json!({ "plan": true }),
-                );
-            }
-            let msg = serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": thread_start_id,
-                "method": "thread/start",
-                "params": thread_start_params,
-            });
-            let _ = writer.write_all(msg.to_string().as_bytes());
-            let _ = writer.write_all(b"\n");
-            let _ = writer.flush();
-
-            // Small delay to let thread/start complete before sending turn/start
-            std::thread::sleep(std::time::Duration::from_millis(200));
-
-            // We need the thread_id from the thread/started notification.
-            // Wait for it to be populated (up to 5 seconds)
-            let start = std::time::Instant::now();
-            let resolved_thread_id = loop {
-                if let Ok(tid) = thread_id.lock() {
-                    if let Some(ref id) = *tid {
-                        break id.clone();
-                    }
-                }
-                if start.elapsed() > std::time::Duration::from_secs(5) {
-                    // Fall back to a generated ID — the reader thread will update it
-                    break format!("pending-{}", uuid::Uuid::now_v7());
-                }
-                std::thread::sleep(std::time::Duration::from_millis(50));
-            };
-
-            // Send turn/start with the initial prompt
-            let turn_start_id = request_counter.fetch_add(1, Ordering::Relaxed);
-            let msg = serde_json::json!({
-                "jsonrpc": "2.0",
-                "id": turn_start_id,
-                "method": "turn/start",
-                "params": {
-                    "threadId": resolved_thread_id,
-                    "input": [{
-                        "type": "text",
-                        "text": initial_prompt
-                    }]
-                }
-            });
-            let _ = writer.write_all(msg.to_string().as_bytes());
-            let _ = writer.write_all(b"\n");
-            let _ = writer.flush();
-        }
-
-        // Emit synthetic system_init event for the frontend
-        let _ = app_handle.emit(
-            "agent-event",
-            AgentEventPayload {
-                session_id: session_id.clone(),
-                event: AgentEvent::SystemInit {
-                    session_id: session_id.clone(),
-                    model: Some("codex".to_string()),
-                    permission_mode: Some(unified_mode.to_string()),
-                    tools: None,
-                },
-            },
-        );
-
-        let _ = app_handle.emit(
-            "agent-event",
-            AgentEventPayload {
-                session_id: session_id.clone(),
-                event: AgentEvent::SessionMeta {
-                    provider: Some("codex".to_string()),
-                    conversation_id: None,
-                    agent: None,
-                    effort: None,
-                    claude_path: None,
-                    slash_commands: None,
-                },
-            },
-        );
+        let parts = spawn_codex_process(
+            &session_id,
+            mode,
+            working_directory,
+            plan_mode,
+            &app_handle,
+            Some(initial_prompt),
+        )?;
 
         Ok(Self {
-            child,
-            stdin,
-            killed,
-            thread_id,
-            turn_id,
-            request_counter,
-            pending_approvals,
+            child: parts.child,
+            stdin: parts.stdin,
+            killed: parts.killed,
+            thread_id: parts.thread_id,
+            turn_id: parts.turn_id,
+            request_counter: parts.request_counter,
+            pending_approvals: parts.pending_approvals,
+            session_id,
+            working_directory: working_directory.map(|s| s.to_string()),
+            app_handle,
+            mode: mode.clone(),
         })
     }
 
@@ -379,6 +105,338 @@ impl CodexBackend {
             .map_err(|e| format!("Failed to flush: {e}"))?;
         Ok(())
     }
+}
+
+/// Spawn a `codex app-server` child process, perform the JSON-RPC handshake,
+/// start reader threads, and optionally send the first `turn/start`.
+///
+/// `send_initial_turn` — if `Some(prompt)`, a `turn/start` message is sent after
+/// the thread is established. Pass `None` when restarting for a mode change so the
+/// next `send_message` call becomes the first turn.
+fn spawn_codex_process(
+    session_id: &str,
+    mode: &AgentMode,
+    working_directory: Option<&str>,
+    plan_mode: bool,
+    app_handle: &AppHandle,
+    send_initial_turn: Option<&str>,
+) -> Result<CodexProcessParts, String> {
+    let cli_path =
+        crate::shell_env::which("codex").map_err(|_| "CLI 'codex' not found in PATH".to_string())?;
+
+    let mut cmd = Command::new(&cli_path);
+    crate::shell_env::apply_env(&mut cmd);
+    cmd.arg("app-server")
+        .arg("--listen")
+        .arg("stdio://")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    if let Some(dir) = working_directory {
+        cmd.current_dir(dir);
+    }
+
+    let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn codex app-server: {e}"))?;
+
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "Failed to capture stdout".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "Failed to capture stderr".to_string())?;
+    let mut stdin = child.stdin.take();
+
+    let killed = Arc::new(AtomicBool::new(false));
+    let thread_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let turn_id: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let request_counter = Arc::new(AtomicU64::new(1));
+    let pending_approvals: Arc<Mutex<std::collections::HashMap<String, PendingApproval>>> =
+        Arc::new(Mutex::new(std::collections::HashMap::new()));
+    let turn_start_time: Arc<Mutex<Option<std::time::Instant>>> = Arc::new(Mutex::new(None));
+    let input_tokens: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+    let output_tokens: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+
+    let approval_mode = match mode {
+        AgentMode::FullAccess => "never",
+        AgentMode::Assisted => "on-request",
+        AgentMode::Supervised => "untrusted",
+    };
+    let unified_mode = codex_mode_to_unified(mode);
+
+    // Supervised uses workspace-write (not read-only) because the approval
+    // policy "untrusted" already gates every action through user approval.
+    // read-only would block writes entirely, even after approval.
+    // Plan mode overrides to read-only below via the thread/start config.
+    let sandbox_mode = match mode {
+        AgentMode::FullAccess => "danger-full-access",
+        AgentMode::Assisted => "workspace-write",
+        AgentMode::Supervised => "workspace-write",
+    };
+
+    // Send initialize request
+    let init_id = 0u64;
+    if let Some(ref mut writer) = stdin {
+        let msg = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": init_id,
+            "method": "initialize",
+            "params": {
+                "clientInfo": {
+                    "name": "forge",
+                    "version": "0.1.0"
+                }
+            }
+        });
+        let _ = writer.write_all(msg.to_string().as_bytes());
+        let _ = writer.write_all(b"\n");
+        let _ = writer.flush();
+    }
+
+    // Stdout reader thread
+    {
+        let killed = killed.clone();
+        let thread_id = thread_id.clone();
+        let turn_id = turn_id.clone();
+        let pending_approvals = pending_approvals.clone();
+        let turn_start_time = turn_start_time.clone();
+        let input_tokens = input_tokens.clone();
+        let output_tokens = output_tokens.clone();
+        let session_id_clone = session_id.to_string();
+        let app_handle_clone = app_handle.clone();
+
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                if killed.load(Ordering::Relaxed) {
+                    break;
+                }
+                let line = match line {
+                    Ok(l) => l,
+                    Err(_) => break,
+                };
+                if line.trim().is_empty() {
+                    continue;
+                }
+                let json: serde_json::Value = match serde_json::from_str(&line) {
+                    Ok(v) => v,
+                    Err(_) => continue,
+                };
+
+                // Handle JSON-RPC responses (to our requests)
+                if json.get("result").is_some() {
+                    // Extract thread ID from thread/start response
+                    if let Some(tid) = json.pointer("/result/thread/id").and_then(|v| v.as_str()) {
+                        if let Ok(mut t) = thread_id.lock() {
+                            *t = Some(tid.to_string());
+                        }
+                    }
+                    continue;
+                }
+                if json.get("error").is_some() {
+                    // Log JSON-RPC errors
+                    let err_msg = json.pointer("/error/message")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("unknown error");
+                    eprintln!("[forge/codex] JSON-RPC error: {}", err_msg);
+                    continue;
+                }
+
+                // Handle JSON-RPC notifications (server → client)
+                if let Some(method) = json.get("method").and_then(|m| m.as_str()) {
+                    let params = json.get("params").cloned().unwrap_or(serde_json::Value::Null);
+
+                    // Check if this is a server request (has "id" field = needs response)
+                    let is_request = json.get("id").is_some();
+
+                    let events = parse_codex_notification(
+                        method,
+                        &params,
+                        is_request,
+                        json.get("id"),
+                        &thread_id,
+                        &turn_id,
+                        &pending_approvals,
+                        &turn_start_time,
+                        &input_tokens,
+                        &output_tokens,
+                    );
+
+                    for event in events {
+                        let _ = app_handle_clone.emit(
+                            "agent-event",
+                            AgentEventPayload {
+                                session_id: session_id_clone.clone(),
+                                event,
+                            },
+                        );
+                    }
+                }
+            }
+
+            // EOF — only emit exit if we weren't intentionally killed (e.g. restart)
+            if !killed.load(Ordering::Relaxed) {
+                let _ = app_handle_clone.emit(
+                    "agent-exit",
+                    AgentExitPayload {
+                        session_id: session_id_clone,
+                        exit_code: None,
+                    },
+                );
+            }
+        });
+    }
+
+    // Stderr reader thread
+    {
+        let killed = killed.clone();
+        let session_id_clone = session_id.to_string();
+        let app_handle_clone = app_handle.clone();
+
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines() {
+                if killed.load(Ordering::Relaxed) {
+                    break;
+                }
+                let line = match line {
+                    Ok(l) => l,
+                    Err(_) => break,
+                };
+                if line.contains("Error") || line.contains("error") {
+                    let _ = app_handle_clone.emit(
+                        "agent-event",
+                        AgentEventPayload {
+                            session_id: session_id_clone.clone(),
+                            event: AgentEvent::Raw {
+                                data: serde_json::json!({
+                                    "type": "stderr",
+                                    "message": line,
+                                }),
+                            },
+                        },
+                    );
+                }
+            }
+        });
+    }
+
+    // Wait briefly for initialize response, then send initialized + thread/start + turn/start
+    // We send them sequentially via stdin
+    if let Some(ref mut writer) = stdin {
+        // Send `initialized` notification (no id)
+        let msg = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "initialized",
+            "params": {}
+        });
+        let _ = writer.write_all(msg.to_string().as_bytes());
+        let _ = writer.write_all(b"\n");
+
+        // Send thread/start request
+        let thread_start_id = request_counter.fetch_add(1, Ordering::Relaxed);
+        let effective_sandbox = if plan_mode { "read-only" } else { sandbox_mode };
+        let mut thread_start_params = serde_json::json!({
+            "approvalPolicy": approval_mode,
+            "cwd": working_directory,
+            "sandboxPermissions": [effective_sandbox],
+        });
+        if plan_mode {
+            thread_start_params.as_object_mut().unwrap().insert(
+                "config".to_string(),
+                serde_json::json!({ "plan": true }),
+            );
+        }
+        let msg = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": thread_start_id,
+            "method": "thread/start",
+            "params": thread_start_params,
+        });
+        let _ = writer.write_all(msg.to_string().as_bytes());
+        let _ = writer.write_all(b"\n");
+        let _ = writer.flush();
+
+        // Small delay to let thread/start complete before sending turn/start
+        std::thread::sleep(std::time::Duration::from_millis(200));
+
+        // We need the thread_id from the thread/started notification.
+        // Wait for it to be populated (up to 5 seconds)
+        let start = std::time::Instant::now();
+        let resolved_thread_id = loop {
+            if let Ok(tid) = thread_id.lock() {
+                if let Some(ref id) = *tid {
+                    break id.clone();
+                }
+            }
+            if start.elapsed() > std::time::Duration::from_secs(5) {
+                // Fall back to a generated ID — the reader thread will update it
+                break format!("pending-{}", uuid::Uuid::now_v7());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        };
+
+        // Send turn/start with the initial prompt (only on first spawn, not restart)
+        if let Some(prompt) = send_initial_turn {
+            let turn_start_id = request_counter.fetch_add(1, Ordering::Relaxed);
+            let msg = serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": turn_start_id,
+                "method": "turn/start",
+                "params": {
+                    "threadId": resolved_thread_id,
+                    "input": [{
+                        "type": "text",
+                        "text": prompt
+                    }]
+                }
+            });
+            let _ = writer.write_all(msg.to_string().as_bytes());
+            let _ = writer.write_all(b"\n");
+            let _ = writer.flush();
+        }
+    }
+
+    // Emit synthetic system_init event for the frontend
+    let _ = app_handle.emit(
+        "agent-event",
+        AgentEventPayload {
+            session_id: session_id.to_string(),
+            event: AgentEvent::SystemInit {
+                session_id: session_id.to_string(),
+                model: Some("codex".to_string()),
+                permission_mode: Some(unified_mode.to_string()),
+                tools: None,
+            },
+        },
+    );
+
+    let _ = app_handle.emit(
+        "agent-event",
+        AgentEventPayload {
+            session_id: session_id.to_string(),
+            event: AgentEvent::SessionMeta {
+                provider: Some("codex".to_string()),
+                conversation_id: None,
+                agent: None,
+                effort: None,
+                claude_path: None,
+                slash_commands: None,
+            },
+        },
+    );
+
+    Ok(CodexProcessParts {
+        child,
+        stdin,
+        killed,
+        thread_id,
+        turn_id,
+        request_counter,
+        pending_approvals,
+    })
 }
 
 /// Map our unified AgentMode to the permission mode string used in events.
@@ -795,7 +853,12 @@ fn parse_codex_notification(
 }
 
 impl AgentBackend for CodexBackend {
-    fn send_message(&mut self, message: &str, _images: Option<&[crate::models::agent::ImageAttachment]>) -> Result<(), String> {
+    fn send_message(&mut self, message: &str, images: Option<&[crate::models::agent::ImageAttachment]>) -> Result<(), String> {
+        if let Some(imgs) = images {
+            if !imgs.is_empty() {
+                return Err("Codex CLI does not support image attachments".to_string());
+            }
+        }
         // For follow-up messages, send a new turn/start on the existing thread
         let tid = self
             .thread_id
@@ -858,8 +921,42 @@ impl AgentBackend for CodexBackend {
         }
     }
 
-    fn update_permission_mode(&mut self, _mode: &str) -> Result<(), String> {
-        Ok(()) // Codex backend does not support runtime mode changes
+    fn update_permission_mode(&mut self, mode: &str) -> Result<(), String> {
+        // The Codex app-server protocol doesn't support runtime mode changes —
+        // permissions are set once at thread/start. To change mode we kill the
+        // old process and spawn a fresh one with the new permissions.
+        let new_mode = match mode {
+            "supervised" => AgentMode::Supervised,
+            "assisted" => AgentMode::Assisted,
+            "fullAccess" => AgentMode::FullAccess,
+            other => return Err(format!("Unknown permission mode: {}", other)),
+        };
+
+        // Kill old process — sets killed flag which suppresses the spurious
+        // agent-exit event from the dying reader thread.
+        self.kill();
+
+        // Spawn a fresh process with the new mode, no plan mode, no initial turn.
+        // The next send_message() call becomes the first turn/start.
+        let parts = spawn_codex_process(
+            &self.session_id,
+            &new_mode,
+            self.working_directory.as_deref(),
+            false,
+            &self.app_handle,
+            None,
+        )?;
+
+        self.child = parts.child;
+        self.stdin = parts.stdin;
+        self.killed = parts.killed;
+        self.thread_id = parts.thread_id;
+        self.turn_id = parts.turn_id;
+        self.request_counter = parts.request_counter;
+        self.pending_approvals = parts.pending_approvals;
+        self.mode = new_mode;
+
+        Ok(())
     }
 
     fn abort(&mut self) -> Result<(), String> {
