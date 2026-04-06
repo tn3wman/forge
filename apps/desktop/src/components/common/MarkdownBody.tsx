@@ -62,10 +62,18 @@ export function MarkdownBody({ content, className }: MarkdownBodyProps) {
           ),
           a: ({ children, href, ...props }) => (
             <a
-              href={href}
-              className="text-blue-400 hover:text-blue-300 underline decoration-blue-400/40 hover:decoration-blue-300/60"
-              target="_blank"
-              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline decoration-blue-400/40 hover:decoration-blue-300/60 cursor-pointer"
+              role="link"
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!href) return;
+                try {
+                  const { openUrl } = await import("@tauri-apps/plugin-opener");
+                  await openUrl(href);
+                } catch {
+                  window.open(href, "_blank");
+                }
+              }}
               {...props}
             >
               {children}
