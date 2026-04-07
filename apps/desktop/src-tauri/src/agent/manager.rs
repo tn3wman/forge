@@ -184,6 +184,7 @@ impl AgentSessionManager {
         entry.session.update_permission_mode(permission_str)?;
         entry.info.mode = mode;
         entry.info.permission_mode = Some(permission_str.to_string());
+        entry.info.plan_mode = Some(false);
         Ok(())
     }
 
